@@ -1,21 +1,32 @@
 {
-	"name": "todos",
-	"workspaces": {
-		"packages": ["client", "server"],
-		"catalog": {
-			"@biomejs/biome": "1.9.4"
-		}
-	},
+	"name": "holy-vibe",
+	"workspaces": ["client", "server"],
+	
+	
 	"scripts": {
 		"dev": "turbo run dev",
-		"check": "turbo run check"
+		"build": "turbo build",
+		"check-types": "turbo check-types",
+		"dev:native": "turbo -F native dev",
+		"dev:web": "turbo -F web dev",
+		"dev:server": "turbo -F server dev",
+		"db:push": "turbo -F server db:push",
+		"db:studio": "turbo -F server db:studio",
+		"check": "biome check --write ."
+
 	},
 	"devDependencies": {
-		"@biomejs/biome": "catalog:"
+		"@biomejs/biome": "^2.0.0-beta.6",
+		"turbo": "^2.5.4",
+		"lint-staged": "^15.5.2"
 	},
-	"trustedDependencies": ["@biomejs/biome"],
 	"dependencies": {
-		"turbo": "^2.5.4"
+		"@typescript/native-preview": "^7.0.0-dev.20250616.1"
 	},
-	"packageManager": "bun@1.2.15"
+	"packageManager": "bun@1.2.16",
+	"lint-staged": {
+		"*.{js,ts,cjs,mjs,d.cts,d.mts,jsx,tsx,json,jsonc}": [
+			"biome check --write ."
+		]
+	}
 }

@@ -1,5 +1,5 @@
 import { createRootRouteWithContext, Outlet, redirect } from "@tanstack/react-router"
-import { TanStackRouterDevtools } from "@tanstack/router-devtools"
+import { TanStackRouterDevtools } from "@tanstack/react-router-devtools";
 import { useAuth } from "@/hooks/useAuth"
 import { AppSidebar } from "@/components/app-sidebar"
 import { ThemeProvider } from "@/components/theme-provider"
@@ -42,10 +42,7 @@ function RootComponent() {
 function AuthenticatedLayout() {
   return (
     <div className="flex min-h-screen">
-      <AppSidebar />
-      <main className="flex-1">
-        <Outlet />
-      </main>
+      <Outlet />
     </div>
   )
 }

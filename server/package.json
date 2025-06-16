@@ -1,47 +1,56 @@
 {
-	"name": "@todos/server",
+	"name": "@holy-vibe/server",
 	"private": true,
 	"module": "src/index.ts",
 	"type": "module",
+	"version": "0.0.1",
 	"scripts": {
 		"start": "bun src/index.ts",
 		"dev": "bun --watch src/index.ts",
+		"compile": "bun build --compile --minify --sourcemap --bytecode ./src/index.ts --outfile server",
 		"db:pull": "drizzle-kit pull",
 		"db:push": "drizzle-kit push",
 		"db:check": "drizzle-kit check",
 		"db:generate": "drizzle-kit generate",
 		"db:migrate": "bun run scripts/migrate.ts",
 		"db:drop": "drizzle-kit drop",
-		"db:studio": "drizzle-kit studio",
-		"format": "biome format",
-		"format:write": "biome format --write",
-		"lint": "biome lint",
-		"lint:write": "biome lint --write",
-		"check": "biome check"
+		"db:studio": "drizzle-kit studio"
+
 	},
 	"devDependencies": {
-		"@biomejs/biome": "catalog:",
+	
 		"@types/bun": "^1.2.15",
-		"drizzle-kit": "^0.31.1"
+		"@typescript/native-preview": "^7.0.0-dev.20250616.1",
+		"drizzle-kit": "^0.31.1",
+			"typescript": "^5.8.3"
 	},
-	"peerDependencies": {
-		"typescript": "^5.8.3"
-	},
+	
 	"dependencies": {
-		"@elysiajs/cors": "^1.3.3",
-		"@elysiajs/swagger": "^1.3.0",
-		"@libsql/client": "^0.15.9",
+	
 		"@sinclair/typebox": "^0.34.33",
 		"@tqman/nice-logger": "^1.1.1",
-		"better-auth": "^1.2.9",
-		"drizzle-orm": "^0.44.2",
-		"drizzle-typebox": "^0.3.3",
-		"elysia": "^1.3.4",
+
 		"nanoid": "^5.1.5",
-		"picocolors": "^1.1.1"
+		"picocolors": "^1.1.1",
+		"@elysiajs/cors": "^1.3.3",
+		"@elysiajs/swagger": "^1.3.0",
+		"@google/generative-ai": "^0.24.1",
+		"@libsql/client": "^0.14.0",
+		"@trpc/server": "^11.4.1",
+		"ai": "^4.3.16",
+		"better-auth": "^1.2.9",
+		"dotenv": "^16.5.0",
+		"drizzle-orm": "^0.42.0",
+		"drizzle-typebox": "^0.3.3",
+		"elysia": "^1.3.5",
+		"logixlysia": "^5.0.0",
+		"ollama-ai-provider": "^1.2.0",
+		"openai": "^4.104.0",
+		"pg": "^8.16.0",
+		"zod": "^3.25.64"
 	},
-	"trustedDependencies": ["@biomejs/biome"],
-	"exports": {
-		".": "./src/exports.ts"
+
+	"overrides": {
+		"@sinclair/typebox": "0.32.4"
 	}
 }

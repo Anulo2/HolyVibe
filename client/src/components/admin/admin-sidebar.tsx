@@ -1,14 +1,11 @@
 "use client"
 
-import Link from "next/link"
-import { usePathname } from "next/navigation"
+import { Link } from "@tanstack/react-router"
 import { LayoutDashboard, CalendarDays, Users, UserCheck, Settings, LogOut, BarChart3 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { RoleGuard } from "@/components/admin/role-guard"
 
 export function AdminSidebar() {
-  const pathname = usePathname()
-
   const menuItems = [
     {
       title: "Dashboard",
@@ -51,7 +48,7 @@ export function AdminSidebar() {
   return (
     <div className="w-64 border-r bg-card h-screen flex flex-col">
       <div className="p-6">
-        <Link href="/admin" className="flex items-center gap-2 font-bold text-xl">
+        <Link to="/admin" className="flex items-center gap-2 font-bold text-xl">
           <span className="bg-primary text-primary-foreground p-1 rounded">FA</span>
           <span>Admin Panel</span>
         </Link>
@@ -61,12 +58,14 @@ export function AdminSidebar() {
         {menuItems.map((item) => (
           <RoleGuard key={item.href} allowedRoles={item.roles} fallback={null}>
             <Link
-              href={item.href}
-              className={`flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors ${
-                pathname === item.href
-                  ? "bg-primary/10 text-primary font-medium"
-                  : "text-muted-foreground hover:bg-muted"
-              }`}
+              to={item.href}
+              className={`flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors`}
+              activeProps={{
+                className: "bg-primary/10 text-primary font-medium"
+              }}
+              inactiveProps={{
+                className: "text-muted-foreground hover:bg-muted"
+              }}
             >
               <item.icon className="h-5 w-5" />
               <span>{item.title}</span>

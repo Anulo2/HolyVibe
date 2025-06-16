@@ -1,8 +1,7 @@
 "use client"
 
 import type React from "react"
-
-import { useEffect, useState } from "react"
+import { useAuth } from "@/hooks/useAuth"
 
 interface RoleGuardProps {
   children: React.ReactNode
@@ -11,29 +10,15 @@ interface RoleGuardProps {
 }
 
 export function RoleGuard({ children, allowedRoles, fallback = null }: RoleGuardProps) {
-  // In un'applicazione reale, otterresti il ruolo dell'utente da un contesto di autenticazione
-  // o da una chiamata API. Per questo esempio, simuliamo un ruolo "amministratore"
-  const [userRole, setUserRole] = useState<string | null>(null)
-  const [loading, setLoading] = useState(true)
-
-  useEffect(() => {
-    // Simulazione del caricamento del ruolo utente
-    const fetchUserRole = async () => {
-      // In un'app reale, qui faresti una chiamata API o leggeresti da un context
-      await new Promise((resolve) => setTimeout(resolve, 100))
-      setUserRole("amministratore") // Simuliamo un utente amministratore
-      setLoading(false)
-    }
-
-    fetchUserRole()
-  }, [])
+  const { session, loading } = useAuth()
+  const userRole = session?.user?.role
 
   if (loading) {
-    return null // O un componente di loading
+    return null // Or a loading spinner
   }
 
   if (!userRole || !allowedRoles.includes(userRole)) {
-    return fallback
+    return <>{fallback}</>
   }
 
   return <>{children}</>

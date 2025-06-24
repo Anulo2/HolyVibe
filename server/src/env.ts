@@ -36,6 +36,11 @@ const EnvDTO = Type.Object({
 	HOSTNAME: Type.String({ default: "localhost" }),
 	DATABASE_URL: Type.String({ default: "file:./local.db" }),
 	DATABASE_AUTH_TOKEN: Type.Optional(Type.String()),
+
+	// Better Auth variables
+	AUTH_SECRET: Type.String(),
+	AUTH_TRUSTED_ORIGINS: Type.String(),
+	BASE_URL: Type.String(),
 });
 
 export const isProd = process.env.NODE_ENV === "production";

@@ -1,19 +1,19 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
 import LoginPage from "@/pages/LoginPage";
-import { useAuth } from "@/hooks/useAuth";
 
 export const Route = createFileRoute("/login")({
-  component: LoginComponent,
-  beforeLoad: ({ context }) => {
-    if (context.auth.session) {
-      throw redirect({
-        to: '/dashboard',
-      })
-    }
-  }
+	component: LoginComponent,
+	beforeLoad: ({ context }) => {
+		// Check if user is already authenticated using Better Auth session format
+		if (context.auth.data?.user) {
+			throw redirect({
+				to: "/dashboard",
+			});
+		}
+	},
 });
 
 function LoginComponent() {
-  const { signIn } = useAuth();
-  return <LoginPage onSignIn={signIn} />;
-} 
+	// No need to pass auth functions - LoginPage will use authClient directly
+	return <LoginPage />;
+}

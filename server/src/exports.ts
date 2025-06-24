@@ -1,5 +1,5 @@
-import type { app } from "./app";
-
-export type App = typeof app;
-
+// Export database models
 export type { TodoInsert, TodoSelect } from "./db/models";
+export { contract } from "./orpc/contract";
+// Export oRPC types for client use
+export type { AppRouter, RouterInputs, RouterOutputs } from "./orpc/types";

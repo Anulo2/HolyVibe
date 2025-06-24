@@ -13,29 +13,26 @@
 		"db:check": "drizzle-kit check",
 		"db:generate": "drizzle-kit generate",
 		"db:migrate": "bun run scripts/migrate.ts",
+		"db:seed": "bun run scripts/seed.ts",
+		"db:reset": "bun run scripts/reset-and-seed.ts",
 		"db:drop": "drizzle-kit drop",
 		"db:studio": "drizzle-kit studio"
-
 	},
 	"devDependencies": {
-	
 		"@types/bun": "^1.2.15",
 		"@typescript/native-preview": "^7.0.0-dev.20250616.1",
 		"drizzle-kit": "^0.31.1",
-			"typescript": "^5.8.3"
+		"typescript": "^5.8.3"
 	},
-	
 	"dependencies": {
-	
-		"@sinclair/typebox": "^0.34.33",
-		"@tqman/nice-logger": "^1.1.1",
-
-		"nanoid": "^5.1.5",
-		"picocolors": "^1.1.1",
 		"@elysiajs/cors": "^1.3.3",
 		"@elysiajs/swagger": "^1.3.0",
 		"@google/generative-ai": "^0.24.1",
 		"@libsql/client": "^0.14.0",
+		"@orpc/server": "^1.5.2",
+		"@orpc/zod": "^1.5.2",
+		"@sinclair/typebox": "^0.34.33",
+		"@tqman/nice-logger": "^1.1.1",
 		"@trpc/server": "^11.4.1",
 		"ai": "^4.3.16",
 		"better-auth": "^1.2.9",
@@ -44,12 +41,13 @@
 		"drizzle-typebox": "^0.3.3",
 		"elysia": "^1.3.5",
 		"logixlysia": "^5.0.0",
+		"nanoid": "^5.1.5",
 		"ollama-ai-provider": "^1.2.0",
 		"openai": "^4.104.0",
 		"pg": "^8.16.0",
+		"picocolors": "^1.1.1",
 		"zod": "^3.25.64"
 	},
-
 	"overrides": {
 		"@sinclair/typebox": "0.32.4"
 	}

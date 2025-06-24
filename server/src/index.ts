@@ -1,32 +1,22 @@
-import pc from "picocolors";
-
-import { app } from "./app";
 import { env } from "./env";
+import { app } from "./orpc/app";
 
-const ELYSIA_VERSION = import.meta.require("elysia/package.json").version;
+console.log("🦊 Starting HolyVibe server with oRPC...");
 
-const startTime = performance.now();
+const server = app.listen(env.PORT, () => {
+	console.log(`🚀 oRPC Server running on port ${env.PORT}`);
+	console.log(`📊 Database: ${env.DATABASE_URL}`);
+});
 
-// clear screen
-process.stdout.write("\x1Bc\n");
+// Graceful shutdown
+process.on("SIGTERM", () => {
+	console.log("🛑 SIGTERM received, shutting down gracefully");
+	server.stop();
+	process.exit(0);
+});
 
-app.listen(
-	{
-		port: env.PORT,
-		hostname: env.HOSTNAME,
-	},
-	(server) => {
-		const duration = performance.now() - startTime;
-
-		console.log(
-			`🦊 ${pc.green(`${pc.bold("Elysia")} v${ELYSIA_VERSION}`)} ${pc.gray("started in")} ${pc.bold(duration.toFixed(2))} ms\n`,
-		);
-		console.log(
-			`${pc.green(" ➜ ")} ${pc.bold("Server")}:   ${pc.cyan(String(server.url))}`,
-		);
-		console.log(
-			`${pc.green(" ➜ ")} ${pc.bold("Database")}: ${pc.cyan(env.DATABASE_URL)}`,
-			"\n",
-		);
-	},
-);
+process.on("SIGINT", () => {
+	console.log("🛑 SIGINT received, shutting down gracefully");
+	server.stop();
+	process.exit(0);
+});

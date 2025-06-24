@@ -3,179 +3,84 @@ description:
 globs: 
 alwaysApply: true
 ---
-# Family Management Application - Complete Project Description
+# Church Management Application - Complete Project Description
 
 ## Project Overview
 
-A comprehensive family management platform built with Next.js 15, TypeScript, Tailwind CSS, and Supabase. The application allows parents to manage their families, children, events, and authorized persons for child pickup/supervision.
+A comprehensive church/parish events management platform built with React, TypeScript, Tailwind CSS, and ElysiaJS. The application allows parents to manage their families, children, events, and authorized persons for child pickup/supervision.
 
 ## Tech Stack
 
-- **Frontend**: Next.js 15 (App Router), TypeScript, Tailwind CSS
+- **Frontend**: Tanstack Router, React, TypeScript, Tailwind CSS, elysia eden, tanstack query
 - **UI Components**: shadcn/ui components
-- **Backend**: Supabase (PostgreSQL database, Authentication, Real-time)
-- **Authentication**: Supabase Auth with custom user management
+- **Backend**: ElysiaJS, Drizzle ORM
+- **Authentication**: Better-auth
 - **Styling**: Tailwind CSS with dark/light theme support
 - **Icons**: Lucide React
 
 
-## Database Schema
-
-### Core Tables
-
-#### 1. `users` - User Management
-
-```sql
-- id (uuid, primary key, references auth.users)
-- email (text, unique, not null)
-- full_name (text, not null)
-- avatar_url (text, nullable)
-- phone (text, nullable)
-- role_id (integer, foreign key to roles, default: 1)
-- is_active (boolean, default: true)
-- created_at (timestamp)
-- updated_at (timestamp)
-```
-
-#### 2. `roles` - User Roles
-
-```sql
-- id (serial, primary key)
-- name (text, unique) -- 'user', 'animatore', 'editor', 'amministratore'
-- description (text)
-- permissions (jsonb) -- Role-based permissions
-```
-
-#### 3. `families` - Family Groups
-
-```sql
-- id (uuid, primary key)
-- name (text, not null)
-- description (text, nullable)
-- created_by (uuid, foreign key to users)
-- created_at (timestamp)
-- updated_at (timestamp)
-```
-
-#### 4. `family_members` - Family Membership
-
-```sql
-- id (uuid, primary key)
-- family_id (uuid, foreign key to families)
-- user_id (uuid, foreign key to users)
-- role ('parent', 'guardian')
-- is_admin (boolean, default: false)
-- joined_at (timestamp)
-- created_at (timestamp)
-- updated_at (timestamp)
-```
-
-#### 5. `children` - Child Records
-
-```sql
-- id (uuid, primary key)
-- family_id (uuid, foreign key to families)
-- first_name (text, not null)
-- last_name (text, not null)
-- birth_date (date, not null)
-- birth_place (text, nullable)
-- fiscal_code (text, nullable, unique)
-- gender ('M', 'F', 'O', nullable)
-- allergies (text, nullable)
-- medical_notes (text, nullable)
-- avatar_url (text, nullable)
-- created_at (timestamp)
-- updated_at (timestamp)
-```
-
-#### 6. `authorized_persons` - Pickup Authorization
-
-```sql
-- id (uuid, primary key)
-- family_id (uuid, foreign key to families)
-- full_name (text, not null)
-- relationship (text, not null) -- 'Nonno', 'Nonna', 'Zio', etc.
-- phone (text, nullable)
-- email (text, nullable)
-- avatar_url (text, nullable)
-- document_type (text, nullable) -- 'Carta d\'identità', 'Patente', etc.
-- document_number (text, nullable)
-- document_expiry (date, nullable)
-- is_active (boolean, default: true)
-- created_at (timestamp)
-- updated_at (timestamp)
-```
-
-#### 7. `events` - Event Management
-
-```sql
-- id (uuid, primary key)
-- title (text, not null)
-- description (text, not null)
-- start_date (timestamp, not null)
-- end_date (timestamp, nullable)
-- location (text, not null)
-- min_age (integer, not null)
-- max_age (integer, not null)
-- max_participants (integer, not null)
-- current_participants (integer, default: 0)
-- price (decimal, nullable)
-- status ('draft', 'open', 'closed', 'full', 'cancelled')
-- image_url (text, nullable)
-- created_by (uuid, foreign key to users)
-- created_at (timestamp)
-- updated_at (timestamp)
-```
-
-#### 8. `event_registrations` - Event Signups
-
-```sql
-- id (uuid, primary key)
-- event_id (uuid, foreign key to events)
-- child_id (uuid, foreign key to children)
-- parent_id (uuid, foreign key to users)
-- status ('pending', 'confirmed', 'cancelled', 'waitlist')
-- payment_status ('pending', 'completed', 'failed', 'refunded')
-- registration_date (timestamp)
-- notes (text, nullable)
-- created_at (timestamp)
-- updated_at (timestamp)
-```
-
-#### 9. `registration_authorized_persons` - Event Pickup Authorization
-
-```sql
-- id (uuid, primary key)
-- registration_id (uuid, foreign key to event_registrations)
-- authorized_person_id (uuid, foreign key to authorized_persons)
-- created_at (timestamp)
-```
-
-#### 10. `invitations` - Family Invitations
-
-```sql
-- id (uuid, primary key)
-- family_id (uuid, foreign key to families)
-- email (text, not null)
-- invited_by (uuid, foreign key to users)
-- message (text, nullable)
-- status ('pending', 'accepted', 'rejected', 'expired')
-- token (text, unique, not null)
-- expires_at (timestamp, not null)
-- accepted_at (timestamp, nullable)
-- created_at (timestamp)
-- updated_at (timestamp)
-```
-
 ## Application Structure
+
+### Database Schema
+
+The application uses SQLite with Drizzle ORM. The database structure consists of the following main entities:
+
+#### Authentication Tables (Better Auth)
+
+- **user**: Core user table with id, name, email, phone number, birth date, and verification status
+- **session**: User sessions with tokens, expiration, IP tracking, and user agent
+- **account**: OAuth accounts linking users to external providers
+- **verification**: Email/phone verification tokens and codes
+
+#### Organization Management (Better Auth)
+
+- **organization**: Organizations/churches with name, image, and owner
+- **organizationMember**: Users belonging to organizations with roles
+- **invitation**: Organization invitations with email, token, and expiry
+
+#### Family Management
+
+- **families**: Family groups with name, description, and creator
+- **familyMembers**: Users belonging to families with roles (parent/guardian) and admin status
+- **children**: Child records with personal info, medical notes, allergies, and family association
+- **authorizedPersons**: Non-parent individuals authorized for child pickup with contact and document info
+
+#### Event System
+
+- **events**: Events with title, description, dates, location, age limits, capacity, and pricing
+- **eventRegistrations**: Child registrations for events with status and payment tracking
+- **registrationAuthorizedPersons**: Junction table linking event registrations to authorized pickup persons
+
+#### Invitation System
+
+- **invitations**: Family invitations with email, status, token, and expiry tracking
+
+#### Legacy Tables
+
+- **todos**: Simple todo items (can be removed in future versions)
+
+#### Key Relationships
+
+- Users can belong to multiple families as members
+- Families contain multiple children and authorized persons
+- Events have age-based filtering and capacity management
+- Registrations link children to events with pickup authorization
+- Organizations provide multi-tenancy support for different churches/parishes
+
+#### Data Types & Constraints
+
+- All timestamps stored as Unix timestamps with SQLite integer type
+- Enums implemented as text with CHECK constraints
+- Foreign keys with CASCADE delete for data integrity
+- Boolean fields stored as integers (0/1)
+- Prices stored as text strings for decimal precision
 
 ### Authentication System
 
-- **Supabase Auth Integration**: Email/password authentication
-- **Custom User Management**: Extended user profiles in custom users table
+- **Better Auth Integration**: Phone number authentication
 - **Role-Based Access Control**: Different permission levels (user, animatore, editor, amministratore)
 - **Protected Routes**: Middleware-based route protection
-- **Session Management**: Persistent sessions with proper token handling
+- **Session Management**: Done by better-auth
 
 
 ### User Roles & Permissions
@@ -210,7 +115,7 @@ A comprehensive family management platform built with Next.js 15, TypeScript, Ta
 
 - **Send Invitations**: Invite other parents to join families
 - **Invitation Management**: Track sent and received invitations
-- **Email Notifications**: Automated invitation emails
+- **Email/message Notifications**: Automated invitation emails/messages
 - **Acceptance/Rejection**: Handle invitation responses
 
 
@@ -257,32 +162,6 @@ A comprehensive family management platform built with Next.js 15, TypeScript, Ta
 - **Badge System**: Status indicators for various entities
 
 
-### API Integration
-
-#### Supabase Services
-
-- **Authentication**: Login, signup, password reset
-- **Database Operations**: CRUD operations via Supabase client
-- **Real-time Subscriptions**: Live updates for registrations
-- **File Storage**: Avatar and event image uploads
-
-
-#### Custom Services
-
-- **Family Service**: Family and member management
-- **Event Service**: Event and registration management
-- **User Service**: Profile and preference management
-- **Invitation Service**: Invitation workflow management
-
-
-### Security Features
-
-- **Row Level Security (RLS)**: Database-level access control
-- **Input Sanitization**: XSS protection
-- **CSRF Protection**: Built-in Next.js protection
-- **Secure Authentication**: Supabase Auth with JWT tokens
-- **Role-Based Access**: Function-level permission checks
-
 
 ### Development Patterns
 
@@ -298,7 +177,6 @@ A comprehensive family management platform built with Next.js 15, TypeScript, Ta
 
 - **React Context**: Authentication state
 - **Local State**: Component-specific state
-- **Server State**: Supabase real-time subscriptions
 - **Form State**: React Hook Form integration
 
 
@@ -312,13 +190,10 @@ A comprehensive family management platform built with Next.js 15, TypeScript, Ta
 
 ### Deployment & Configuration
 
-- **Environment Variables**: Supabase configuration
 - **Database Migrations**: Version-controlled schema changes
 - **Seed Data**: Initial roles and test data
 - **Production Optimization**: Build optimization and caching
 
 
-This comprehensive description covers all aspects of the family management application, from database design to user interface implementation, making it suitable for use as a cursor rule or development guide.
+This comprehensive description covers all aspects of the events management application, from database design to user interface implementation, making it suitable for use as a cursor rule or development guide.
 
-
-To configure the generation, complete these steps:

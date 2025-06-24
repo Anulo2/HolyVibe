@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as LoginRouteImport } from './routes/login'
+import { Route as EventiRouteImport } from './routes/eventi'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as IndexRouteImport } from './routes/index'
@@ -22,6 +23,11 @@ import { Route as AdminEventiRouteImport } from './routes/admin/eventi'
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const EventiRoute = EventiRouteImport.update({
+  id: '/eventi',
+  path: '/eventi',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DashboardRoute = DashboardRouteImport.update({
@@ -69,6 +75,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/admin': typeof AdminRouteWithChildren
   '/dashboard': typeof DashboardRoute
+  '/eventi': typeof EventiRoute
   '/login': typeof LoginRoute
   '/admin/eventi': typeof AdminEventiRoute
   '/admin/impostazioni': typeof AdminImpostazioniRoute
@@ -80,6 +87,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/admin': typeof AdminRouteWithChildren
   '/dashboard': typeof DashboardRoute
+  '/eventi': typeof EventiRoute
   '/login': typeof LoginRoute
   '/admin/eventi': typeof AdminEventiRoute
   '/admin/impostazioni': typeof AdminImpostazioniRoute
@@ -92,6 +100,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/admin': typeof AdminRouteWithChildren
   '/dashboard': typeof DashboardRoute
+  '/eventi': typeof EventiRoute
   '/login': typeof LoginRoute
   '/admin/eventi': typeof AdminEventiRoute
   '/admin/impostazioni': typeof AdminImpostazioniRoute
@@ -105,6 +114,7 @@ export interface FileRouteTypes {
     | '/'
     | '/admin'
     | '/dashboard'
+    | '/eventi'
     | '/login'
     | '/admin/eventi'
     | '/admin/impostazioni'
@@ -116,6 +126,7 @@ export interface FileRouteTypes {
     | '/'
     | '/admin'
     | '/dashboard'
+    | '/eventi'
     | '/login'
     | '/admin/eventi'
     | '/admin/impostazioni'
@@ -127,6 +138,7 @@ export interface FileRouteTypes {
     | '/'
     | '/admin'
     | '/dashboard'
+    | '/eventi'
     | '/login'
     | '/admin/eventi'
     | '/admin/impostazioni'
@@ -139,6 +151,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AdminRoute: typeof AdminRouteWithChildren
   DashboardRoute: typeof DashboardRoute
+  EventiRoute: typeof EventiRoute
   LoginRoute: typeof LoginRoute
 }
 
@@ -149,6 +162,13 @@ declare module '@tanstack/react-router' {
       path: '/login'
       fullPath: '/login'
       preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/eventi': {
+      id: '/eventi'
+      path: '/eventi'
+      fullPath: '/eventi'
+      preLoaderRoute: typeof EventiRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/dashboard': {
@@ -232,6 +252,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AdminRoute: AdminRouteWithChildren,
   DashboardRoute: DashboardRoute,
+  EventiRoute: EventiRoute,
   LoginRoute: LoginRoute,
 }
 export const routeTree = rootRouteImport

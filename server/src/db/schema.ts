@@ -188,9 +188,6 @@ export const authorizedPersons = sqliteTable("authorized_persons", {
 	phone: text("phone"),
 	email: text("email"),
 	avatarUrl: text("avatar_url"),
-	documentType: text("document_type"),
-	documentNumber: text("document_number"),
-	documentExpiry: text("document_expiry"), // ISO date string
 	isActive: integer("is_active", { mode: "boolean" }).notNull().default(true),
 	createdAt: integer("created_at", { mode: "timestamp" })
 		.default(sql`(strftime('%s', 'now'))`)

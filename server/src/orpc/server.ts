@@ -99,9 +99,6 @@ const AuthorizedPerson = z.object({
 	phone: z.string().nullable(),
 	email: z.string().nullable(),
 	avatarUrl: z.string().nullable(),
-	documentType: z.string().nullable(),
-	documentNumber: z.string().nullable(),
-	documentExpiry: z.string().nullable(),
 	isActive: z.boolean(),
 	createdAt: z.string(),
 	updatedAt: z.string(),
@@ -379,10 +376,10 @@ export const router = os.router({
 					fullName: z.string().min(1).max(100),
 					relationship: z.string().min(1).max(50),
 					phone: z.string().max(20).optional(),
-					email: z.string().email().max(100).optional(),
-					documentType: z.string().max(50).optional(),
-					documentNumber: z.string().max(50).optional(),
-					documentExpiry: z.string().optional(), // ISO date string
+					email: z.preprocess(
+						(val) => (typeof val === "string" && val.trim() === "" ? undefined : val),
+						z.string().email().max(100).optional()
+					),
 				}),
 			)
 			.output(SuccessResponse(AuthorizedPerson))
@@ -400,9 +397,6 @@ export const router = os.router({
 						phone: input.phone || null,
 						email: input.email || null,
 						avatarUrl: null,
-						documentType: input.documentType || null,
-						documentNumber: input.documentNumber || null,
-						documentExpiry: input.documentExpiry || null,
 						isActive: true,
 					});
 
@@ -426,6 +420,232 @@ export const router = os.router({
 						"INTERNAL_SERVER_ERROR",
 						"Failed to add authorized person",
 					);
+				}
+			}),
+
+		// Update authorized person
+		updateAuthorizedPerson: withAuth
+			.input(
+				z.object({
+					id: z.string(),
+					fullName: z.string().min(1).max(100).optional(),
+					relationship: z.string().min(1).max(50).optional(),
+					phone: z.string().max(20).optional(),
+					email: z.preprocess(
+						(val) => (typeof val === "string" && val.trim() === "" ? undefined : val),
+						z.string().email().max(100).optional()
+					),
+				}),
+			)
+			.output(SuccessResponse(AuthorizedPerson))
+			.handler(async ({ input, context }) => {
+				// First, get the authorized person to check family membership
+				const person = await db
+					.select()
+					.from(authorizedPersons)
+					.where(eq(authorizedPersons.id, input.id))
+					.limit(1);
+
+				if (person.length === 0) {
+					throw new ORPCError("NOT_FOUND", "Authorized person not found");
+				}
+
+				await checkFamilyMembership(person[0].familyId, context.user.id);
+
+				try {
+					const updateData: any = {
+						updatedAt: new Date(),
+					};
+
+					// Only include fields that are explicitly provided
+					if (input.fullName !== undefined) {
+						updateData.fullName = input.fullName;
+					}
+					if (input.relationship !== undefined) {
+						updateData.relationship = input.relationship;
+					}
+					if (input.phone !== undefined) {
+						updateData.phone = input.phone || null;
+					}
+					if (input.email !== undefined) {
+						updateData.email = input.email || null;
+					}
+
+					await db
+						.update(authorizedPersons)
+						.set(updateData)
+						.where(eq(authorizedPersons.id, input.id));
+
+					const updatedPerson = await db
+						.select()
+						.from(authorizedPersons)
+						.where(eq(authorizedPersons.id, input.id))
+						.limit(1);
+
+					if (updatedPerson.length === 0) {
+						throw new ORPCError("NOT_FOUND", "Authorized person not found after update");
+					}
+
+					return {
+						success: true,
+						data: {
+							...updatedPerson[0],
+							createdAt: new Date(updatedPerson[0].createdAt).toISOString(),
+							updatedAt: new Date(updatedPerson[0].updatedAt).toISOString(),
+						},
+					};
+				} catch (error) {
+					console.error("Error updating authorized person:", error);
+					throw new ORPCError(
+						"INTERNAL_SERVER_ERROR",
+						"Failed to update authorized person",
+					);
+				}
+			}),
+
+		// Update family
+		updateFamily: withAuth
+			.input(
+				z.object({
+					id: z.string(),
+					name: z.string().min(1).max(100).optional(),
+					description: z.string().max(500).optional(),
+				}),
+			)
+			.output(SuccessResponse(Family))
+			.handler(async ({ input, context }) => {
+				await checkFamilyMembership(input.id, context.user.id);
+
+				try {
+					const updateData: any = {
+						updatedAt: new Date(),
+					};
+
+					if (input.name !== undefined) {
+						updateData.name = input.name;
+					}
+					if (input.description !== undefined) {
+						updateData.description = input.description;
+					}
+
+					await db
+						.update(families)
+						.set(updateData)
+						.where(eq(families.id, input.id));
+
+					const updatedFamily = await db
+						.select()
+						.from(families)
+						.where(eq(families.id, input.id))
+						.limit(1);
+
+					return {
+						success: true,
+						data: {
+							...updatedFamily[0],
+							createdAt: new Date(updatedFamily[0].createdAt).toISOString(),
+							updatedAt: new Date(updatedFamily[0].updatedAt).toISOString(),
+						},
+					};
+				} catch (error) {
+					console.error("Error updating family:", error);
+					throw new ORPCError(
+						"INTERNAL_SERVER_ERROR",
+						"Failed to update family",
+					);
+				}
+			}),
+
+		// Update child
+		updateChild: withAuth
+			.input(
+				z.object({
+					id: z.string(),
+					firstName: z.string().min(1).max(50).optional(),
+					lastName: z.string().min(1).max(50).optional(),
+					birthDate: z.string().optional(), // ISO date string
+					birthPlace: z.string().max(100).optional(),
+					fiscalCode: z.string().max(16).optional(),
+					gender: z.enum(["M", "F", "O"]).optional(),
+					allergies: z.string().max(1000).optional(),
+					medicalNotes: z.string().max(1000).optional(),
+				}),
+			)
+			.output(SuccessResponse(Child))
+			.handler(async ({ input, context }) => {
+				// First, get the child to check family membership
+				const child = await db
+					.select()
+					.from(children)
+					.where(eq(children.id, input.id))
+					.limit(1);
+
+				if (child.length === 0) {
+					throw new ORPCError("NOT_FOUND", "Child not found");
+				}
+
+				await checkFamilyMembership(child[0].familyId, context.user.id);
+
+				try {
+					const updateData: any = {
+						updatedAt: new Date(),
+					};
+
+					// Only include fields that are explicitly provided
+					if (input.firstName !== undefined) {
+						updateData.firstName = input.firstName;
+					}
+					if (input.lastName !== undefined) {
+						updateData.lastName = input.lastName;
+					}
+					if (input.birthDate !== undefined) {
+						updateData.birthDate = input.birthDate;
+					}
+					if (input.birthPlace !== undefined) {
+						updateData.birthPlace = input.birthPlace || null;
+					}
+					if (input.fiscalCode !== undefined) {
+						updateData.fiscalCode = input.fiscalCode || null;
+					}
+					if (input.gender !== undefined) {
+						updateData.gender = input.gender || null;
+					}
+					if (input.allergies !== undefined) {
+						updateData.allergies = input.allergies || null;
+					}
+					if (input.medicalNotes !== undefined) {
+						updateData.medicalNotes = input.medicalNotes || null;
+					}
+
+					console.log("Updating child with data:", updateData);
+
+					await db
+						.update(children)
+						.set(updateData)
+						.where(eq(children.id, input.id));
+
+					const updatedChild = await db
+						.select()
+						.from(children)
+						.where(eq(children.id, input.id))
+						.limit(1);
+
+					if (updatedChild.length === 0) {
+						throw new ORPCError("NOT_FOUND", "Child not found after update");
+					}
+
+					return {
+						success: true,
+						data: {
+							...updatedChild[0],
+							createdAt: new Date(updatedChild[0].createdAt).toISOString(),
+							updatedAt: new Date(updatedChild[0].updatedAt).toISOString(),
+						},
+					};
+				} catch (error) {
+					console.error("Error updating child:", error);
+					console.error("Update data was:", input);
+					throw new ORPCError("INTERNAL_SERVER_ERROR", `Failed to update child: ${error.message}`);
 				}
 			}),
 	}),
@@ -596,7 +816,10 @@ export const router = os.router({
 			.input(
 				z.object({
 					name: z.string().min(1).max(100).optional(),
-					email: z.string().email().max(100).optional(),
+					email: z.preprocess(
+						(val) => (typeof val === "string" && val.trim() === "" ? undefined : val),
+						z.string().email().max(100).optional()
+					),
 					phoneNumber: z.string().max(20).optional(),
 					birthDate: z.string().optional(), // ISO date string
 				}),

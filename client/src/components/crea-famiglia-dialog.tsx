@@ -16,10 +16,22 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 
+interface Family {
+	id: string;
+	name: string;
+	description?: string;
+}
+
 interface CreaFamigliaDialogProps {
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
 	onCreateFamily: (data: {
+		name: string;
+		description?: string;
+	}) => Promise<void>;
+	family?: Family;
+	onUpdateFamily?: (data: {
+		id: string;
 		name: string;
 		description?: string;
 	}) => Promise<void>;
@@ -29,12 +41,16 @@ export function CreaFamigliaDialog({
 	open,
 	onOpenChange,
 	onCreateFamily,
+	family,
+	onUpdateFamily,
 }: CreaFamigliaDialogProps) {
 	const [formData, setFormData] = useState({
-		name: "",
-		description: "",
+		name: family?.name || "",
+		description: family?.description || "",
 	});
 	const [isSubmitting, setIsSubmitting] = useState(false);
+
+	const isEditing = !!family;
 
 	const handleChange = (
 		e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
@@ -54,20 +70,28 @@ export function CreaFamigliaDialog({
 		setIsSubmitting(true);
 
 		try {
-			await onCreateFamily({
-				name: formData.name.trim(),
-				description: formData.description.trim() || undefined,
-			});
+			if (isEditing && onUpdateFamily && family) {
+				await onUpdateFamily({
+					id: family.id,
+					name: formData.name.trim(),
+					description: formData.description.trim() || undefined,
+				});
+				toast.success(`Famiglia "${formData.name}" modificata con successo! 🎉`);
+			} else {
+				await onCreateFamily({
+					name: formData.name.trim(),
+					description: formData.description.trim() || undefined,
+				});
+				toast.success(`Famiglia "${formData.name}" creata con successo! 🎉`);
+			}
 
 			// Reset del form e chiusura del dialog
 			setFormData({ name: "", description: "" });
 			onOpenChange(false);
-
-			toast.success(`Famiglia "${formData.name}" creata con successo! 🎉`);
 		} catch (error) {
-			console.error("Error creating family:", error);
+			console.error("Error with family:", error);
 			toast.error(
-				"Si è verificato un errore durante la creazione della famiglia. Riprova più tardi.",
+				`Si è verificato un errore durante la ${isEditing ? 'modifica' : 'creazione'} della famiglia. Riprova più tardi.`,
 			);
 		} finally {
 			setIsSubmitting(false);
@@ -87,12 +111,13 @@ export function CreaFamigliaDialog({
 						<Heart className="h-6 w-6 text-primary" />
 					</div>
 					<DialogTitle className="text-2xl">
-						Crea una nuova famiglia
+						{isEditing ? "Modifica famiglia" : "Crea una nuova famiglia"}
 					</DialogTitle>
 					<DialogDescription className="text-base">
-						Stai per creare una nuova famiglia. Potrai aggiungere membri,
-						bambini e gestire le informazioni della tua famiglia per partecipare
-						agli eventi della parrocchia.
+						{isEditing 
+							? "Modifica i dati della famiglia. Le modifiche saranno salvate automaticamente."
+							: "Stai per creare una nuova famiglia. Potrai aggiungere membri, bambini e gestire le informazioni della tua famiglia per partecipare agli eventi della parrocchia."
+						}
 					</DialogDescription>
 				</DialogHeader>
 
@@ -192,7 +217,7 @@ export function CreaFamigliaDialog({
 							) : (
 								<>
 									<Heart className="h-4 w-4 mr-2" />
-									Crea Famiglia
+									{isEditing ? "Salva Modifiche" : "Crea Famiglia"}
 								</>
 							)}
 						</Button>

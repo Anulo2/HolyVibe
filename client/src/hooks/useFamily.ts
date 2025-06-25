@@ -213,9 +213,6 @@ export const useAuthorizedPersons = (familyId?: string) => {
     relationship: string
     phone?: string
     email?: string
-    documentType?: string
-    documentNumber?: string
-    documentExpiry?: string
   }) => {
     if (!familyId) throw new Error('Family ID is required')
 

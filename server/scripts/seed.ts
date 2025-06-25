@@ -294,18 +294,6 @@ async function seedDatabase() {
 					relationship: randomChoice(relationships),
 					phone: randomPhone(),
 					email: Math.random() > 0.3 ? randomEmail(firstName, lastName) : null,
-					documentType: randomChoice([
-						"Carta d'Identità",
-						"Patente di Guida",
-						"Passaporto",
-					]),
-					documentNumber: `${Math.random().toString(36).substring(2, 8).toUpperCase()}${Math.floor(Math.random() * 9000) + 1000}`,
-					documentExpiry: randomDate(
-						new Date(),
-						new Date(Date.now() + 5 * 365 * 24 * 60 * 60 * 1000),
-					)
-						.toISOString()
-						.split("T")[0],
 					isActive: Math.random() > 0.1,
 					createdAt: new Date(),
 					updatedAt: new Date(),

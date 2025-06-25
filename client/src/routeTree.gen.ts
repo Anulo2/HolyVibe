@@ -9,7 +9,10 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as ProfiloRouteImport } from './routes/profilo'
+import { Route as ParrocchieRouteImport } from './routes/parrocchie'
 import { Route as LoginRouteImport } from './routes/login'
+import { Route as FamigliaRouteImport } from './routes/famiglia'
 import { Route as EventiRouteImport } from './routes/eventi'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as AdminRouteImport } from './routes/admin'
@@ -20,9 +23,24 @@ import { Route as AdminIscrizioniRouteImport } from './routes/admin/iscrizioni'
 import { Route as AdminImpostazioniRouteImport } from './routes/admin/impostazioni'
 import { Route as AdminEventiRouteImport } from './routes/admin/eventi'
 
+const ProfiloRoute = ProfiloRouteImport.update({
+  id: '/profilo',
+  path: '/profilo',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ParrocchieRoute = ParrocchieRouteImport.update({
+  id: '/parrocchie',
+  path: '/parrocchie',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const FamigliaRoute = FamigliaRouteImport.update({
+  id: '/famiglia',
+  path: '/famiglia',
   getParentRoute: () => rootRouteImport,
 } as any)
 const EventiRoute = EventiRouteImport.update({
@@ -76,7 +94,10 @@ export interface FileRoutesByFullPath {
   '/admin': typeof AdminRouteWithChildren
   '/dashboard': typeof DashboardRoute
   '/eventi': typeof EventiRoute
+  '/famiglia': typeof FamigliaRoute
   '/login': typeof LoginRoute
+  '/parrocchie': typeof ParrocchieRoute
+  '/profilo': typeof ProfiloRoute
   '/admin/eventi': typeof AdminEventiRoute
   '/admin/impostazioni': typeof AdminImpostazioniRoute
   '/admin/iscrizioni': typeof AdminIscrizioniRoute
@@ -88,7 +109,10 @@ export interface FileRoutesByTo {
   '/admin': typeof AdminRouteWithChildren
   '/dashboard': typeof DashboardRoute
   '/eventi': typeof EventiRoute
+  '/famiglia': typeof FamigliaRoute
   '/login': typeof LoginRoute
+  '/parrocchie': typeof ParrocchieRoute
+  '/profilo': typeof ProfiloRoute
   '/admin/eventi': typeof AdminEventiRoute
   '/admin/impostazioni': typeof AdminImpostazioniRoute
   '/admin/iscrizioni': typeof AdminIscrizioniRoute
@@ -101,7 +125,10 @@ export interface FileRoutesById {
   '/admin': typeof AdminRouteWithChildren
   '/dashboard': typeof DashboardRoute
   '/eventi': typeof EventiRoute
+  '/famiglia': typeof FamigliaRoute
   '/login': typeof LoginRoute
+  '/parrocchie': typeof ParrocchieRoute
+  '/profilo': typeof ProfiloRoute
   '/admin/eventi': typeof AdminEventiRoute
   '/admin/impostazioni': typeof AdminImpostazioniRoute
   '/admin/iscrizioni': typeof AdminIscrizioniRoute
@@ -115,7 +142,10 @@ export interface FileRouteTypes {
     | '/admin'
     | '/dashboard'
     | '/eventi'
+    | '/famiglia'
     | '/login'
+    | '/parrocchie'
+    | '/profilo'
     | '/admin/eventi'
     | '/admin/impostazioni'
     | '/admin/iscrizioni'
@@ -127,7 +157,10 @@ export interface FileRouteTypes {
     | '/admin'
     | '/dashboard'
     | '/eventi'
+    | '/famiglia'
     | '/login'
+    | '/parrocchie'
+    | '/profilo'
     | '/admin/eventi'
     | '/admin/impostazioni'
     | '/admin/iscrizioni'
@@ -139,7 +172,10 @@ export interface FileRouteTypes {
     | '/admin'
     | '/dashboard'
     | '/eventi'
+    | '/famiglia'
     | '/login'
+    | '/parrocchie'
+    | '/profilo'
     | '/admin/eventi'
     | '/admin/impostazioni'
     | '/admin/iscrizioni'
@@ -152,16 +188,40 @@ export interface RootRouteChildren {
   AdminRoute: typeof AdminRouteWithChildren
   DashboardRoute: typeof DashboardRoute
   EventiRoute: typeof EventiRoute
+  FamigliaRoute: typeof FamigliaRoute
   LoginRoute: typeof LoginRoute
+  ParrocchieRoute: typeof ParrocchieRoute
+  ProfiloRoute: typeof ProfiloRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/profilo': {
+      id: '/profilo'
+      path: '/profilo'
+      fullPath: '/profilo'
+      preLoaderRoute: typeof ProfiloRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/parrocchie': {
+      id: '/parrocchie'
+      path: '/parrocchie'
+      fullPath: '/parrocchie'
+      preLoaderRoute: typeof ParrocchieRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/login': {
       id: '/login'
       path: '/login'
       fullPath: '/login'
       preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/famiglia': {
+      id: '/famiglia'
+      path: '/famiglia'
+      fullPath: '/famiglia'
+      preLoaderRoute: typeof FamigliaRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/eventi': {
@@ -253,7 +313,10 @@ const rootRouteChildren: RootRouteChildren = {
   AdminRoute: AdminRouteWithChildren,
   DashboardRoute: DashboardRoute,
   EventiRoute: EventiRoute,
+  FamigliaRoute: FamigliaRoute,
   LoginRoute: LoginRoute,
+  ParrocchieRoute: ParrocchieRoute,
+  ProfiloRoute: ProfiloRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

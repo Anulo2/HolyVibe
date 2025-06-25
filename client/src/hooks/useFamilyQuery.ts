@@ -87,15 +87,84 @@ export const useAddAuthorizedPersonMutation = () => {
 			relationship: string;
 			phone?: string;
 			email?: string;
-			documentType?: string;
-			documentNumber?: string;
-			documentExpiry?: string;
 		}) => orpc.family.addAuthorizedPerson(data),
 		onSuccess: (_, variables) => {
 			// Invalidate authorized persons query for this family
 			queryClient.invalidateQueries({
 				queryKey: ["family", variables.familyId, "authorizedPersons"],
 			});
+		},
+	});
+};
+
+// Hook for updating an authorized person
+export const useUpdateAuthorizedPersonMutation = () => {
+	const queryClient = useQueryClient();
+
+	return useMutation({
+		mutationFn: (data: {
+			id: string;
+			fullName?: string;
+			relationship?: string;
+			phone?: string;
+			email?: string;
+		}) => orpc.family.updateAuthorizedPerson(data),
+		onSuccess: () => {
+			// Invalidate all authorized persons queries to refresh the data
+			queryClient.invalidateQueries({
+				queryKey: ["family"],
+				predicate: (query) => query.queryKey[2] === "authorizedPersons",
+			});
+		},
+	});
+};
+
+// Hook for updating a family
+export const useUpdateFamilyMutation = () => {
+	const queryClient = useQueryClient();
+
+	return useMutation({
+		mutationFn: (data: {
+			id: string;
+			name?: string;
+			description?: string;
+		}) => orpc.family.updateFamily(data),
+		onSuccess: () => {
+			// Invalidate families query to refresh the list
+			queryClient.invalidateQueries({ queryKey: ["families"] });
+		},
+	});
+};
+
+// Hook for updating a child
+export const useUpdateChildMutation = () => {
+	const queryClient = useQueryClient();
+
+	return useMutation({
+		mutationFn: (data: {
+			id: string;
+			firstName?: string;
+			lastName?: string;
+			birthDate?: string;
+			birthPlace?: string;
+			fiscalCode?: string;
+			gender?: "M" | "F" | "O";
+			allergies?: string;
+			medicalNotes?: string;
+		}) => orpc.family.updateChild(data),
+		onSuccess: () => {
+			// Invalidate all children queries to refresh the data
+			queryClient.invalidateQueries({
+				queryKey: ["family"],
+				predicate: (query) => query.queryKey[2] === "children",
+			});
+			// Also invalidate all families queries to refresh any family-level data
+			queryClient.invalidateQueries({
+				queryKey: ["families"],
+			});
+		},
+		onError: (error) => {
+			console.error("Error in updateChild mutation:", error);
 		},
 	});
 };

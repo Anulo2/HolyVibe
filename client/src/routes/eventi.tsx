@@ -1,6 +1,7 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 import { CalendarDays, Clock, Euro, Filter, MapPin, Users } from "lucide-react";
 import { useState } from "react";
+import { Layout } from "@/components/Layout";
 import { IscrizioneFiglioDialog } from "@/components/iscrizione-figlio-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -23,10 +24,22 @@ import {
 } from "@/components/ui/select";
 
 export const Route = createFileRoute("/eventi")({
+	beforeLoad: ({ context }) => {
+		if (!context.auth.data?.user) {
+			throw redirect({
+				to: "/login",
+				search: {
+					redirect: location.href,
+				},
+			});
+		}
+	},
 	component: EventiPage,
 });
 
 function EventiPage() {
+	const { auth } = Route.useRouteContext();
+	const currentUser = auth.data?.user;
 	const [searchTerm, setSearchTerm] = useState("");
 	const [statusFilter, setStatusFilter] = useState("all");
 	const [selectedEvent, setSelectedEvent] = useState<any>(null);
@@ -108,18 +121,16 @@ function EventiPage() {
 		return matchesSearch && matchesStatus;
 	});
 
-	const getStatusColor = (status: string) => {
+	const getStatusVariant = (status: string): "success" | "warning" | "destructive" | "default" => {
 		switch (status) {
 			case "open":
-				return "bg-green-100 text-green-800";
+				return "success";
 			case "full":
-				return "bg-orange-100 text-orange-800";
+				return "warning";
 			case "closed":
-				return "bg-red-100 text-red-800";
-			case "draft":
-				return "bg-gray-100 text-gray-800";
+				return "destructive";
 			default:
-				return "bg-gray-100 text-gray-800";
+				return "default";
 		}
 	};
 
@@ -152,7 +163,7 @@ function EventiPage() {
 	};
 
 	return (
-		<div className="container mx-auto p-6 space-y-6">
+		<div className="space-y-6">
 			{/* Header */}
 			<div className="flex flex-col gap-4">
 				<div>
@@ -193,55 +204,46 @@ function EventiPage() {
 			<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
 				{filteredEvents.map((evento) => (
 					<Card key={evento.id} className="overflow-hidden">
-						<div className="h-48 bg-gradient-to-r from-blue-500 to-purple-600 relative">
+						<div className="h-48 bg-gradient-to-r from-primary/80 to-primary/60 relative">
 							<div className="absolute top-4 right-4">
-								<Badge className={getStatusColor(evento.status)}>
+								<Badge variant={getStatusVariant(evento.status)}>
 									{getStatusText(evento.status)}
 								</Badge>
 							</div>
-							<div className="absolute bottom-4 left-4 text-white">
-								<h3 className="text-xl font-bold">{evento.title}</h3>
+							<div className="absolute bottom-4 left-4 right-4 text-white">
+								<h3 className="text-xl font-bold mb-2">{evento.title}</h3>
 							</div>
 						</div>
-
 						<CardContent className="p-6">
 							<p className="text-sm text-muted-foreground mb-4 line-clamp-3">
 								{evento.description}
 							</p>
 
 							<div className="space-y-2 mb-4">
-								<div className="flex items-center text-sm">
-									<CalendarDays className="h-4 w-4 mr-2 text-muted-foreground" />
-									<span>
-										{formatDate(evento.startDate)}
-										{evento.endDate && ` - ${formatDate(evento.endDate)}`}
-									</span>
+								<div className="flex items-center text-sm text-muted-foreground">
+									<CalendarDays className="h-4 w-4 mr-2" />
+									{formatDate(evento.startDate)}
+									{evento.endDate &&
+										evento.endDate.getTime() !== evento.startDate.getTime() &&
+										` - ${formatDate(evento.endDate)}`}
 								</div>
-
-								<div className="flex items-center text-sm">
-									<MapPin className="h-4 w-4 mr-2 text-muted-foreground" />
-									<span>{evento.location}</span>
+								<div className="flex items-center text-sm text-muted-foreground">
+									<MapPin className="h-4 w-4 mr-2" />
+									{evento.location}
 								</div>
-
-								<div className="flex items-center text-sm">
-									<Users className="h-4 w-4 mr-2 text-muted-foreground" />
-									<span>
-										{evento.currentParticipants}/{evento.maxParticipants}{" "}
-										partecipanti
-									</span>
+								<div className="flex items-center text-sm text-muted-foreground">
+									<Users className="h-4 w-4 mr-2" />
+									{evento.minAge} - {evento.maxAge} anni
 								</div>
-
-								<div className="flex items-center text-sm">
-									<Clock className="h-4 w-4 mr-2 text-muted-foreground" />
-									<span>
-										Età: {evento.minAge}-{evento.maxAge} anni
-									</span>
+								<div className="flex items-center text-sm text-muted-foreground">
+									<Users className="h-4 w-4 mr-2" />
+									{evento.currentParticipants}/{evento.maxParticipants}{" "}
+									partecipanti
 								</div>
-
-								{evento.price && evento.price !== "0.00" && (
-									<div className="flex items-center text-sm">
-										<Euro className="h-4 w-4 mr-2 text-muted-foreground" />
-										<span>€{evento.price}</span>
+								{evento.price !== "0.00" && (
+									<div className="flex items-center text-sm text-muted-foreground">
+										<Euro className="h-4 w-4 mr-2" />
+										€{evento.price}
 									</div>
 								)}
 							</div>
@@ -253,62 +255,62 @@ function EventiPage() {
 											Dettagli
 										</Button>
 									</DialogTrigger>
-									<DialogContent className="sm:max-w-[600px]">
+									<DialogContent className="max-w-2xl">
 										<DialogHeader>
 											<DialogTitle>{evento.title}</DialogTitle>
 											<DialogDescription>
-												Dettagli completi dell'evento
+												{formatDate(evento.startDate)}
+												{evento.endDate &&
+													evento.endDate.getTime() !==
+														evento.startDate.getTime() &&
+													` - ${formatDate(evento.endDate)}`}{" "}
+												• {evento.location}
 											</DialogDescription>
 										</DialogHeader>
 										<div className="space-y-4">
-											<p>{evento.description}</p>
-											<div className="grid grid-cols-2 gap-4 text-sm">
-												<div>
-													<strong>Date:</strong>
-													<br />
-													{formatDate(evento.startDate)}
-													{evento.endDate && ` - ${formatDate(evento.endDate)}`}
-												</div>
-												<div>
-													<strong>Luogo:</strong>
-													<br />
-													{evento.location}
-												</div>
-												<div>
-													<strong>Età:</strong>
-													<br />
-													{evento.minAge}-{evento.maxAge} anni
-												</div>
-												<div>
-													<strong>Prezzo:</strong>
-													<br />
-													{evento.price === "0.00"
-														? "Gratuito"
-														: `€${evento.price}`}
-												</div>
-											</div>
 											<div>
-												<strong>Disponibilità:</strong>
-												<br />
-												{evento.currentParticipants} su {evento.maxParticipants}{" "}
-												posti occupati
+												<h4 className="font-semibold mb-2">Descrizione</h4>
+												<p className="text-sm text-muted-foreground">
+													{evento.description}
+												</p>
+											</div>
+											<div className="grid grid-cols-2 gap-4">
+												<div>
+													<h4 className="font-semibold mb-2">Età</h4>
+													<p className="text-sm text-muted-foreground">
+														{evento.minAge} - {evento.maxAge} anni
+													</p>
+												</div>
+												<div>
+													<h4 className="font-semibold mb-2">Partecipanti</h4>
+													<p className="text-sm text-muted-foreground">
+														{evento.currentParticipants}/{evento.maxParticipants}
+													</p>
+												</div>
+												<div>
+													<h4 className="font-semibold mb-2">Prezzo</h4>
+													<p className="text-sm text-muted-foreground">
+														{evento.price === "0.00"
+															? "Gratuito"
+															: `€${evento.price}`}
+													</p>
+												</div>
+												<div>
+													<h4 className="font-semibold mb-2">Stato</h4>
+													<Badge variant={getStatusVariant(evento.status)}>
+														{getStatusText(evento.status)}
+													</Badge>
+												</div>
 											</div>
 										</div>
 									</DialogContent>
 								</Dialog>
-
 								<Button
-									className="flex-1"
-									disabled={evento.status !== "open"}
 									onClick={() => handleRegister(evento)}
+									disabled={evento.status !== "open"}
+									className="flex-1"
 								>
-									{evento.status === "open"
-										? "Iscriviti"
-										: evento.status === "full"
-											? "Completo"
-											: evento.status === "closed"
-												? "Chiuso"
-												: "Non disponibile"}
+									Iscriviti
 								</Button>
 							</div>
 						</CardContent>
@@ -319,19 +321,19 @@ function EventiPage() {
 			{filteredEvents.length === 0 && (
 				<div className="text-center py-12">
 					<p className="text-muted-foreground">
-						{searchTerm || statusFilter !== "all"
-							? "Nessun evento trovato con i filtri selezionati."
-							: "Nessun evento disponibile al momento."}
+						Nessun evento trovato con i filtri selezionati.
 					</p>
 				</div>
 			)}
 
 			{/* Registration Dialog */}
-			<IscrizioneFiglioDialog
-				open={showRegistrationDialog}
-				onOpenChange={setShowRegistrationDialog}
-				evento={selectedEvent}
-			/>
+			{selectedEvent && (
+				<IscrizioneFiglioDialog
+					open={showRegistrationDialog}
+					onOpenChange={setShowRegistrationDialog}
+					evento={selectedEvent}
+				/>
+			)}
 		</div>
 	);
 }

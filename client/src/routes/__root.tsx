@@ -1,6 +1,8 @@
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import { createRootRouteWithContext, Outlet } from "@tanstack/react-router";
 import { TanStackRouterDevtools } from "@tanstack/react-router-devtools";
+import { Header } from "@/components/Header";
+import { Sidebar } from "@/components/Sidebar";
 import type { authClient } from "@/lib/auth-client";
 
 // Better Auth session type from their useSession hook
@@ -58,13 +60,31 @@ export const Route = createRootRouteWithContext<MyRouterContext>()({
 });
 
 function RootComponent() {
+	const { auth } = Route.useRouteContext();
+	const currentUser = auth.data?.user;
+
+	// For routes like /login, we don't want to show the sidebar/header
+	const showLayout = auth.data?.user;
+
 	return (
 		<>
-			<Outlet />
+			{showLayout ? (
+				<div className="min-h-screen bg-background">
+					<Header currentUser={currentUser} />
+					<div className="container mx-auto flex">
+						<Sidebar />
+						<main className="flex-1 p-6">
+							<Outlet />
+						</main>
+					</div>
+				</div>
+			) : (
+				<Outlet />
+			)}
+			
 			{process.env.NODE_ENV === "development" && (
 				<>
 					<ReactQueryDevtools initialIsOpen={false} />
-
 					<TanStackRouterDevtools position="bottom-left" />
 				</>
 			)}

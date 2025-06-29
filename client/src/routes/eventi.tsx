@@ -1,7 +1,13 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
-import { CalendarDays, Clock, Euro, Filter, MapPin, Users } from "lucide-react";
+import {
+	CalendarDays,
+	Euro,
+	Filter,
+	Loader2,
+	MapPin,
+	Users,
+} from "lucide-react";
 import { useState } from "react";
-import { Layout } from "@/components/Layout";
 import { IscrizioneFiglioDialog } from "@/components/iscrizione-figlio-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -22,6 +28,7 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select";
+import { useEventsQuery } from "@/hooks/useEventsQuery";
 
 export const Route = createFileRoute("/eventi")({
 	beforeLoad: ({ context }) => {
@@ -45,83 +52,28 @@ function EventiPage() {
 	const [selectedEvent, setSelectedEvent] = useState<any>(null);
 	const [showRegistrationDialog, setShowRegistrationDialog] = useState(false);
 
-	// Mock data - questo sarà sostituito con real API calls
-	const eventi = [
-		{
-			id: "1",
-			title: "Campo Estivo San Giuseppe",
-			description:
-				"Un campo estivo di una settimana nelle Dolomiti per ragazzi dai 10 ai 16 anni. Attività all'aperto, escursioni, laboratori creativi e momenti di preghiera.",
-			startDate: new Date("2024-07-15"),
-			endDate: new Date("2024-07-22"),
-			location: "Dolomiti, Trentino",
-			minAge: 10,
-			maxAge: 16,
-			maxParticipants: 30,
-			currentParticipants: 18,
-			price: "150.00",
-			status: "open",
-			imageUrl: "/api/placeholder/400/200",
-		},
-		{
-			id: "2",
-			title: "Ritiro Spirituale Adolescenti",
-			description:
-				"Un weekend di riflessione e crescita spirituale per adolescenti dai 14 ai 18 anni.",
-			startDate: new Date("2024-06-10"),
-			endDate: new Date("2024-06-12"),
-			location: "Casa Ritiri San Francesco",
-			minAge: 14,
-			maxAge: 18,
-			maxParticipants: 20,
-			currentParticipants: 15,
-			price: "80.00",
-			status: "open",
-			imageUrl: "/api/placeholder/400/200",
-		},
-		{
-			id: "3",
-			title: "Corso di Preparazione Cresima",
-			description:
-				"Corso di preparazione alla Cresima per ragazzi dai 13 ai 15 anni.",
-			startDate: new Date("2024-09-01"),
-			endDate: new Date("2024-12-15"),
-			location: "Oratorio San Marco",
-			minAge: 13,
-			maxAge: 15,
-			maxParticipants: 25,
-			currentParticipants: 12,
-			price: "0.00",
-			status: "open",
-			imageUrl: "/api/placeholder/400/200",
-		},
-		{
-			id: "4",
-			title: "Laboratorio di Arte Sacra",
-			description: "Laboratorio di arte sacra per bambini dai 8 ai 12 anni.",
-			startDate: new Date("2024-08-05"),
-			endDate: new Date("2024-08-09"),
-			location: "Centro Parrocchiale",
-			minAge: 8,
-			maxAge: 12,
-			maxParticipants: 15,
-			currentParticipants: 15,
-			price: "50.00",
-			status: "full",
-			imageUrl: "/api/placeholder/400/200",
-		},
-	];
-
-	const filteredEvents = eventi.filter((evento) => {
-		const matchesSearch =
-			evento.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-			evento.description.toLowerCase().includes(searchTerm.toLowerCase());
-		const matchesStatus =
-			statusFilter === "all" || evento.status === statusFilter;
-		return matchesSearch && matchesStatus;
+	// Load real events data
+	const {
+		data: eventsResponse,
+		isLoading: eventsLoading,
+		error: eventsError,
+	} = useEventsQuery({
+		search: searchTerm || undefined,
+		limit: 50,
 	});
 
-	const getStatusVariant = (status: string): "success" | "warning" | "destructive" | "default" => {
+	const eventi = eventsResponse?.data || [];
+
+	// Filter events by status locally since backend doesn't filter by status yet
+	const filteredEvents = eventi.filter((evento) => {
+		const matchesStatus =
+			statusFilter === "all" || evento.status === statusFilter;
+		return matchesStatus;
+	});
+
+	const getStatusVariant = (
+		status: string,
+	): "success" | "warning" | "destructive" | "default" => {
 		switch (status) {
 			case "open":
 				return "success";
@@ -149,8 +101,9 @@ function EventiPage() {
 		}
 	};
 
-	const formatDate = (date: Date) => {
-		return date.toLocaleDateString("it-IT", {
+	const formatDate = (date: string | Date) => {
+		const dateObj = typeof date === "string" ? new Date(date) : date;
+		return dateObj.toLocaleDateString("it-IT", {
 			day: "2-digit",
 			month: "2-digit",
 			year: "numeric",
@@ -161,6 +114,22 @@ function EventiPage() {
 		setSelectedEvent(evento);
 		setShowRegistrationDialog(true);
 	};
+
+	if (eventsLoading) {
+		return (
+			<div className="flex items-center justify-center h-64">
+				<Loader2 className="h-8 w-8 animate-spin" />
+			</div>
+		);
+	}
+
+	if (eventsError) {
+		return (
+			<div className="text-center py-12">
+				<p className="text-destructive">Errore nel caricamento degli eventi</p>
+			</div>
+		);
+	}
 
 	return (
 		<div className="space-y-6">
@@ -224,7 +193,7 @@ function EventiPage() {
 									<CalendarDays className="h-4 w-4 mr-2" />
 									{formatDate(evento.startDate)}
 									{evento.endDate &&
-										evento.endDate.getTime() !== evento.startDate.getTime() &&
+										evento.endDate !== evento.startDate &&
 										` - ${formatDate(evento.endDate)}`}
 								</div>
 								<div className="flex items-center text-sm text-muted-foreground">
@@ -242,8 +211,7 @@ function EventiPage() {
 								</div>
 								{evento.price !== "0.00" && (
 									<div className="flex items-center text-sm text-muted-foreground">
-										<Euro className="h-4 w-4 mr-2" />
-										€{evento.price}
+										<Euro className="h-4 w-4 mr-2" />€{evento.price}
 									</div>
 								)}
 							</div>
@@ -261,8 +229,7 @@ function EventiPage() {
 											<DialogDescription>
 												{formatDate(evento.startDate)}
 												{evento.endDate &&
-													evento.endDate.getTime() !==
-														evento.startDate.getTime() &&
+													evento.endDate !== evento.startDate &&
 													` - ${formatDate(evento.endDate)}`}{" "}
 												• {evento.location}
 											</DialogDescription>
@@ -284,7 +251,8 @@ function EventiPage() {
 												<div>
 													<h4 className="font-semibold mb-2">Partecipanti</h4>
 													<p className="text-sm text-muted-foreground">
-														{evento.currentParticipants}/{evento.maxParticipants}
+														{evento.currentParticipants}/
+														{evento.maxParticipants}
 													</p>
 												</div>
 												<div>

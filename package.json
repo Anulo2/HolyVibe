@@ -1,8 +1,6 @@
 {
 	"name": "holy-vibe",
 	"workspaces": ["client", "server"],
-	
-	
 	"scripts": {
 		"dev": "turbo run dev",
 		"build": "turbo build",
@@ -13,7 +11,6 @@
 		"db:push": "turbo -F server db:push",
 		"db:studio": "turbo -F server db:studio",
 		"check": "biome check --write ."
-
 	},
 	"devDependencies": {
 		"@biomejs/biome": "^2.0.0-beta.6",
@@ -21,7 +18,9 @@
 		"lint-staged": "^15.5.2"
 	},
 	"dependencies": {
-		"@typescript/native-preview": "^7.0.0-dev.20250616.1"
+		"@tanstack/react-table": "^8.21.3",
+		"@typescript/native-preview": "^7.0.0-dev.20250616.1",
+		"client": "^0.0.1"
 	},
 	"packageManager": "bun@1.2.16",
 	"lint-staged": {

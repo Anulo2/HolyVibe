@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import {
 	CalendarDays,
 	Edit,
@@ -39,12 +39,14 @@ import {
 	TableRow,
 } from "@/components/ui/table";
 import { Tabs, TabsContent } from "@/components/ui/tabs";
+import { useEventsQuery } from "@/hooks/useEventsQuery";
 
 export const Route = createFileRoute("/admin/eventi")({
 	component: AdminEventiPage,
 });
 
 function AdminEventiPage() {
+	const navigate = useNavigate();
 	const [searchTerm, setSearchTerm] = useState("");
 	const [statusFilter, setStatusFilter] = useState("all");
 	const [selectedEvent, setSelectedEvent] = useState<any>(null);
@@ -53,80 +55,9 @@ function AdminEventiPage() {
 	const [showDetailDialog, setShowDetailDialog] = useState(false);
 	const [viewMode, setViewMode] = useState<"cards" | "table">("cards");
 
-	// Mock data - questo sarà sostituito con real API calls
-	const eventi = [
-		{
-			id: "1",
-			title: "Campo Estivo San Giuseppe",
-			description:
-				"Un campo estivo di una settimana nelle Dolomiti per ragazzi dai 10 ai 16 anni. Attività all'aperto, escursioni, laboratori creativi e momenti di preghiera.",
-			startDate: new Date("2024-07-15"),
-			endDate: new Date("2024-07-22"),
-			location: "Dolomiti, Trentino",
-			minAge: 10,
-			maxAge: 16,
-			maxParticipants: 30,
-			currentParticipants: 18,
-			price: "150.00",
-			status: "open",
-			createdBy: "Don Paolo Benedetti",
-			createdAt: new Date("2024-01-15"),
-			registrations: 18,
-		},
-		{
-			id: "2",
-			title: "Ritiro Spirituale Adolescenti",
-			description:
-				"Un weekend di riflessione e crescita spirituale per adolescenti dai 14 ai 18 anni.",
-			startDate: new Date("2024-06-10"),
-			endDate: new Date("2024-06-12"),
-			location: "Casa Ritiri San Francesco",
-			minAge: 14,
-			maxAge: 18,
-			maxParticipants: 20,
-			currentParticipants: 15,
-			price: "80.00",
-			status: "open",
-			createdBy: "Suor Maria Teresa",
-			createdAt: new Date("2024-02-01"),
-			registrations: 15,
-		},
-		{
-			id: "3",
-			title: "Corso di Preparazione Cresima",
-			description:
-				"Corso di preparazione alla Cresima per ragazzi dai 13 ai 15 anni.",
-			startDate: new Date("2024-09-01"),
-			endDate: new Date("2024-12-15"),
-			location: "Oratorio San Marco",
-			minAge: 13,
-			maxAge: 15,
-			maxParticipants: 25,
-			currentParticipants: 12,
-			price: "0.00",
-			status: "draft",
-			createdBy: "Don Marco Rossi",
-			createdAt: new Date("2024-02-15"),
-			registrations: 0,
-		},
-		{
-			id: "4",
-			title: "Laboratorio di Arte Sacra",
-			description: "Laboratorio di arte sacra per bambini dai 8 ai 12 anni.",
-			startDate: new Date("2024-08-05"),
-			endDate: new Date("2024-08-09"),
-			location: "Centro Parrocchiale",
-			minAge: 8,
-			maxAge: 12,
-			maxParticipants: 15,
-			currentParticipants: 15,
-			price: "50.00",
-			status: "full",
-			createdBy: "Maestra Elena",
-			createdAt: new Date("2024-01-20"),
-			registrations: 15,
-		},
-	];
+	// Load real events from database
+	const { data: eventsData, isLoading, error } = useEventsQuery();
+	const eventi = eventsData?.data || [];
 
 	const filteredEvents = eventi.filter((evento) => {
 		const matchesSearch =
@@ -172,8 +103,9 @@ function AdminEventiPage() {
 		}
 	};
 
-	const formatDate = (date: Date) => {
-		return date.toLocaleDateString("it-IT", {
+	const formatDate = (date: string | Date) => {
+		const dateObj = typeof date === "string" ? new Date(date) : date;
+		return dateObj.toLocaleDateString("it-IT", {
 			day: "2-digit",
 			month: "2-digit",
 			year: "numeric",
@@ -197,6 +129,21 @@ function AdminEventiPage() {
 		}
 	};
 
+	const handleManageRegistrations = (evento: any) => {
+		// Close the detail dialog
+		setShowDetailDialog(false);
+
+		// Navigate to registrations page with event filter applied
+		navigate({
+			to: "/admin/iscrizioni",
+			search: {
+				eventId: evento.id,
+				eventTitle: evento.title,
+			},
+		});
+	};
+
+	// Calculate stats from real events data
 	const statsCards = [
 		{
 			title: "Eventi Totali",
@@ -210,15 +157,47 @@ function AdminEventiPage() {
 		},
 		{
 			title: "Iscrizioni Totali",
-			value: eventi.reduce((sum, e) => sum + e.registrations, 0),
+			value: eventi.reduce((sum, e) => sum + (e.currentParticipants || 0), 0),
 			description: "Totale iscrizioni",
 		},
 		{
 			title: "Tasso Riempimento",
-			value: `${Math.round((eventi.reduce((sum, e) => sum + e.currentParticipants, 0) / eventi.reduce((sum, e) => sum + e.maxParticipants, 0)) * 100)}%`,
+			value:
+				eventi.length > 0
+					? `${Math.round((eventi.reduce((sum, e) => sum + (e.currentParticipants || 0), 0) / eventi.reduce((sum, e) => sum + (e.maxParticipants || 1), 0)) * 100)}%`
+					: "0%",
 			description: "Media occupazione posti",
 		},
 	];
+
+	// Handle loading and error states
+	if (isLoading) {
+		return (
+			<div className="container mx-auto p-6">
+				<div className="text-center">
+					<h1 className="text-2xl font-bold mb-4">Caricamento eventi...</h1>
+					<p className="text-muted-foreground">
+						Attendi mentre carichiamo i dati.
+					</p>
+				</div>
+			</div>
+		);
+	}
+
+	if (error) {
+		return (
+			<div className="container mx-auto p-6">
+				<div className="text-center">
+					<h1 className="text-2xl font-bold text-red-600 mb-4">
+						Errore nel caricamento
+					</h1>
+					<p className="text-muted-foreground">
+						Si è verificato un errore nel caricamento degli eventi.
+					</p>
+				</div>
+			</div>
+		);
+	}
 
 	return (
 		<div className="container mx-auto p-6 space-y-6">
@@ -241,8 +220,8 @@ function AdminEventiPage() {
 
 			{/* Stats Cards */}
 			<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-				{statsCards.map((stat, index) => (
-					<Card key={index}>
+				{statsCards.map((stat) => (
+					<Card key={stat.title}>
 						<CardHeader className="pb-2">
 							<CardTitle className="text-sm font-medium text-muted-foreground">
 								{stat.title}
@@ -569,7 +548,10 @@ function AdminEventiPage() {
 									<Edit className="h-4 w-4 mr-2" />
 									Modifica Evento
 								</Button>
-								<Button variant="outline">
+								<Button
+									variant="outline"
+									onClick={() => handleManageRegistrations(selectedEvent)}
+								>
 									<Users className="h-4 w-4 mr-2" />
 									Gestisci Iscrizioni
 								</Button>

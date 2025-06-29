@@ -1,250 +1,412 @@
-"use client"
+"use client";
 
-import type React from "react"
-
-import { useState, useEffect } from "react"
-import { Button } from "@/components/ui/button"
+import { useQueries } from "@tanstack/react-query";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog"
-import { Label } from "@/components/ui/label"
-import { Checkbox } from "@/components/ui/checkbox"
-import { CalendarDays, MapPin, Users, AlertCircle } from "lucide-react"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+	AlertCircle,
+	CalendarDays,
+	Loader2,
+	MapPin,
+	Users,
+} from "lucide-react";
+import type React from "react";
+import { useEffect, useState } from "react";
+import { toast } from "sonner";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+	Dialog,
+	DialogContent,
+	DialogDescription,
+	DialogFooter,
+	DialogHeader,
+	DialogTitle,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useFamiliesQuery } from "@/hooks/useFamilyQuery";
+import { useCreateRegistrationMutation } from "@/hooks/useRegistrationsQuery";
+import { orpc } from "@/lib/orpc-react";
 
 interface IscrizioneFiglioDialogProps {
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  evento: any
+	open: boolean;
+	onOpenChange: (open: boolean) => void;
+	evento: any;
 }
 
-export function IscrizioneFiglioDialog({ open, onOpenChange, evento }: IscrizioneFiglioDialogProps) {
-  const [figlioSelezionato, setFiglioSelezionato] = useState<string | null>(null)
-  const [personeAutorizzate, setPersoneAutorizzate] = useState<string[]>([])
-  const [accettaTermini, setAccettaTermini] = useState(false)
+export function IscrizioneFiglioDialog({
+	open,
+	onOpenChange,
+	evento,
+}: IscrizioneFiglioDialogProps) {
+	const [figlioSelezionato, setFiglioSelezionato] = useState<string | null>(
+		null,
+	);
+	const [personeAutorizzate, setPersoneAutorizzate] = useState<string[]>([]);
+	const [accettaTermini, setAccettaTermini] = useState(false);
 
-  // Reset del form quando si apre il dialog
-  useEffect(() => {
-    if (open) {
-      setFiglioSelezionato(null)
-      setPersoneAutorizzate([])
-      setAccettaTermini(false)
-    }
-  }, [open])
+	// Load real family data
+	const { data: families = [], isLoading: familiesLoading } =
+		useFamiliesQuery();
 
-  // Dati di esempio per le famiglie
-  const famiglia = {
-    id: 1,
-    nome: "Famiglia Principale",
-    figli: [
-      {
-        id: "3",
-        nome: "Luca Rossi",
-        eta: 10,
-        avatar: "/placeholder.svg",
-      },
-      {
-        id: "4",
-        nome: "Sofia Rossi",
-        eta: 7,
-        avatar: "/placeholder.svg",
-      },
-    ],
-    personeAutorizzate: [
-      {
-        id: "1",
-        nome: "Giovanni Rossi",
-        relazione: "Nonno",
-        avatar: "/placeholder.svg",
-      },
-      {
-        id: "2",
-        nome: "Maria Bianchi",
-        relazione: "Nonna",
-        avatar: "/placeholder.svg",
-      },
-      {
-        id: "3",
-        nome: "Paolo Verdi",
-        relazione: "Zio",
-        avatar: "/placeholder.svg",
-      },
-    ],
-  }
+	// Mutation for creating registration
+	const createRegistrationMutation = useCreateRegistrationMutation();
 
-  const handlePersonaChange = (personaId: string) => {
-    setPersoneAutorizzate((current) =>
-      current.includes(personaId) ? current.filter((id) => id !== personaId) : [...current, personaId],
-    )
-  }
+	// Load children from ALL families
+	const childrenQueries = useQueries({
+		queries: families.map((family) => ({
+			queryKey: ["family", family.id, "children"],
+			queryFn: () => orpc.family.getChildren({ familyId: family.id }),
+			enabled: !!family.id,
+		})),
+	});
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    // Qui implementeresti la logica per salvare l'iscrizione
-    console.log("Iscrizione:", {
-      evento: evento?.id,
-      figlio: figlioSelezionato,
-      personeAutorizzate,
-      accettaTermini,
-    })
-    onOpenChange(false)
-  }
+	// Load authorized persons from ALL families
+	const personsQueries = useQueries({
+		queries: families.map((family) => ({
+			queryKey: ["family", family.id, "authorizedPersons"],
+			queryFn: () => orpc.family.getAuthorizedPersons({ familyId: family.id }),
+			enabled: !!family.id,
+		})),
+	});
 
-  if (!evento) return null
+	// Combine all children from all families with family info
+	const allChildren = childrenQueries
+		.filter((query) => query.data?.success)
+		.flatMap((query, index) => {
+			const family = families[index];
+			return (query.data?.data || []).map((child) => ({
+				...child,
+				familyName: family?.name || "Famiglia sconosciuta",
+			}));
+		});
 
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>Iscrivi tuo figlio a {evento.titolo}</DialogTitle>
-          <DialogDescription>Compila il modulo per iscrivere tuo figlio all'evento</DialogDescription>
-        </DialogHeader>
+	// Combine all authorized persons from all families with family info
+	const allAuthorizedPersons = personsQueries
+		.filter((query) => query.data?.success)
+		.flatMap((query, index) => {
+			const family = families[index];
+			return (query.data?.data || []).map((person) => ({
+				...person,
+				familyName: family?.name || "Famiglia sconosciuta",
+			}));
+		});
 
-        <form onSubmit={handleSubmit} className="space-y-6 mt-4">
-          <div className="space-y-2">
-            <div className="rounded-lg border p-4 space-y-3">
-              <div className="flex items-center gap-2">
-                <CalendarDays className="h-4 w-4 text-muted-foreground" />
-                <span>{evento.data}</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <MapPin className="h-4 w-4 text-muted-foreground" />
-                <span>{evento.luogo}</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <Users className="h-4 w-4 text-muted-foreground" />
-                <span>
-                  Età: {evento.etaMin}-{evento.etaMax} anni
-                </span>
-              </div>
-            </div>
-          </div>
+	// Check if any query is loading
+	const childrenLoading = childrenQueries.some((query) => query.isLoading);
+	const personsLoading = personsQueries.some((query) => query.isLoading);
 
-          <Tabs defaultValue="figlio" className="w-full">
-            <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="figlio">Seleziona Figlio</TabsTrigger>
-              <TabsTrigger value="autorizzati">Persone Autorizzate</TabsTrigger>
-            </TabsList>
+	// Reset del form quando si apre il dialog
+	useEffect(() => {
+		if (open) {
+			setFiglioSelezionato(null);
+			setPersoneAutorizzate([]);
+			setAccettaTermini(false);
+		}
+	}, [open]);
 
-            <TabsContent value="figlio" className="space-y-4 mt-4">
-              <div className="space-y-2">
-                <Label>Seleziona il figlio da iscrivere *</Label>
-                <div className="space-y-2">
-                  {famiglia.figli.map((figlio) => (
-                    <div
-                      key={figlio.id}
-                      className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer ${
-                        figlioSelezionato === figlio.id ? "border-primary bg-primary/5" : ""
-                      }`}
-                      onClick={() => setFiglioSelezionato(figlio.id)}
-                    >
-                      <Avatar>
-                        <AvatarImage src={figlio.avatar} alt={figlio.nome} />
-                        <AvatarFallback>{figlio.nome.charAt(0)}</AvatarFallback>
-                      </Avatar>
-                      <div>
-                        <p className="font-medium">{figlio.nome}</p>
-                        <p className="text-sm text-muted-foreground">{figlio.eta} anni</p>
-                      </div>
-                      <div className="ml-auto">
-                        <div
-                          className={`size-5 rounded-full border-2 ${
-                            figlioSelezionato === figlio.id ? "border-primary bg-primary" : "border-muted"
-                          }`}
-                        />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-                {famiglia.figli.length === 0 && (
-                  <div className="text-center p-4">
-                    <p>Non hai ancora aggiunto figli alla tua famiglia</p>
-                    <Button variant="link" className="mt-2">
-                      Aggiungi un figlio
-                    </Button>
-                  </div>
-                )}
-              </div>
-            </TabsContent>
+	// Calculate age for children
+	const calculateAge = (birthDate: string) => {
+		const today = new Date();
+		const birth = new Date(birthDate);
+		let age = today.getFullYear() - birth.getFullYear();
+		const monthDiff = today.getMonth() - birth.getMonth();
+		if (
+			monthDiff < 0 ||
+			(monthDiff === 0 && today.getDate() < birth.getDate())
+		) {
+			age--;
+		}
+		return age;
+	};
 
-            <TabsContent value="autorizzati" className="space-y-4 mt-4">
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <Label>Persone autorizzate a ritirare il bambino</Label>
-                  <span className="text-xs text-muted-foreground">(Opzionale)</span>
-                </div>
-                <div className="space-y-2">
-                  {famiglia.personeAutorizzate.map((persona) => (
-                    <div key={persona.id} className="flex items-center gap-3 p-3 rounded-lg border">
-                      <Checkbox
-                        id={`persona-${persona.id}`}
-                        checked={personeAutorizzate.includes(persona.id)}
-                        onCheckedChange={() => handlePersonaChange(persona.id)}
-                      />
-                      <Label
-                        htmlFor={`persona-${persona.id}`}
-                        className="flex items-center gap-3 cursor-pointer flex-1"
-                      >
-                        <Avatar>
-                          <AvatarImage src={persona.avatar} alt={persona.nome} />
-                          <AvatarFallback>{persona.nome.charAt(0)}</AvatarFallback>
-                        </Avatar>
-                        <div>
-                          <p className="font-medium">{persona.nome}</p>
-                          <p className="text-sm text-muted-foreground">{persona.relazione}</p>
-                        </div>
-                      </Label>
-                    </div>
-                  ))}
-                </div>
-                {famiglia.personeAutorizzate.length === 0 && (
-                  <div className="text-center p-4">
-                    <p>Non hai ancora aggiunto persone autorizzate</p>
-                    <Button variant="link" className="mt-2">
-                      Aggiungi una persona autorizzata
-                    </Button>
-                  </div>
-                )}
-                <div className="mt-2 rounded-md bg-amber-50 p-3 text-sm flex gap-2">
-                  <AlertCircle className="h-5 w-5 text-amber-500 flex-shrink-0" />
-                  <p className="text-amber-800">
-                    Se non selezioni nessuna persona, solo i genitori saranno autorizzati a ritirare il bambino.
-                  </p>
-                </div>
-              </div>
-            </TabsContent>
-          </Tabs>
+	// Check if child is eligible for the event
+	const isChildEligible = (birthDate: string) => {
+		const age = calculateAge(birthDate);
+		return age >= (evento?.minAge || 0) && age <= (evento?.maxAge || 100);
+	};
 
-          <div className="space-y-2 border-t pt-4">
-            <div className="flex items-center space-x-2">
-              <Checkbox
-                id="termini"
-                checked={accettaTermini}
-                onCheckedChange={(checked) => setAccettaTermini(checked === true)}
-                required
-              />
-              <Label htmlFor="termini" className="text-sm">
-                Accetto i termini e le condizioni dell'evento, incluse le politiche di cancellazione e rimborso *
-              </Label>
-            </div>
-          </div>
+	const handlePersonaChange = (personaId: string) => {
+		setPersoneAutorizzate((current) =>
+			current.includes(personaId)
+				? current.filter((id) => id !== personaId)
+				: [...current, personaId],
+		);
+	};
 
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-              Annulla
-            </Button>
-            <Button type="submit" disabled={!figlioSelezionato || !accettaTermini}>
-              Conferma Iscrizione
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
-  )
+	const handleSubmit = async (e: React.FormEvent) => {
+		e.preventDefault();
+
+		if (!figlioSelezionato) {
+			toast.error("Seleziona un figlio da iscrivere");
+			return;
+		}
+
+		if (!accettaTermini) {
+			toast.error("Devi accettare i termini per procedere");
+			return;
+		}
+
+		try {
+			await createRegistrationMutation.mutateAsync({
+				eventId: evento.id,
+				childId: figlioSelezionato,
+				authorizedPersonIds:
+					personeAutorizzate.length > 0 ? personeAutorizzate : undefined,
+			});
+
+			toast.success("Iscrizione completata con successo!");
+			onOpenChange(false);
+		} catch (error) {
+			console.error("Registration error:", error);
+			toast.error("Errore durante l'iscrizione. Riprova.");
+		}
+	};
+
+	if (!evento) return null;
+
+	return (
+		<Dialog open={open} onOpenChange={onOpenChange}>
+			<DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
+				<DialogHeader>
+					<DialogTitle>Iscrivi tuo figlio a {evento.title}</DialogTitle>
+					<DialogDescription>
+						Compila il modulo per iscrivere tuo figlio all'evento
+					</DialogDescription>
+				</DialogHeader>
+
+				<form onSubmit={handleSubmit} className="space-y-6 mt-4">
+					<div className="space-y-2">
+						<div className="rounded-lg border p-4 space-y-3">
+							<div className="flex items-center gap-2">
+								<CalendarDays className="h-4 w-4 text-muted-foreground" />
+								<span>
+									{new Date(evento.startDate).toLocaleDateString("it-IT")}
+									{evento.endDate &&
+										evento.endDate !== evento.startDate &&
+										` - ${new Date(evento.endDate).toLocaleDateString("it-IT")}`}
+								</span>
+							</div>
+							<div className="flex items-center gap-2">
+								<MapPin className="h-4 w-4 text-muted-foreground" />
+								<span>{evento.location}</span>
+							</div>
+							<div className="flex items-center gap-2">
+								<Users className="h-4 w-4 text-muted-foreground" />
+								<span>
+									Età: {evento.minAge}-{evento.maxAge} anni
+								</span>
+							</div>
+						</div>
+					</div>
+
+					<Tabs defaultValue="figlio" className="w-full">
+						<TabsList className="grid w-full grid-cols-2">
+							<TabsTrigger value="figlio">Seleziona Figlio</TabsTrigger>
+							<TabsTrigger value="autorizzati">Persone Autorizzate</TabsTrigger>
+						</TabsList>
+
+						<TabsContent value="figlio" className="space-y-4 mt-4">
+							<div className="space-y-2">
+								<div className="flex items-center justify-between">
+									<Label>Seleziona il figlio da iscrivere *</Label>
+									{families.length > 1 && (
+										<span className="text-xs text-muted-foreground">
+											{allChildren.length} figli da {families.length} famiglie
+										</span>
+									)}
+								</div>
+								{childrenLoading ? (
+									<div className="flex items-center justify-center p-4">
+										<Loader2 className="h-6 w-6 animate-spin" />
+									</div>
+								) : (
+									<div className="space-y-2">
+										{allChildren.map((figlio) => {
+											const age = calculateAge(figlio.birthDate);
+											const eligible = isChildEligible(figlio.birthDate);
+											const fullName = `${figlio.firstName} ${figlio.lastName}`;
+											return (
+												<div
+													key={figlio.id}
+													className={`flex items-center gap-3 p-3 rounded-lg border ${
+														eligible
+															? "cursor-pointer"
+															: "opacity-50 cursor-not-allowed"
+													} ${
+														figlioSelezionato === figlio.id
+															? "border-primary bg-primary/5"
+															: ""
+													}`}
+													onClick={() =>
+														eligible && setFiglioSelezionato(figlio.id)
+													}
+												>
+													<Avatar>
+														<AvatarImage
+															src={figlio.avatarUrl}
+															alt={fullName}
+														/>
+														<AvatarFallback>
+															{figlio.firstName.charAt(0)}
+														</AvatarFallback>
+													</Avatar>
+													<div className="flex-1">
+														<p className="font-medium">{fullName}</p>
+														<p className="text-sm text-muted-foreground">
+															{age} anni • {figlio.familyName}
+															{!eligible && " - Non idoneo per questo evento"}
+														</p>
+													</div>
+													{eligible && (
+														<div className="ml-auto">
+															<div
+																className={`size-5 rounded-full border-2 ${
+																	figlioSelezionato === figlio.id
+																		? "border-primary bg-primary"
+																		: "border-muted"
+																}`}
+															/>
+														</div>
+													)}
+												</div>
+											);
+										})}
+									</div>
+								)}
+								{allChildren.length === 0 && !childrenLoading && (
+									<div className="text-center p-4">
+										<p>Non hai ancora aggiunto figli alla tua famiglia</p>
+										<Button variant="link" className="mt-2">
+											Aggiungi un figlio
+										</Button>
+									</div>
+								)}
+							</div>
+						</TabsContent>
+
+						<TabsContent value="autorizzati" className="space-y-4 mt-4">
+							<div className="space-y-2">
+								<div className="flex items-center justify-between">
+									<Label>Persone autorizzate a ritirare il bambino</Label>
+									<div className="flex items-center gap-2">
+										{families.length > 1 && allAuthorizedPersons.length > 0 && (
+											<span className="text-xs text-muted-foreground">
+												{allAuthorizedPersons.length} persone
+											</span>
+										)}
+										<span className="text-xs text-muted-foreground">
+											(Opzionale)
+										</span>
+									</div>
+								</div>
+								{personsLoading ? (
+									<div className="flex items-center justify-center p-4">
+										<Loader2 className="h-6 w-6 animate-spin" />
+									</div>
+								) : (
+									<div className="space-y-2">
+										{allAuthorizedPersons.map((persona) => (
+											<div
+												key={persona.id}
+												className="flex items-center gap-3 p-3 rounded-lg border"
+											>
+												<Checkbox
+													id={`persona-${persona.id}`}
+													checked={personeAutorizzate.includes(persona.id)}
+													onCheckedChange={() =>
+														handlePersonaChange(persona.id)
+													}
+												/>
+												<Label
+													htmlFor={`persona-${persona.id}`}
+													className="flex items-center gap-3 cursor-pointer flex-1"
+												>
+													<Avatar>
+														<AvatarImage
+															src={persona.avatarUrl}
+															alt={persona.fullName}
+														/>
+														<AvatarFallback>
+															{persona.fullName.charAt(0)}
+														</AvatarFallback>
+													</Avatar>
+													<div>
+														<p className="font-medium">{persona.fullName}</p>
+														<p className="text-sm text-muted-foreground">
+															{persona.relationship} • {persona.familyName}
+														</p>
+													</div>
+												</Label>
+											</div>
+										))}
+									</div>
+								)}
+								{allAuthorizedPersons.length === 0 && !personsLoading && (
+									<div className="text-center p-4">
+										<p>Non hai ancora aggiunto persone autorizzate</p>
+										<Button variant="link" className="mt-2">
+											Aggiungi una persona autorizzata
+										</Button>
+									</div>
+								)}
+								<div className="mt-2 rounded-md bg-amber-50 p-3 text-sm flex gap-2">
+									<AlertCircle className="h-5 w-5 text-amber-500 flex-shrink-0" />
+									<p className="text-amber-800">
+										Se non selezioni nessuna persona, solo i genitori saranno
+										autorizzati a ritirare il bambino.
+									</p>
+								</div>
+							</div>
+						</TabsContent>
+					</Tabs>
+
+					<div className="space-y-2 border-t pt-4">
+						<div className="flex items-center space-x-2">
+							<Checkbox
+								id="termini"
+								checked={accettaTermini}
+								onCheckedChange={(checked) =>
+									setAccettaTermini(checked === true)
+								}
+								required
+							/>
+							<Label htmlFor="termini" className="text-sm">
+								Accetto i termini e le condizioni dell'evento, incluse le
+								politiche di cancellazione e rimborso *
+							</Label>
+						</div>
+					</div>
+
+					<DialogFooter>
+						<Button
+							type="button"
+							variant="outline"
+							onClick={() => onOpenChange(false)}
+							disabled={createRegistrationMutation.isPending}
+						>
+							Annulla
+						</Button>
+						<Button
+							type="submit"
+							disabled={
+								!figlioSelezionato ||
+								!accettaTermini ||
+								createRegistrationMutation.isPending
+							}
+						>
+							{createRegistrationMutation.isPending ? (
+								<>
+									<Loader2 className="h-4 w-4 animate-spin mr-2" />
+									Iscrivendo...
+								</>
+							) : (
+								"Conferma Iscrizione"
+							)}
+						</Button>
+					</DialogFooter>
+				</form>
+			</DialogContent>
+		</Dialog>
+	);
 }

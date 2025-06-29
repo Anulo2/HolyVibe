@@ -17,6 +17,7 @@ import { Route as EventiRouteImport } from './routes/eventi'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AdminIndexRouteImport } from './routes/admin/index'
 import { Route as AdminUtentiRouteImport } from './routes/admin/utenti'
 import { Route as AdminReportisticaRouteImport } from './routes/admin/reportistica'
 import { Route as AdminIscrizioniRouteImport } from './routes/admin/iscrizioni'
@@ -63,6 +64,11 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminIndexRoute = AdminIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AdminRoute,
+} as any)
 const AdminUtentiRoute = AdminUtentiRouteImport.update({
   id: '/utenti',
   path: '/utenti',
@@ -103,10 +109,10 @@ export interface FileRoutesByFullPath {
   '/admin/iscrizioni': typeof AdminIscrizioniRoute
   '/admin/reportistica': typeof AdminReportisticaRoute
   '/admin/utenti': typeof AdminUtentiRoute
+  '/admin/': typeof AdminIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/admin': typeof AdminRouteWithChildren
   '/dashboard': typeof DashboardRoute
   '/eventi': typeof EventiRoute
   '/famiglia': typeof FamigliaRoute
@@ -118,6 +124,7 @@ export interface FileRoutesByTo {
   '/admin/iscrizioni': typeof AdminIscrizioniRoute
   '/admin/reportistica': typeof AdminReportisticaRoute
   '/admin/utenti': typeof AdminUtentiRoute
+  '/admin': typeof AdminIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -134,6 +141,7 @@ export interface FileRoutesById {
   '/admin/iscrizioni': typeof AdminIscrizioniRoute
   '/admin/reportistica': typeof AdminReportisticaRoute
   '/admin/utenti': typeof AdminUtentiRoute
+  '/admin/': typeof AdminIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -151,10 +159,10 @@ export interface FileRouteTypes {
     | '/admin/iscrizioni'
     | '/admin/reportistica'
     | '/admin/utenti'
+    | '/admin/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
-    | '/admin'
     | '/dashboard'
     | '/eventi'
     | '/famiglia'
@@ -166,6 +174,7 @@ export interface FileRouteTypes {
     | '/admin/iscrizioni'
     | '/admin/reportistica'
     | '/admin/utenti'
+    | '/admin'
   id:
     | '__root__'
     | '/'
@@ -181,6 +190,7 @@ export interface FileRouteTypes {
     | '/admin/iscrizioni'
     | '/admin/reportistica'
     | '/admin/utenti'
+    | '/admin/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -252,6 +262,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin/': {
+      id: '/admin/'
+      path: '/'
+      fullPath: '/admin/'
+      preLoaderRoute: typeof AdminIndexRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/admin/utenti': {
       id: '/admin/utenti'
       path: '/utenti'
@@ -296,6 +313,7 @@ interface AdminRouteChildren {
   AdminIscrizioniRoute: typeof AdminIscrizioniRoute
   AdminReportisticaRoute: typeof AdminReportisticaRoute
   AdminUtentiRoute: typeof AdminUtentiRoute
+  AdminIndexRoute: typeof AdminIndexRoute
 }
 
 const AdminRouteChildren: AdminRouteChildren = {
@@ -304,6 +322,7 @@ const AdminRouteChildren: AdminRouteChildren = {
   AdminIscrizioniRoute: AdminIscrizioniRoute,
   AdminReportisticaRoute: AdminReportisticaRoute,
   AdminUtentiRoute: AdminUtentiRoute,
+  AdminIndexRoute: AdminIndexRoute,
 }
 
 const AdminRouteWithChildren = AdminRoute._addFileChildren(AdminRouteChildren)

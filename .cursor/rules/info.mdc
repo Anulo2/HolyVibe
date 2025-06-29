@@ -3,197 +3,494 @@ description:
 globs: 
 alwaysApply: true
 ---
-# Church Management Application - Complete Project Description
+# HolyVibe - Church Management Application
 
 ## Project Overview
 
-A comprehensive church/parish events management platform built with React, TypeScript, Tailwind CSS, and ElysiaJS. The application allows parents to manage their families, children, events, and authorized persons for child pickup/supervision.
+HolyVibe is a comprehensive church/parish events management platform built with modern web technologies. The application enables parishes to manage families, children, events, and authorized persons for child pickup/supervision with a focus on safety and organization.
 
 ## Tech Stack
 
-- **Frontend**: Tanstack Router, React, TypeScript, Tailwind CSS, elysia eden, tanstack query
-- **UI Components**: shadcn/ui components
-- **Backend**: ElysiaJS, Drizzle ORM
-- **Authentication**: Better-auth
-- **Styling**: Tailwind CSS with dark/light theme support
+### Frontend
+- **Framework**: React 19 with TypeScript
+- **Routing**: TanStack Router v1.121+ with file-based routing
+- **State Management**: TanStack Query (React Query) v5.80+ with ORPC integration
+- **Data Tables**: TanStack Table for advanced data grids with sorting, filtering, pagination
+- **Form Management**: TanStack Form for type-safe form handling
+- **UI Framework**: shadcn/ui components with Radix UI primitives + bazza/ui extensions
+- **Styling**: Tailwind CSS v4.1+ with dark/light theme support
+- **Authentication**: Better Auth v1.2+ client integration
 - **Icons**: Lucide React
+- **Build Tool**: Vite v6.3+ with TypeScript native preview
 
+### Backend  
+- **Runtime**: Bun
+- **Framework**: Elysia v1.3+ with TypeScript
+- **API Layer**: ORPC v1.5+ (instead of REST/tRPC)
+- **Database**: SQLite with Drizzle ORM v0.42+
+- **Authentication**: Better Auth v1.2+ with phone number support
+- **Validation**: Zod v3.25+
 
-## Application Structure
+### Key Dependencies
+- **@orpc/client & @orpc/server**: Type-safe RPC communication
+- **@tanstack/react-router**: File-based routing with type safety
+- **@tanstack/react-query**: Server state management
+- **@tanstack/react-table**: Powerful data table components
+- **@tanstack/react-form**: Type-safe form management
+- **better-auth**: Modern authentication with organization support
+- **drizzle-orm**: Type-safe SQL ORM
+- **nanoid**: Unique ID generation
+- **date-fns**: Date manipulation
+- **recharts**: Chart components for admin dashboards
 
-### Database Schema
+## Architecture & Communication
 
-The application uses SQLite with Drizzle ORM. The database structure consists of the following main entities:
+### ORPC Integration
+The application uses ORPC for type-safe client-server communication:
 
-#### Authentication Tables (Better Auth)
+```typescript
+// Server: /server/src/orpc/server.ts
+export const router = os.router({
+  family: os.router({
+    list: withAuth.output(SuccessResponse(z.array(...))).handler(...),
+    create: withAuth.input(z.object({...})).handler(...),
+    getChildren: withAuth.input(z.object({ familyId: z.string() })).handler(...),
+    addChild: withAuth.input(z.object({...})).handler(...),
+    getAuthorizedPersons: withAuth.input(z.object({ familyId: z.string() })).handler(...),
+    addAuthorizedPerson: withAuth.input(z.object({...})).handler(...),
+  }),
+  events: os.router({
+    list: withAuth.input(z.object({...})).handler(...),
+    get: withAuth.input(z.object({ id: z.string() })).handler(...),
+    create: withAuth.input(z.object({...})).handler(...),
+    update: withAuth.input(z.object({...})).handler(...),
+  }),
+  registrations: os.router({
+    list: withAuth.input(z.object({...})).handler(...),
+    create: withAuth.input(z.object({...})).handler(...),
+  }),
+  user: os.router({
+    getCurrentUserRole: withAuth.handler(...),
+  })
+});
 
-- **user**: Core user table with id, name, email, phone number, birth date, and verification status
-- **session**: User sessions with tokens, expiration, IP tracking, and user agent
-- **account**: OAuth accounts linking users to external providers
-- **verification**: Email/phone verification tokens and codes
-
-#### Organization Management (Better Auth)
-
-- **organization**: Organizations/churches with name, image, and owner
-- **organizationMember**: Users belonging to organizations with roles
-- **invitation**: Organization invitations with email, token, and expiry
-
-#### Family Management
-
-- **families**: Family groups with name, description, and creator
-- **familyMembers**: Users belonging to families with roles (parent/guardian) and admin status
-- **children**: Child records with personal info, medical notes, allergies, and family association
-- **authorizedPersons**: Non-parent individuals authorized for child pickup with contact and document info
-
-#### Event System
-
-- **events**: Events with title, description, dates, location, age limits, capacity, and pricing
-- **eventRegistrations**: Child registrations for events with status and payment tracking
-- **registrationAuthorizedPersons**: Junction table linking event registrations to authorized pickup persons
-
-#### Invitation System
-
-- **invitations**: Family invitations with email, status, token, and expiry tracking
-
-#### Legacy Tables
-
-- **todos**: Simple todo items (can be removed in future versions)
-
-#### Key Relationships
-
-- Users can belong to multiple families as members
-- Families contain multiple children and authorized persons
-- Events have age-based filtering and capacity management
-- Registrations link children to events with pickup authorization
-- Organizations provide multi-tenancy support for different churches/parishes
-
-#### Data Types & Constraints
-
-- All timestamps stored as Unix timestamps with SQLite integer type
-- Enums implemented as text with CHECK constraints
-- Foreign keys with CASCADE delete for data integrity
-- Boolean fields stored as integers (0/1)
-- Prices stored as text strings for decimal precision
+// Client: /client/src/lib/orpc-client.ts
+const link = new RPCLink({
+  url: "http://localhost:3000/orpc",
+  fetch: (input, init) => fetch(input, {
+    ...init,
+    credentials: "include" // For Better Auth cookies
+  })
+});
+export const orpcClient = createORPCClient<AppRouter>(link);
+```
 
 ### Authentication System
+Better Auth with phone number authentication and organization support:
 
-- **Better Auth Integration**: Phone number authentication
-- **Role-Based Access Control**: Different permission levels (user, animatore, editor, amministratore)
-- **Protected Routes**: Middleware-based route protection
-- **Session Management**: Done by better-auth
+```typescript
+// /server/src/auth.ts
+export const auth = betterAuth({
+  appName: "Family Management App",
+  plugins: [
+    organization(), // Parish/church management
+    phoneNumber({
+      sendOTP: ({ phoneNumber, code }) => {
+        // SMS integration (Twilio, AWS SNS, etc.)
+        console.log(`📱 OTP for ${phoneNumber}: ${code}`);
+      },
+      signUpOnVerification: {
+        getTempEmail: (phoneNumber) => `${phoneNumber.replace(/[^\d]/g, "")}@family-app.com`,
+      },
+      otpLength: 6,
+      expiresIn: 300, // 5 minutes
+    })
+  ],
+  emailAndPassword: { enabled: false } // Phone-only authentication
+});
+```
 
+## Database Schema
 
-### User Roles & Permissions
+### Authentication & Organization (Better Auth)
+- **user**: Core user table with phone authentication, name, email, birthDate
+- **session**: Session management with IP/user agent tracking, tokens, expiration
+- **account**: OAuth account linking with providers
+- **verification**: OTP verification codes with identifiers and expiry
+- **organization**: Churches/parishes with name, image, owner
+- **organizationMember**: User-organization relationships with roles
+- **invitation**: Organization invitation system with tokens and expiry
 
-1. **User (Genitore)**: Basic family management, child registration
-2. **Animatore**: Event assistance, limited admin functions
-3. **Editor**: Event creation and management
-4. **Amministratore**: Full system access, user management
+### Family Management
+- **families**: Family groups with name, description, creator, timestamps
+- **familyMembers**: Users in families with parent/guardian roles and admin status
+- **children**: Child records with personal info (firstName, lastName, birthDate, birthPlace, fiscalCode, gender), medical info (allergies, medicalNotes), avatars
+- **authorizedPersons**: Non-parent pickup authorization with fullName, relationship, contact info (phone, email), isActive status
 
+### Event System  
+- **events**: Events with title, description, dates (startDate, endDate), location, age limits (minAge, maxAge), capacity (maxParticipants, currentParticipants), pricing, status, imageUrl, creator
+- **eventRegistrations**: Child-event registrations with status (pending, confirmed, cancelled, waitlist), paymentStatus (pending, completed, failed, refunded), registrationDate, notes
+- **registrationAuthorizedPersons**: Junction table linking event registrations to authorized pickup persons
 
-### Core Features
+### Invitation System
+- **invitations**: Family invitation tokens with email, invitedBy, message, status (pending, accepted, rejected, expired), token, expiresAt, acceptedAt
 
-#### 1. Family Management (`/famiglia`)
+## Frontend Architecture
 
-- **Multi-Family Support**: Users can belong to multiple families
-- **Family Creation**: Create and name family groups
-- **Member Management**: Invite other parents to join families
-- **Child Management**: Add, edit, remove children with full details
-- **Authorized Persons**: Manage pickup authorization for non-parents
+### Route Structure
+File-based routing with TanStack Router:
 
+```
+/                     → Redirects to /dashboard
+/login               → Authentication (phone number)
+/dashboard           → User dashboard with family overview
+/famiglia            → Family management interface
+/eventi              → Event browsing and registration
+/profilo             → User profile management  
+/parrocchie          → Organization/parish management
+/admin               → Admin panel with nested routes:
+  ├── /admin/         → Dashboard with statistics
+  ├── /admin/eventi   → Event management
+  ├── /admin/utenti   → User management
+  ├── /admin/iscrizioni → Registration management
+  ├── /admin/reportistica → Reports and analytics
+  └── /admin/impostazioni → System settings
+```
 
-#### 2. Event Management (`/eventi`)
+### Component Architecture
 
-- **Event Discovery**: Browse available events with filtering
-- **Event Registration**: Register children for events
-- **Pickup Authorization**: Select authorized persons for event pickup
-- **Age-Based Filtering**: Events filtered by child age ranges
-- **Availability Tracking**: Real-time participant count management
+#### Layout Components
+- **Header**: User dropdown, theme toggle, logout functionality
+- **Sidebar**: Navigation with role-based visibility and responsive design
+- **RootComponent**: Layout switching based on authentication state
 
+#### Dialog Components (Modal Forms)
+- **CreaFamigliaDialog**: Family creation with name and description
+- **AggiungiModificaFiglioDialog**: Child add/edit (475 lines, comprehensive form with personal info, medical details, avatar upload)
+- **AggiungiModificaPersonaDialog**: Authorized person management (187 lines)
+- **IscrizioneFiglioDialog**: Event registration with pickup authorization selection (413 lines)
+- **InvitaGenitoreDialog**: Family invitation system (146 lines)
 
-#### 3. Invitation System (`/inviti`)
+#### Admin Components
+- **AdminStatsCards**: Key metrics and KPIs dashboard
+- **AdminEventiChart**: Event analytics visualization with recharts
+- **AdminRecentActivity**: Real-time activity feed
+- **AdminIscrizioni**: Registration management with detailed tables
+- **RegistrationDetailsDialog**: Detailed registration view with full relationship data
 
-- **Send Invitations**: Invite other parents to join families
-- **Invitation Management**: Track sent and received invitations
-- **Email/message Notifications**: Automated invitation emails/messages
-- **Acceptance/Rejection**: Handle invitation responses
+#### Data Table System (TanStack Table Integration)
+Advanced table system with:
+- **DataTableColumnHeader**: Sortable columns with indicators
+- **DataTablePagination**: Pagination controls with page size selection
+- **DataTableToolbar**: Search and filter controls
+- **DataTableViewOptions**: Column visibility management
+- **DataTableFilter**: Multi-condition filtering system with operators:
+  - **Subject**: Column selection
+  - **Operator**: equals, contains, startsWith, endsWith, greaterThan, lessThan, etc.
+  - **Value**: Dynamic input based on data type
+  - **ActiveFilters**: Visual filter management
+  - **FilterActions**: Add, remove, clear operations
 
+### Custom Hooks
 
-#### 4. User Profile (`/profilo`)
+#### API Integration Hooks (ORPC + TanStack Query)
+```typescript
+// Family Management
+useFamiliesQuery() → List user's families with counts
+useCreateFamilyMutation() → Create new family
+useFamilyChildrenQuery(familyId) → Get family children
+useAddChildMutation() → Add child to family
+useUpdateChildMutation() → Update child information
+useFamilyAuthorizedPersonsQuery(familyId) → Get authorized persons
+useAddAuthorizedPersonMutation() → Add authorized person
+useUpdateAuthorizedPersonMutation() → Update authorized person
 
-- **Profile Management**: Update personal information
-- **Avatar Upload**: Profile picture management
-- **Contact Information**: Phone, email updates
-- **Account Settings**: Password changes, preferences
+// Event Management  
+useEventsQuery(params) → List events with filtering (search, minAge, maxAge, limit, offset)
+useEventQuery(eventId) → Get single event details
+useCreateEventMutation() → Create new event
+useUpdateEventMutation() → Update event information
 
+// Registration Management
+useRegistrationsQuery(params) → List registrations with full details (RegistrationWithDetails type)
+useCreateRegistrationMutation() → Register child for event with authorized persons
 
-#### 5. Admin Panel (`/admin`)
+// Authentication & User Management
+useAuth() → Better Auth session + user role from organization
+useUserQuery() → Get current user information
+```
 
-- **Dashboard**: System statistics and overview
-- **User Management**: Create, edit, suspend users
-- **Event Management**: Full event CRUD operations
-- **Registration Management**: View and manage all registrations
-- **Role Management**: Assign and modify user roles
+#### Utility Hooks
+- **use-mobile.ts**: Responsive design detection for mobile-first approach
+- **use-toast.ts**: Toast notification system with Sonner integration
+- **use-debounce-callback.tsx**: Debounced callbacks for search and filters
+- **use-data-table-filters.tsx**: Advanced table filtering state management
 
+## User Roles & Permissions
 
-### UI Components & Design
+### Role Hierarchy (via Better Auth Organizations)
+1. **User (Genitore)**: Basic family and event management, child registration
+2. **Animatore**: Event assistance, limited admin access to help with events
+3. **Editor**: Event creation and content management, user assistance  
+4. **Amministratore**: Full system access, user management, reporting
 
-#### Layout & Navigation
+### Role-Based Access Control
+```typescript
+// Component-level protection
+<RoleGuard allowedRoles={["amministratore", "editor"]}>
+  <AdminContent />
+</RoleGuard>
 
-- **Responsive Sidebar**: Collapsible navigation with shadcn/ui Sidebar
-- **Theme Toggle**: Light/dark mode support
-- **User Dropdown**: Profile access and logout
-- **Breadcrumb Navigation**: Clear page hierarchy
+// Route-level protection  
+beforeLoad: ({ context }) => {
+  if (!context.auth.data?.user) {
+    throw redirect({ to: "/login" });
+  }
+}
 
+// Hook-based role checking
+const { userRole } = useAuth();
+const canAccessAdmin = ["amministratore", "editor"].includes(userRole);
+```
 
-#### Forms & Dialogs
+## Key Features Implementation
 
-- **Modal Dialogs**: Add/edit forms in overlay modals
-- **Multi-step Forms**: Tabbed interfaces for complex forms
-- **Form Validation**: Client-side and server-side validation
-- **Loading States**: Proper loading indicators
+### 1. Family Management (/famiglia)
+- **Multi-family support**: Users can belong to multiple families as members
+- **Child management**: Comprehensive child profiles with medical information, allergies, emergency contacts
+- **Authorized person system**: Non-parent pickup authorization with detailed contact info
+- **Real-time statistics**: Family member counts, children counts, authorized persons counts
+- **Member invitation system**: Email-based invitations with secure tokens
 
+### 2. Event Management (/eventi)  
+- **Age-based filtering**: Automatic event filtering based on children's ages
+- **Capacity management**: Real-time participant tracking with waitlist functionality
+- **Multi-child registration**: Register multiple children for same event
+- **Pickup authorization**: Event-specific authorized person selection
+- **Payment tracking**: Payment status integration (pending, completed, failed, refunded)
 
-#### Data Display
+### 3. Registration System
+Type-safe registration with comprehensive relationship details:
+```typescript
+type RegistrationWithDetails = {
+  id: string;
+  eventId: string;
+  status: "pending" | "confirmed" | "cancelled" | "waitlist";
+  paymentStatus: "pending" | "completed" | "failed" | "refunded";
+  registrationDate: string;
+  notes: string | null;
+  child: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    birthDate: string;
+    allergies: string | null;
+    medicalNotes: string | null;
+  };
+  parent: {
+    id: string;
+    name: string;
+    email: string;
+    phoneNumber: string | null;
+  };
+  event: {
+    id: string;
+    title: string;
+    startDate: string;
+    endDate: string | null;
+    price: string | null;
+  };
+  family: {
+    id: string;
+    name: string;
+  };
+  authorizedPersons: Array<{
+    id: string;
+    fullName: string;
+    relationship: string;
+    phone: string | null;
+    email: string | null;
+  }>;
+};
+```
 
-- **Data Tables**: Sortable, filterable tables with pagination
-- **Card Layouts**: Alternative grid view for events/users
-- **Avatar Components**: User and child profile pictures
-- **Badge System**: Status indicators for various entities
+### 4. Admin Panel (/admin)
+- **Dashboard**: Statistics cards with key metrics, charts with recharts, recent activity feed
+- **Event Management**: Full CRUD operations with advanced filtering and status management
+- **User Management**: Role assignment, account status management, organization membership
+- **Registration Management**: Detailed registration view with filtering, export capabilities
+- **Reportistica**: Analytics and reporting tools with data visualization
 
+### 5. Advanced Data Tables (TanStack Table)
+- **Multi-condition filtering**: Complex filter system with subject + operator + value
+- **Dynamic operators**: equals, contains, startsWith, endsWith, greaterThan, lessThan, between, isEmpty, isNotEmpty
+- **Column management**: Show/hide columns, reorder, resize
+- **Sorting**: Multi-column sorting with priority indicators
+- **Pagination**: Configurable page sizes, jump to page
+- **Export capabilities**: Data extraction in various formats
+- **Responsive design**: Mobile-optimized table layouts
+- **Virtualization**: Performance optimization for large datasets
 
+## Development Patterns
 
-### Development Patterns
+### Type Safety
+- **Full TypeScript**: End-to-end type safety from database to UI
+- **ORPC Integration**: Automatic type generation for client/server communication
+- **Zod Schemas**: Runtime validation with compile-time types
+- **Generated Types**: Router types, database types, form types
 
-#### Code Organization
+### Form Management (TanStack Form)
+```typescript
+// Example form implementation
+const form = useForm({
+  defaultValues: {
+    firstName: '',
+    lastName: '',
+    birthDate: '',
+    allergies: '',
+    medicalNotes: '',
+  },
+  onSubmit: async (values) => {
+    await addChildMutation.mutateAsync({
+      familyId: selectedFamilyId,
+      ...values,
+    });
+  },
+});
+```
 
-- **Feature-Based Structure**: Organized by functionality
-- **Component Reusability**: Shared UI components
-- **Custom Hooks**: Reusable logic extraction
-- **Type Safety**: Full TypeScript implementation
+### Error Handling
+```typescript
+// ORPC Error handling with type safety
+const withAuth = os.use(async ({ context, next }) => {
+  try {
+    const session = await auth.api.getSession({ headers: request.headers });
+    if (!session?.user) {
+      throw new ORPCError("UNAUTHORIZED", "Authentication required");
+    }
+    return next({ 
+      context: { 
+        user: session.user, 
+        session: session.session 
+      }
+    });
+  } catch (error) {
+    throw new ORPCError("UNAUTHORIZED", "Authentication failed");
+  }
+});
 
+// Client-side error handling
+const { data, error, isLoading } = useFamiliesQuery();
+if (error) {
+  toast.error("Errore nel caricamento delle famiglie");
+}
+```
 
-#### State Management
+### State Management
+- **TanStack Query**: Server state with intelligent caching, background updates
+- **React Context**: Authentication state sharing across components
+- **Local State**: Component-specific state with useState/useReducer
+- **Form State**: TanStack Form for complex form management
+- **Table State**: TanStack Table for data grid state
 
-- **React Context**: Authentication state
-- **Local State**: Component-specific state
-- **Form State**: React Hook Form integration
+### Performance Optimizations
+- **Query Invalidation**: Smart cache updates on mutations
+- **Stale Time**: 5-minute default for user data, 1-minute for events
+- **Parallel Queries**: Multiple simultaneous data fetching
+- **Code Splitting**: Route-based lazy loading with TanStack Router
+- **Virtualization**: Large list rendering optimization
+- **Background Refetch**: Keep data fresh without blocking UI
 
+## Security Features
 
-#### Error Handling
+### Authentication Security
+- **Phone-only authentication**: No password vulnerabilities
+- **OTP verification**: 6-digit codes, 5-minute expiry
+- **Session management**: IP tracking, user agent validation
+- **CSRF protection**: Built-in Better Auth protection
+- **Secure cookies**: httpOnly, secure, sameSite configuration
 
-- **Global Error Boundaries**: Application-level error catching
-- **Form Validation**: Field-level and form-level validation
-- **API Error Handling**: Graceful error responses
-- **User Feedback**: Toast notifications and alerts
+### Authorization
+- **Role-based access control**: Organization-scoped permissions
+- **Family membership validation**: Access control for family data
+- **Resource-level permissions**: Fine-grained access control
+- **Admin action logging**: Audit trail for administrative actions
 
+### Data Protection
+- **SQL injection prevention**: Drizzle ORM parameterized queries
+- **Input validation**: Zod schemas for all inputs
+- **Output sanitization**: XSS prevention
+- **CORS configuration**: Controlled cross-origin requests
+- **Rate limiting**: API endpoint protection
 
-### Deployment & Configuration
+## Deployment & Configuration
 
-- **Database Migrations**: Version-controlled schema changes
-- **Seed Data**: Initial roles and test data
-- **Production Optimization**: Build optimization and caching
+### Environment Setup
+```typescript
+// /server/src/env.ts
+export const env = {
+  BASE_URL: process.env.BASE_URL || "http://localhost:3000",
+  AUTH_SECRET: process.env.AUTH_SECRET!,
+  AUTH_TRUSTED_ORIGINS: process.env.AUTH_TRUSTED_ORIGINS || "http://localhost:5173",
+  DATABASE_URL: process.env.DATABASE_URL || "./db/database.db",
+  NODE_ENV: process.env.NODE_ENV || "development",
+};
+```
 
+### Database Management
+```bash
+# Development commands
+bun db:generate  # Generate Drizzle migrations
+bun db:migrate   # Apply migrations to database
+bun db:seed      # Seed initial data (roles, test users)
+bun db:reset     # Reset database and reseed
+bun db:studio    # Open Drizzle Studio for data inspection
 
-This comprehensive description covers all aspects of the events management application, from database design to user interface implementation, making it suitable for use as a cursor rule or development guide.
+# Production commands
+bun db:push      # Push schema changes directly
+bun start        # Production server start
+```
+
+### Build Process
+- **Frontend**: Vite build with TypeScript checking, code splitting
+- **Backend**: Bun compilation with bytecode generation for performance
+- **Type Generation**: Automatic ORPC router type generation
+- **Asset Optimization**: Image optimization, CSS minification
+- **Bundle Analysis**: Size analysis and optimization
+
+## Unique Features
+
+### Phone-First Authentication
+- **No passwords**: Eliminates password-related security issues
+- **SMS OTP verification**: Secure phone number verification
+- **Temporary email generation**: Automatic email creation from phone numbers
+- **Seamless onboarding**: Quick user registration flow
+
+### Comprehensive Child Safety
+- **Medical information tracking**: Allergies, medical notes, emergency contacts
+- **Authorized person system**: Detailed pickup authorization with relationships
+- **Event-specific authorization**: Per-event pickup person selection
+- **Emergency contact hierarchy**: Multiple contact methods and relationships
+
+### Organization Multi-tenancy
+- **Multiple parishes support**: Single installation, multiple organizations
+- **Role-based permissions**: Different permissions per organization
+- **Invitation system**: Secure organization joining process
+- **Centralized user management**: Cross-organization user handling
+
+### Advanced Event Management
+- **Age-based filtering**: Automatic child eligibility checking
+- **Dynamic capacity management**: Real-time availability tracking
+- **Waitlist functionality**: Automatic promotion when spots open
+- **Payment integration**: Comprehensive payment status tracking
+- **Detailed registration tracking**: Full audit trail of registrations
+
+### Modern Development Experience
+- **Full Type Safety**: End-to-end TypeScript with ORPC
+- **Hot Module Replacement**: Instant development feedback
+- **Component Development**: Isolated component development with shadcn/ui
+- **Database Introspection**: Visual database management with Drizzle Studio
+- **API Documentation**: Automatic API docs with Swagger integration
+
+This application represents a modern, type-safe, and secure solution for church event management with a strong focus on child safety, organizational efficiency, and developer experience.
 

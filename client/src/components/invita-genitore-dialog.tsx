@@ -1,6 +1,6 @@
 "use client";
 
-import { Mail, UserPlus } from "lucide-react";
+import { Phone, UserPlus } from "lucide-react";
 import type React from "react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -15,7 +15,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { toast } from "@/components/ui/use-toast";
+import { toast } from "sonner";
 import { orpcClient } from "@/lib/orpc-client";
 
 interface InvitaGenitoreDialogProps {
@@ -30,7 +30,7 @@ export function InvitaGenitoreDialog({
 	famiglia,
 }: InvitaGenitoreDialogProps) {
 	const [formData, setFormData] = useState({
-		email: "",
+		phoneNumber: "",
 		messaggio: "",
 	});
 	const [isSubmitting, setIsSubmitting] = useState(false);
@@ -45,35 +45,30 @@ export function InvitaGenitoreDialog({
 	const handleSubmit = async (e: React.FormEvent) => {
 		e.preventDefault();
 
-		if (!formData.email || !famiglia?.id) {
-			toast({
-				title: "Errore",
-				description: "Email e famiglia sono richiesti",
-				variant: "destructive",
-			});
+		if (!formData.phoneNumber || !famiglia?.id) {
+			toast.error("Numero di telefono e famiglia sono richiesti");
 			return;
 		}
 
 		setIsSubmitting(true);
 
 		try {
-			const result = await orpcClient.family.sendInvitation({
+			const invitationData = {
 				familyId: famiglia.id,
-				email: formData.email,
+				phoneNumber: formData.phoneNumber,
 				message: formData.messaggio || undefined,
-			});
+			};
+
+			const result = await orpcClient.family.sendInvitation(invitationData);
 
 			if (!result.success) {
 				throw new Error("Failed to send invitation");
 			}
 
-			toast({
-				title: "Invito inviato con successo",
-				description: `Un'email di invito è stata inviata a ${formData.email}`,
-			});
+			toast.success(`Un SMS di invito è stato inviato a ${formData.phoneNumber}`);
 
 			// Reset del form e chiusura del dialog
-			setFormData({ email: "", messaggio: "" });
+			setFormData({ phoneNumber: "", messaggio: "" });
 			onOpenChange(false);
 		} catch (error: any) {
 			console.error("Error sending invitation:", error);
@@ -93,11 +88,7 @@ export function InvitaGenitoreDialog({
 					"Non hai i permessi per inviare inviti per questa famiglia.";
 			}
 
-			toast({
-				title: "Errore durante l'invio",
-				description: errorMessage,
-				variant: "destructive",
-			});
+			toast.error(errorMessage);
 		} finally {
 			setIsSubmitting(false);
 		}
@@ -110,29 +101,32 @@ export function InvitaGenitoreDialog({
 					<DialogTitle>Invita un genitore</DialogTitle>
 					<DialogDescription>
 						Invita un altro genitore a unirsi a{" "}
-						{famiglia?.nome || "questa famiglia"}. Riceverà un'email con le
-						istruzioni per accettare l'invito.
+						{famiglia?.name || "questa famiglia"}. Riceverà un SMS con le 
+						istruzioni per registrarsi e accettare l'invito.
 					</DialogDescription>
 				</DialogHeader>
 
 				<form onSubmit={handleSubmit} className="space-y-4 mt-4">
 					<div className="space-y-2">
-						<Label htmlFor="email">Email del genitore *</Label>
+						<Label htmlFor="phoneNumber">
+							Numero di telefono del genitore *
+						</Label>
 						<div className="relative">
-							<Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+							<Phone className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
 							<Input
-								id="email"
-								type="email"
-								value={formData.email}
+								id="phoneNumber"
+								type="tel"
+								value={formData.phoneNumber}
 								onChange={handleChange}
-								placeholder="email@esempio.com"
+								placeholder="+39 123 456 7890"
 								className="pl-10"
 								required
 							/>
 						</div>
 						<p className="text-xs text-muted-foreground">
-							Assicurati che l'indirizzo email sia corretto. L'invito sarà
-							valido per 7 giorni.
+							Inserisci il numero di telefono completo di prefisso
+							internazionale. La persona riceverà un SMS con le istruzioni
+							per registrarsi e unirsi alla famiglia.
 						</p>
 					</div>
 

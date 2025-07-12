@@ -1,11 +1,12 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
-import { Edit2, Loader2, Plus } from "lucide-react";
+import { Edit2, Loader2, Plus, UserPlus } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Layout } from "@/components/Layout";
 import { CreaFamigliaDialog } from "@/components/crea-famiglia-dialog";
 import { AggiungiModificaFiglioDialog } from "@/components/aggiungi-modifica-figlio-dialog";
 import { AggiungiModificaPersonaDialog } from "@/components/aggiungi-modifica-persona-dialog";
+import { InvitaGenitoreDialog } from "@/components/invita-genitore-dialog";
 import {
 	useAddAuthorizedPersonMutation,
 	useAddChildMutation,
@@ -13,9 +14,10 @@ import {
 	useFamiliesQuery,
 	useFamilyAuthorizedPersonsQuery,
 	useFamilyChildrenQuery,
+	useSendInvitationMutation,
 	useUpdateAuthorizedPersonMutation,
 	useUpdateFamilyMutation,
-} from "../hooks/useFamilyQuery";
+} from "../hooks/useFamily";
 
 export const Route = createFileRoute("/famiglia")({
 	beforeLoad: ({ context }) => {
@@ -37,6 +39,7 @@ function FamigliaComponent() {
 	const [showCreateFamilyDialog, setShowCreateFamilyDialog] = useState(false);
 	const [showAddChildDialog, setShowAddChildDialog] = useState(false);
 	const [showAddPersonDialog, setShowAddPersonDialog] = useState(false);
+	const [showInviteParentDialog, setShowInviteParentDialog] = useState(false);
 	const [editingChild, setEditingChild] = useState<any>(null);
 	const [editingFamily, setEditingFamily] = useState<any>(null);
 	const [editingPerson, setEditingPerson] = useState<any>(null);
@@ -47,6 +50,7 @@ function FamigliaComponent() {
 		useFamiliesQuery();
 	const { mutateAsync: createFamily } = useCreateFamilyMutation();
 	const { mutateAsync: updateFamily } = useUpdateFamilyMutation();
+	const { mutateAsync: sendInvitation } = useSendInvitationMutation();
 
 	const { data: children = [], isLoading: childrenLoading } =
 		useFamilyChildrenQuery(selectedFamilyId);
@@ -145,12 +149,41 @@ function FamigliaComponent() {
 		}
 	};
 
+	const handleInviteParent = () => {
+		if (!selectedFamilyId) {
+			toast.error("Seleziona prima una famiglia");
+			return;
+		}
+		setShowInviteParentDialog(true);
+	};
+
+	const handleSendInvitationSubmit = async (data: { email?: string; phoneNumber?: string; message?: string }) => {
+		try {
+			await sendInvitation({
+				familyId: selectedFamilyId,
+				...data,
+			});
+			toast.success("Invito inviato con successo!");
+			setShowInviteParentDialog(false);
+		} catch (error) {
+			toast.error("Errore durante l'invio dell'invito");
+		}
+	};
+
 	return (
 		<>
 			<div className="space-y-6">
 				<div className="flex items-center justify-between">
 					<h2 className="text-2xl font-bold">Famiglia</h2>
 					<div className="flex space-x-2">
+						<button
+							onClick={handleInviteParent}
+							disabled={!selectedFamilyId}
+							className="flex items-center space-x-2 rounded-md bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-50"
+						>
+							<UserPlus size={16} />
+							<span>Invita Genitore</span>
+						</button>
 						<button
 							onClick={handleAddChild}
 							disabled={!selectedFamilyId}
@@ -337,6 +370,13 @@ function FamigliaComponent() {
 				onAddPerson={handleAddPersonSubmit}
 				onUpdatePerson={handleUpdatePersonSubmit}
 				person={editingPerson}
+			/>
+
+			{/* Invite Parent Dialog */}
+			<InvitaGenitoreDialog
+				open={showInviteParentDialog}
+				onOpenChange={setShowInviteParentDialog}
+				famiglia={families.find(f => f.id === selectedFamilyId)}
 			/>
 		</>
 	);

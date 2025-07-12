@@ -18,6 +18,7 @@ import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AdminIndexRouteImport } from './routes/admin/index'
+import { Route as InvitiAccettaRouteImport } from './routes/inviti.accetta'
 import { Route as AdminUtentiRouteImport } from './routes/admin/utenti'
 import { Route as AdminReportisticaRouteImport } from './routes/admin/reportistica'
 import { Route as AdminIscrizioniRouteImport } from './routes/admin/iscrizioni'
@@ -69,6 +70,11 @@ const AdminIndexRoute = AdminIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AdminRoute,
 } as any)
+const InvitiAccettaRoute = InvitiAccettaRouteImport.update({
+  id: '/inviti/accetta',
+  path: '/inviti/accetta',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AdminUtentiRoute = AdminUtentiRouteImport.update({
   id: '/utenti',
   path: '/utenti',
@@ -109,6 +115,7 @@ export interface FileRoutesByFullPath {
   '/admin/iscrizioni': typeof AdminIscrizioniRoute
   '/admin/reportistica': typeof AdminReportisticaRoute
   '/admin/utenti': typeof AdminUtentiRoute
+  '/inviti/accetta': typeof InvitiAccettaRoute
   '/admin/': typeof AdminIndexRoute
 }
 export interface FileRoutesByTo {
@@ -124,6 +131,7 @@ export interface FileRoutesByTo {
   '/admin/iscrizioni': typeof AdminIscrizioniRoute
   '/admin/reportistica': typeof AdminReportisticaRoute
   '/admin/utenti': typeof AdminUtentiRoute
+  '/inviti/accetta': typeof InvitiAccettaRoute
   '/admin': typeof AdminIndexRoute
 }
 export interface FileRoutesById {
@@ -141,6 +149,7 @@ export interface FileRoutesById {
   '/admin/iscrizioni': typeof AdminIscrizioniRoute
   '/admin/reportistica': typeof AdminReportisticaRoute
   '/admin/utenti': typeof AdminUtentiRoute
+  '/inviti/accetta': typeof InvitiAccettaRoute
   '/admin/': typeof AdminIndexRoute
 }
 export interface FileRouteTypes {
@@ -159,6 +168,7 @@ export interface FileRouteTypes {
     | '/admin/iscrizioni'
     | '/admin/reportistica'
     | '/admin/utenti'
+    | '/inviti/accetta'
     | '/admin/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -174,6 +184,7 @@ export interface FileRouteTypes {
     | '/admin/iscrizioni'
     | '/admin/reportistica'
     | '/admin/utenti'
+    | '/inviti/accetta'
     | '/admin'
   id:
     | '__root__'
@@ -190,6 +201,7 @@ export interface FileRouteTypes {
     | '/admin/iscrizioni'
     | '/admin/reportistica'
     | '/admin/utenti'
+    | '/inviti/accetta'
     | '/admin/'
   fileRoutesById: FileRoutesById
 }
@@ -202,6 +214,7 @@ export interface RootRouteChildren {
   LoginRoute: typeof LoginRoute
   ParrocchieRoute: typeof ParrocchieRoute
   ProfiloRoute: typeof ProfiloRoute
+  InvitiAccettaRoute: typeof InvitiAccettaRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -268,6 +281,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/admin/'
       preLoaderRoute: typeof AdminIndexRouteImport
       parentRoute: typeof AdminRoute
+    }
+    '/inviti/accetta': {
+      id: '/inviti/accetta'
+      path: '/inviti/accetta'
+      fullPath: '/inviti/accetta'
+      preLoaderRoute: typeof InvitiAccettaRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/admin/utenti': {
       id: '/admin/utenti'
@@ -336,6 +356,7 @@ const rootRouteChildren: RootRouteChildren = {
   LoginRoute: LoginRoute,
   ParrocchieRoute: ParrocchieRoute,
   ProfiloRoute: ProfiloRoute,
+  InvitiAccettaRoute: InvitiAccettaRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

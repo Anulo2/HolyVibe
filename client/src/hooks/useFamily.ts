@@ -1,284 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
 import { orpcClient } from "@/lib/orpc-client";
-import {
-	type AuthorizedPerson,
-	api,
-	type Child,
-	type Family,
-} from "../lib/api-client";
 
-// Hook for fetching user's families
-export const useFamilies = () => {
-	const [families, setFamilies] = useState<Family[]>([]);
-	const [loading, setLoading] = useState(true);
-	const [error, setError] = useState<string | null>(null);
-
-	const fetchFamilies = async () => {
-		try {
-			setLoading(true);
-			setError(null);
-
-			// Using Eden Treaty for type-safe API call
-			const { data, error: apiError } = await api.family.get({
-				$headers: {
-					"user-id": "mock-user-1",
-				},
-			});
-
-			if (apiError) {
-				setError("Failed to fetch families");
-				return;
-			}
-
-			if (data?.success) {
-				// Transform the response data to extract families
-				const familyData =
-					data.data?.map((item: any) => item.family).filter(Boolean) || [];
-				setFamilies(familyData);
-			} else {
-				setError(data?.error || "Unknown error");
-			}
-		} catch (err) {
-			setError("Failed to fetch families");
-			console.error("Error fetching families:", err);
-		} finally {
-			setLoading(false);
-		}
-	};
-
-	useEffect(() => {
-		fetchFamilies();
-	}, []);
-
-	const createFamily = async (familyData: {
-		name: string;
-		description?: string;
-	}) => {
-		try {
-			const { data, error: apiError } = await api.family.post(
-				{
-					...familyData,
-				},
-				{
-					$headers: {
-						"user-id": "mock-user-1",
-					},
-				},
-			);
-
-			if (apiError) {
-				throw new Error("Failed to create family");
-			}
-
-			if (data?.success) {
-				await fetchFamilies(); // Refresh the list
-				return data.data;
-			} else {
-				throw new Error(data?.error || "Unknown error");
-			}
-		} catch (err) {
-			console.error("Error creating family:", err);
-			throw err;
-		}
-	};
-
-	return {
-		families,
-		loading,
-		error,
-		createFamily,
-		refetch: fetchFamilies,
-	};
-};
-
-// Hook for managing children in a family
-export const useChildren = (familyId?: string) => {
-	const [children, setChildren] = useState<Child[]>([]);
-	const [loading, setLoading] = useState(false);
-	const [error, setError] = useState<string | null>(null);
-
-	const fetchChildren = async () => {
-		if (!familyId) return;
-
-		try {
-			setLoading(true);
-			setError(null);
-
-			// Using Eden Treaty for type-safe API call
-			const { data, error: apiError } = await api
-				.family({ familyId })
-				.children.get({
-					$headers: {
-						"user-id": "mock-user-1",
-					},
-				});
-
-			if (apiError) {
-				setError("Failed to fetch children");
-				return;
-			}
-
-			if (data?.success) {
-				setChildren(data.data || []);
-			} else {
-				setError(data?.error || "Unknown error");
-			}
-		} catch (err) {
-			setError("Failed to fetch children");
-			console.error("Error fetching children:", err);
-		} finally {
-			setLoading(false);
-		}
-	};
-
-	useEffect(() => {
-		fetchChildren();
-	}, [familyId]);
-
-	const addChild = async (childData: {
-		firstName: string;
-		lastName: string;
-		birthDate: string;
-		birthPlace?: string;
-		fiscalCode?: string;
-		gender?: "M" | "F" | "O";
-		allergies?: string;
-		medicalNotes?: string;
-	}) => {
-		if (!familyId) throw new Error("Family ID is required");
-
-		try {
-			const { data, error: apiError } = await api
-				.family({ familyId })
-				.children.post(
-					{
-						...childData,
-					},
-					{
-						$headers: {
-							"user-id": "mock-user-1",
-						},
-					},
-				);
-
-			if (apiError) {
-				throw new Error("Failed to add child");
-			}
-
-			if (data?.success) {
-				await fetchChildren(); // Refresh the list
-				return data.data;
-			} else {
-				throw new Error(data?.error || "Unknown error");
-			}
-		} catch (err) {
-			console.error("Error adding child:", err);
-			throw err;
-		}
-	};
-
-	return {
-		children,
-		loading,
-		error,
-		addChild,
-		refetch: fetchChildren,
-	};
-};
-
-// Hook for managing authorized persons in a family
-export const useAuthorizedPersons = (familyId?: string) => {
-	const [persons, setPersons] = useState<AuthorizedPerson[]>([]);
-	const [loading, setLoading] = useState(false);
-	const [error, setError] = useState<string | null>(null);
-
-	const fetchPersons = async () => {
-		if (!familyId) return;
-
-		try {
-			setLoading(true);
-			setError(null);
-
-			// Using Eden Treaty for type-safe API call
-			const { data, error: apiError } = await api
-				.family({ familyId })
-				["authorized-persons"].get({
-					$headers: {
-						"user-id": "mock-user-1",
-					},
-				});
-
-			if (apiError) {
-				setError("Failed to fetch authorized persons");
-				return;
-			}
-
-			if (data?.success) {
-				setPersons(data.data || []);
-			} else {
-				setError(data?.error || "Unknown error");
-			}
-		} catch (err) {
-			setError("Failed to fetch authorized persons");
-			console.error("Error fetching authorized persons:", err);
-		} finally {
-			setLoading(false);
-		}
-	};
-
-	useEffect(() => {
-		fetchPersons();
-	}, [familyId]);
-
-	const addPerson = async (personData: {
-		fullName: string;
-		relationship: string;
-		phone?: string;
-		email?: string;
-	}) => {
-		if (!familyId) throw new Error("Family ID is required");
-
-		try {
-			const { data, error: apiError } = await api
-				.family({ familyId })
-				["authorized-persons"].post(
-					{
-						...personData,
-					},
-					{
-						$headers: {
-							"user-id": "mock-user-1",
-						},
-					},
-				);
-
-			if (apiError) {
-				throw new Error("Failed to add authorized person");
-			}
-
-			if (data?.success) {
-				await fetchPersons(); // Refresh the list
-				return data.data;
-			} else {
-				throw new Error(data?.error || "Unknown error");
-			}
-		} catch (err) {
-			console.error("Error adding authorized person:", err);
-			throw err;
-		}
-	};
-
-	return {
-		persons,
-		loading,
-		error,
-		addPerson,
-		refetch: fetchPersons,
-	};
-};
-
-// Hook per ottenere le famiglie dell'utente
+// Hook per ottenere la lista delle famiglie dell'utente
 export function useFamiliesQuery() {
 	return useQuery({
 		queryKey: ["families"],
@@ -287,13 +10,13 @@ export function useFamiliesQuery() {
 			if (!result.success) {
 				throw new Error("Failed to fetch families");
 			}
-			return result.data;
+			// Extract just the family data from the response structure
+			return result.data.map((item) => item.family);
 		},
-		staleTime: 5 * 60 * 1000, // 5 minutes
 	});
 }
 
-// Hook per creare una famiglia
+// Hook per creare una nuova famiglia
 export function useCreateFamilyMutation() {
 	const queryClient = useQueryClient();
 
@@ -302,6 +25,28 @@ export function useCreateFamilyMutation() {
 			const result = await orpcClient.family.create(data);
 			if (!result.success) {
 				throw new Error("Failed to create family");
+			}
+			return result.data;
+		},
+		onSuccess: () => {
+			queryClient.invalidateQueries({ queryKey: ["families"] });
+		},
+	});
+}
+
+// Hook per aggiornare una famiglia
+export function useUpdateFamilyMutation() {
+	const queryClient = useQueryClient();
+
+	return useMutation({
+		mutationFn: async (data: {
+			id: string;
+			name?: string;
+			description?: string;
+		}) => {
+			const result = await orpcClient.family.updateFamily(data);
+			if (!result.success) {
+				throw new Error("Failed to update family");
 			}
 			return result.data;
 		},
@@ -323,11 +68,10 @@ export function useFamilyChildrenQuery(familyId: string) {
 			return result.data;
 		},
 		enabled: !!familyId,
-		staleTime: 5 * 60 * 1000, // 5 minutes
 	});
 }
 
-// Hook per aggiungere un figlio
+// Hook per aggiungere un figlio a una famiglia
 export function useAddChildMutation() {
 	const queryClient = useQueryClient();
 
@@ -353,7 +97,6 @@ export function useAddChildMutation() {
 			queryClient.invalidateQueries({
 				queryKey: ["family", variables.familyId, "children"],
 			});
-			queryClient.invalidateQueries({ queryKey: ["families"] });
 		},
 	});
 }
@@ -365,10 +108,9 @@ export function useUpdateChildMutation() {
 	return useMutation({
 		mutationFn: async (data: {
 			id: string;
-			familyId: string;
-			firstName?: string;
-			lastName?: string;
-			birthDate?: string;
+			firstName: string;
+			lastName: string;
+			birthDate: string;
 			birthPlace?: string;
 			fiscalCode?: string;
 			gender?: "M" | "F" | "O";
@@ -381,9 +123,9 @@ export function useUpdateChildMutation() {
 			}
 			return result.data;
 		},
-		onSuccess: (_, variables) => {
+		onSuccess: (data) => {
 			queryClient.invalidateQueries({
-				queryKey: ["family", variables.familyId, "children"],
+				queryKey: ["family", data.familyId, "children"],
 			});
 		},
 	});
@@ -401,7 +143,6 @@ export function useFamilyAuthorizedPersonsQuery(familyId: string) {
 			return result.data;
 		},
 		enabled: !!familyId,
-		staleTime: 5 * 60 * 1000, // 5 minutes
 	});
 }
 
@@ -427,7 +168,6 @@ export function useAddAuthorizedPersonMutation() {
 			queryClient.invalidateQueries({
 				queryKey: ["family", variables.familyId, "authorizedPersons"],
 			});
-			queryClient.invalidateQueries({ queryKey: ["families"] });
 		},
 	});
 }
@@ -439,12 +179,10 @@ export function useUpdateAuthorizedPersonMutation() {
 	return useMutation({
 		mutationFn: async (data: {
 			id: string;
-			familyId: string;
-			fullName?: string;
-			relationship?: string;
+			fullName: string;
+			relationship: string;
 			phone?: string;
 			email?: string;
-			isActive?: boolean;
 		}) => {
 			const result = await orpcClient.family.updateAuthorizedPerson(data);
 			if (!result.success) {
@@ -452,15 +190,13 @@ export function useUpdateAuthorizedPersonMutation() {
 			}
 			return result.data;
 		},
-		onSuccess: (_, variables) => {
+		onSuccess: (data) => {
 			queryClient.invalidateQueries({
-				queryKey: ["family", variables.familyId, "authorizedPersons"],
+				queryKey: ["family", data.familyId, "authorizedPersons"],
 			});
 		},
 	});
 }
-
-// NUOVI HOOK PER GLI INVITI
 
 // Hook per ottenere gli inviti di una famiglia
 export function useFamilyInvitationsQuery(familyId: string) {
@@ -474,7 +210,6 @@ export function useFamilyInvitationsQuery(familyId: string) {
 			return result.data;
 		},
 		enabled: !!familyId,
-		staleTime: 1 * 60 * 1000, // 1 minute (più frequente perché gli inviti cambiano stato)
 	});
 }
 
@@ -485,7 +220,8 @@ export function useSendInvitationMutation() {
 	return useMutation({
 		mutationFn: async (data: {
 			familyId: string;
-			email: string;
+			email?: string;
+			phoneNumber?: string;
 			message?: string;
 		}) => {
 			const result = await orpcClient.family.sendInvitation(data);
@@ -502,6 +238,23 @@ export function useSendInvitationMutation() {
 	});
 }
 
+// Hook per ottenere i dettagli di un invito (pubblico)
+export function useInvitationDetailsQuery(token: string) {
+	return useQuery({
+		queryKey: ["invitation", "details", token],
+		queryFn: async () => {
+			const result = await orpcClient.family.getInvitationDetails({ token });
+			if (!result.success) {
+				throw new Error("Failed to get invitation details");
+			}
+			return result.data;
+		},
+		enabled: !!token,
+		retry: false,
+		staleTime: 0, // Always fresh
+	});
+}
+
 // Hook per accettare un invito
 export function useAcceptInvitationMutation() {
 	const queryClient = useQueryClient();
@@ -515,30 +268,53 @@ export function useAcceptInvitationMutation() {
 			return result.data;
 		},
 		onSuccess: () => {
-			// Invalidate families list as user is now part of a new family
 			queryClient.invalidateQueries({ queryKey: ["families"] });
 		},
 	});
 }
 
-// Hook per cancellare un invito
+// Hook per annullare un invito
 export function useCancelInvitationMutation() {
 	const queryClient = useQueryClient();
 
 	return useMutation({
-		mutationFn: async (data: { invitationId: string; familyId: string }) => {
-			const result = await orpcClient.family.cancelInvitation({
-				invitationId: data.invitationId,
-			});
+		mutationFn: async (data: { invitationId: string }) => {
+			const result = await orpcClient.family.cancelInvitation(data);
 			if (!result.success) {
 				throw new Error("Failed to cancel invitation");
 			}
 			return result.data;
 		},
 		onSuccess: (_, variables) => {
+			// Invalidate invitations for all families since we don't know which family this belongs to
 			queryClient.invalidateQueries({
-				queryKey: ["family", variables.familyId, "invitations"],
+				queryKey: ["family"],
+				predicate: (query) => {
+					const queryKey = query.queryKey as string[];
+					return queryKey.includes("invitations");
+				},
 			});
 		},
 	});
 }
+
+// Hook per controllare e accettare automaticamente gli inviti via telefono
+export function useCheckPhoneInvitationsMutation() {
+	const queryClient = useQueryClient();
+
+	return useMutation({
+		mutationFn: async () => {
+			const result = await orpcClient.family.checkPhoneInvitations();
+			if (!result.success) {
+				throw new Error("Failed to check phone invitations");
+			}
+			return result.data;
+		},
+		onSuccess: (data) => {
+			// If any invitations were accepted, invalidate families list
+			if (data.acceptedInvitations > 0) {
+				queryClient.invalidateQueries({ queryKey: ["families"] });
+			}
+		},
+	});
+} 

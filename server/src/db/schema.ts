@@ -1,15 +1,19 @@
 import { sql } from "drizzle-orm";
-import { integer, sqliteTable, text, blob } from "drizzle-orm/sqlite-core";
+import { integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
 
 // Better Auth core tables
 export const user = sqliteTable("user", {
 	id: text("id").primaryKey(),
 	name: text("name"),
 	email: text("email").notNull().unique(),
-	emailVerified: integer("email_verified", { mode: "boolean" }).notNull().default(false),
+	emailVerified: integer("email_verified", { mode: "boolean" })
+		.notNull()
+		.default(false),
 	image: text("image"),
 	phoneNumber: text("phone_number"),
-	phoneNumberVerified: integer("phone_number_verified", { mode: "boolean" }).default(false),
+	phoneNumberVerified: integer("phone_number_verified", {
+		mode: "boolean",
+	}).default(false),
 	birthDate: text("birth_date"),
 	createdAt: integer("created_at", { mode: "timestamp" })
 		.default(sql`(strftime('%s', 'now'))`)
@@ -143,7 +147,9 @@ export const familyMembers = sqliteTable("family_members", {
 	userId: text("user_id")
 		.notNull()
 		.references(() => user.id, { onDelete: "cascade" }),
-	role: text("role", { enum: ["parent", "guardian"] }).notNull().default("parent"),
+	role: text("role", { enum: ["parent", "guardian"] })
+		.notNull()
+		.default("parent"),
 	isAdmin: integer("is_admin", { mode: "boolean" }).notNull().default(false),
 	joinedAt: integer("joined_at", { mode: "timestamp" })
 		.default(sql`(strftime('%s', 'now'))`)
@@ -209,9 +215,11 @@ export const events = sqliteTable("events", {
 	maxParticipants: integer("max_participants").notNull(),
 	currentParticipants: integer("current_participants").notNull().default(0),
 	price: text("price"), // Store as string to handle decimal precision
-	status: text("status", { 
-		enum: ["draft", "open", "closed", "full", "cancelled"] 
-	}).notNull().default("draft"),
+	status: text("status", {
+		enum: ["draft", "open", "closed", "full", "cancelled"],
+	})
+		.notNull()
+		.default("draft"),
 	imageUrl: text("image_url"),
 	createdBy: text("created_by")
 		.notNull()
@@ -235,12 +243,16 @@ export const eventRegistrations = sqliteTable("event_registrations", {
 	parentId: text("parent_id")
 		.notNull()
 		.references(() => user.id, { onDelete: "cascade" }),
-	status: text("status", { 
-		enum: ["pending", "confirmed", "cancelled", "waitlist"] 
-	}).notNull().default("pending"),
-	paymentStatus: text("payment_status", { 
-		enum: ["pending", "completed", "failed", "refunded"] 
-	}).notNull().default("pending"),
+	status: text("status", {
+		enum: ["pending", "confirmed", "cancelled", "waitlist"],
+	})
+		.notNull()
+		.default("pending"),
+	paymentStatus: text("payment_status", {
+		enum: ["pending", "completed", "failed", "refunded"],
+	})
+		.notNull()
+		.default("pending"),
 	registrationDate: integer("registration_date", { mode: "timestamp" })
 		.default(sql`(strftime('%s', 'now'))`)
 		.notNull(),
@@ -253,32 +265,38 @@ export const eventRegistrations = sqliteTable("event_registrations", {
 		.notNull(),
 });
 
-export const registrationAuthorizedPersons = sqliteTable("registration_authorized_persons", {
-	id: text("id").primaryKey(),
-	registrationId: text("registration_id")
-		.notNull()
-		.references(() => eventRegistrations.id, { onDelete: "cascade" }),
-	authorizedPersonId: text("authorized_person_id")
-		.notNull()
-		.references(() => authorizedPersons.id, { onDelete: "cascade" }),
-	createdAt: integer("created_at", { mode: "timestamp" })
-		.default(sql`(strftime('%s', 'now'))`)
-		.notNull(),
-});
+export const registrationAuthorizedPersons = sqliteTable(
+	"registration_authorized_persons",
+	{
+		id: text("id").primaryKey(),
+		registrationId: text("registration_id")
+			.notNull()
+			.references(() => eventRegistrations.id, { onDelete: "cascade" }),
+		authorizedPersonId: text("authorized_person_id")
+			.notNull()
+			.references(() => authorizedPersons.id, { onDelete: "cascade" }),
+		createdAt: integer("created_at", { mode: "timestamp" })
+			.default(sql`(strftime('%s', 'now'))`)
+			.notNull(),
+	},
+);
 
 export const invitations = sqliteTable("invitations", {
 	id: text("id").primaryKey(),
 	familyId: text("family_id")
 		.notNull()
 		.references(() => families.id, { onDelete: "cascade" }),
-	email: text("email").notNull(),
+	email: text("email"),
+	phoneNumber: text("phone_number"),
 	invitedBy: text("invited_by")
 		.notNull()
 		.references(() => user.id, { onDelete: "cascade" }),
 	message: text("message"),
-	status: text("status", { 
-		enum: ["pending", "accepted", "rejected", "expired"] 
-	}).notNull().default("pending"),
+	status: text("status", {
+		enum: ["pending", "accepted", "rejected", "expired"],
+	})
+		.notNull()
+		.default("pending"),
 	token: text("token").notNull().unique(),
 	expiresAt: integer("expires_at", { mode: "timestamp" }).notNull(),
 	acceptedAt: integer("accepted_at", { mode: "timestamp" }),

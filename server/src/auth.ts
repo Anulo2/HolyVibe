@@ -14,8 +14,8 @@ export const auth = betterAuth({
 		provider: "sqlite",
 	}),
 	session: {
-		maxAge: 60 * 60 * 24 * 30, // 30 days
-		updateAge: 60 * 60 * 24, // 1 day
+		freshAge: 60 * 60 * 24, // 1 day
+		updateAge: 60 * 60 * 24 * 7, // 1 week
 	},
 	cookieOptions: {
 		secure: env.NODE_ENV === "production",
@@ -51,6 +51,7 @@ export const auth = betterAuth({
 			expiresIn: 300, // 5 minutes
 		}),
 	],
+	// Remove the problematic hooks for now - we'll handle invitation acceptance via explicit endpoint
 	emailAndPassword: {
 		enabled: false, // Disable email/password auth since we want phone-only
 	},

@@ -2,15 +2,25 @@ import { useNavigate } from "@tanstack/react-router";
 import { useId, useState } from "react";
 import { toast } from "sonner";
 import { authClient } from "../lib/auth-client";
+import { orpcClient } from "../lib/orpc-client";
 
-export default function LoginPage() {
+interface LoginPageProps {
+	redirectUrl?: string;
+}
+
+export default function LoginPage({ redirectUrl }: LoginPageProps) {
 	const phoneId = useId();
 	const otpId = useId();
+	const emailId = useId();
+	const nameId = useId();
 	const navigate = useNavigate();
 	const [phoneNumber, setPhoneNumber] = useState("");
 	const [otp, setOtp] = useState("");
-	const [step, setStep] = useState<"phone" | "otp">("phone");
+	const [email, setEmail] = useState("");
+	const [name, setName] = useState("");
+	const [step, setStep] = useState<"phone" | "otp" | "email">("phone");
 	const [isLoading, setIsLoading] = useState(false);
+	const [isNewUser, setIsNewUser] = useState(false);
 
 	const handleSendOtp = async (e: React.FormEvent) => {
 		e.preventDefault();
@@ -53,23 +63,63 @@ export default function LoginPage() {
 			console.log("OTP Verification result:", result);
 
 			if (result.data) {
-				toast.success("Accesso effettuato con successo!");
-
-				// Debug: Check session immediately after verification
-				const sessionCheck = await authClient.getSession();
-				console.log("Session check after verification:", sessionCheck);
-
-				// Give a small delay to allow Better Auth's useSession hook to update
-				// Better Auth automatically creates a session after successful verification
-				setTimeout(() => {
-					navigate({ to: "/dashboard" });
-				}, 100);
+				// Check if this is a new user registration
+				if (result.data.user && !result.data.user.email?.includes('@family-app.com')) {
+					// Existing user with real email - proceed to redirect URL or dashboard
+					toast.success("Accesso effettuato con successo!");
+					setTimeout(() => {
+						if (redirectUrl) {
+							window.location.href = redirectUrl;
+						} else {
+							navigate({ to: "/dashboard" });
+						}
+					}, 100);
+				} else {
+					// New user or user with temporary email - collect email
+					setIsNewUser(true);
+					setStep("email");
+				}
 			} else {
 				toast.error("Codice OTP non valido");
 			}
 		} catch (error) {
 			console.error("Error verifying OTP:", error);
 			toast.error("Errore nella verifica del codice OTP");
+		} finally {
+			setIsLoading(false);
+		}
+	};
+
+	const handleCompleteRegistration = async (e: React.FormEvent) => {
+		e.preventDefault();
+		if (!email.trim() || !name.trim()) {
+			toast.error("Email e nome sono richiesti");
+			return;
+		}
+
+		setIsLoading(true);
+		try {
+			// Update user profile with real email and name
+			const result = await orpcClient.user.updateProfile({
+				email: email.trim(),
+				name: name.trim(),
+			});
+
+			if (result.success) {
+				toast.success("Registrazione completata con successo!");
+				setTimeout(() => {
+					if (redirectUrl) {
+						window.location.href = redirectUrl;
+					} else {
+						navigate({ to: "/dashboard" });
+					}
+				}, 100);
+			} else {
+				toast.error("Errore durante la registrazione");
+			}
+		} catch (error) {
+			console.error("Error completing registration:", error);
+			toast.error("Errore durante la registrazione");
 		} finally {
 			setIsLoading(false);
 		}
@@ -115,7 +165,7 @@ export default function LoginPage() {
 							</button>
 						</div>
 					</form>
-				) : (
+				) : step === "otp" ? (
 					<form className="mt-8 space-y-6" onSubmit={handleVerifyOtp}>
 						<div>
 							<label htmlFor={otpId} className="sr-only">
@@ -162,6 +212,64 @@ export default function LoginPage() {
 								className="mt-2 text-sm text-primary hover:text-primary/80"
 							>
 								Invia nuovamente il codice
+							</button>
+						</div>
+					</form>
+				) : (
+					<form className="mt-8 space-y-6" onSubmit={handleCompleteRegistration}>
+						<div className="text-center mb-4">
+							<h3 className="text-lg font-medium">Completa la registrazione</h3>
+							<p className="text-sm text-muted-foreground">
+								Inserisci la tua email e nome per completare la registrazione
+							</p>
+						</div>
+
+						<div>
+							<label htmlFor={emailId} className="sr-only">
+								Email
+							</label>
+							<input
+								id={emailId}
+								name="email"
+								type="email"
+								required
+								className="relative block w-full rounded-md border border-input bg-background px-3 py-2 text-foreground placeholder:text-muted-foreground focus:z-10 focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+								placeholder="La tua email"
+								value={email}
+								onChange={(e) => setEmail(e.target.value)}
+							/>
+						</div>
+
+						<div>
+							<label htmlFor={nameId} className="sr-only">
+								Nome
+							</label>
+							<input
+								id={nameId}
+								name="name"
+								type="text"
+								required
+								className="relative block w-full rounded-md border border-input bg-background px-3 py-2 text-foreground placeholder:text-muted-foreground focus:z-10 focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+								placeholder="Il tuo nome"
+								value={name}
+								onChange={(e) => setName(e.target.value)}
+							/>
+						</div>
+
+						<div className="flex space-x-4">
+							<button
+								type="button"
+								onClick={() => setStep("otp")}
+								className="flex w-full justify-center rounded-md bg-secondary px-3 py-2 text-sm font-semibold text-secondary-foreground hover:bg-secondary/80"
+							>
+								Indietro
+							</button>
+							<button
+								type="submit"
+								disabled={isLoading}
+								className="flex w-full justify-center rounded-md bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:opacity-50"
+							>
+								{isLoading ? "Completamento..." : "Completa registrazione"}
 							</button>
 						</div>
 					</form>

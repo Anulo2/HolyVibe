@@ -13,16 +13,15 @@
 		"check": "biome check --write ."
 	},
 	"devDependencies": {
-		"@biomejs/biome": "^2.0.0-beta.6",
+		"@biomejs/biome": "^2.1.1",
 		"turbo": "^2.5.4",
-		"lint-staged": "^15.5.2"
+		"lint-staged": "^16.1.2"
 	},
 	"dependencies": {
 		"@tanstack/react-table": "^8.21.3",
-		"@typescript/native-preview": "^7.0.0-dev.20250616.1",
-		"client": "^0.0.1"
+		"@typescript/native-preview": "^7.0.0-dev.20250712.1"
 	},
-	"packageManager": "bun@1.2.16",
+	"packageManager": "bun@1.2.18",
 	"lint-staged": {
 		"*.{js,ts,cjs,mjs,d.cts,d.mts,jsx,tsx,json,jsonc}": [
 			"biome check --write ."

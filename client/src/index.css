@@ -11,6 +11,156 @@ body {
   min-height: 100vh;
 }
 
+/* Rich Text Editor Prose Styles */
+.prose {
+  color: var(--foreground);
+  max-width: none;
+}
+
+.prose h1,
+.prose h2,
+.prose h3,
+.prose h4,
+.prose h5,
+.prose h6 {
+  color: var(--foreground);
+  font-weight: 600;
+  margin-top: 1.5em;
+  margin-bottom: 0.5em;
+  line-height: 1.25;
+}
+
+.prose h1 {
+  font-size: 1.875rem;
+}
+
+.prose h2 {
+  font-size: 1.5rem;
+}
+
+.prose h3 {
+  font-size: 1.25rem;
+}
+
+.prose p {
+  margin-top: 1em;
+  margin-bottom: 1em;
+  line-height: 1.625;
+}
+
+.prose strong {
+  font-weight: 600;
+  color: var(--foreground);
+}
+
+.prose em {
+  font-style: italic;
+  color: var(--foreground);
+}
+
+.prose ul,
+.prose ol {
+  margin-top: 1em;
+  margin-bottom: 1em;
+  padding-left: 1.625em;
+}
+
+.prose li {
+  margin-top: 0.5em;
+  margin-bottom: 0.5em;
+}
+
+.prose ul > li {
+  position: relative;
+}
+
+.prose ul > li::before {
+  content: "";
+  position: absolute;
+  background-color: var(--muted-foreground);
+  border-radius: 50%;
+  width: 0.375em;
+  height: 0.375em;
+  top: calc(0.875em - 0.1875em);
+  left: -1.25em;
+}
+
+.prose ol > li {
+  position: relative;
+  counter-increment: list-counter;
+}
+
+.prose ol > li::before {
+  content: counter(list-counter) ".";
+  position: absolute;
+  font-weight: 400;
+  color: var(--muted-foreground);
+  left: -1.625em;
+}
+
+.prose ol {
+  counter-reset: list-counter;
+}
+
+.prose blockquote {
+  font-weight: 500;
+  font-style: italic;
+  color: var(--muted-foreground);
+  border-left-width: 0.25rem;
+  border-left-color: var(--border);
+  quotes: "\201C" "\201D" "\2018" "\2019";
+  margin-top: 1.6em;
+  margin-bottom: 1.6em;
+  padding-left: 1em;
+}
+
+.prose-sm {
+  font-size: 0.875rem;
+  line-height: 1.7142857;
+}
+
+.prose-sm h1 {
+  font-size: 1.5rem;
+}
+
+.prose-sm h2 {
+  font-size: 1.25rem;
+}
+
+.prose-sm h3 {
+  font-size: 1.125rem;
+}
+
+/* Line clamp for rich text content */
+.line-clamp-3 {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.line-clamp-3 .prose {
+  margin: 0;
+}
+
+.line-clamp-3 .prose p {
+  margin: 0;
+}
+
+.line-clamp-3 .prose h1,
+.line-clamp-3 .prose h2,
+.line-clamp-3 .prose h3 {
+  margin: 0;
+  font-size: inherit;
+  font-weight: inherit;
+}
+
+.line-clamp-3 .prose ul,
+.line-clamp-3 .prose ol {
+  margin: 0;
+  padding-left: 1em;
+}
+
 @theme inline {
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);

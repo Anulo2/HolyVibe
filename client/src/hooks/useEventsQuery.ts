@@ -41,14 +41,15 @@ export const useCreateEventMutation = () => {
   return useMutation({
     mutationFn: (data: {
       title: string;
-      description?: string;
+      description: string;
       startDate: string;
       endDate?: string;
-      location?: string;
-      minAge?: number;
-      maxAge?: number;
-      maxParticipants?: number;
+      location: string;
+      minAge: number;
+      maxAge: number;
+      maxParticipants: number;
       price?: string;
+      imageUrl?: string;
     }) => orpc.events.create(data),
     onSuccess: () => {
       // Invalidate and refetch events
@@ -74,6 +75,8 @@ export const useUpdateEventMutation = () => {
       maxParticipants?: number;
       price?: string;
       status?: "draft" | "open" | "closed" | "full" | "cancelled";
+      imageUrl?: string;
+      imageFile?: File;
     }) => orpc.events.update(data),
     onSuccess: (_, variables) => {
       // Invalidate and refetch events

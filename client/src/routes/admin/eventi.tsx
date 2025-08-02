@@ -23,6 +23,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { SafeHTML } from "@/components/ui/safe-html";
 import {
   Select,
   SelectContent,
@@ -291,7 +292,17 @@ function AdminEventiPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredEvents.map((evento: any) => (
               <Card key={evento.id} className="overflow-hidden">
-                <div className="h-32 bg-gradient-to-r from-blue-500 to-purple-600 relative">
+                <div className="h-32 relative overflow-hidden">
+                  {evento.imageUrl ? (
+                    <img
+                      src={evento.imageUrl}
+                      alt={evento.title}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <div className="w-full h-full bg-gradient-to-r from-blue-500 to-purple-600" />
+                  )}
+                  <div className="absolute inset-0 bg-black/20" />
                   <div className="absolute top-4 right-4">
                     <Badge className={getStatusColor(evento.status)}>
                       {getStatusText(evento.status)}
@@ -537,11 +548,22 @@ function AdminEventiPage() {
                 </div>
               </div>
 
+              {selectedEvent.imageUrl && (
+                <div>
+                  <h4 className="font-semibold mb-2">Immagine</h4>
+                  <img
+                    src={selectedEvent.imageUrl}
+                    alt={selectedEvent.title}
+                    className="w-full max-h-64 object-cover rounded-md"
+                  />
+                </div>
+              )}
+
               <div>
                 <h4 className="font-semibold mb-2">Descrizione</h4>
-                <p className="text-sm text-muted-foreground">
-                  {selectedEvent.description}
-                </p>
+                <div className="text-sm text-muted-foreground">
+                  <SafeHTML content={selectedEvent.description} />
+                </div>
               </div>
 
               <div className="flex gap-2">

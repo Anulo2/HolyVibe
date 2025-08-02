@@ -28,6 +28,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { SafeHTML } from "@/components/ui/safe-html";
 import { useEventsQuery } from "@/hooks/useEventsQuery";
 
 export const Route = createFileRoute("/eventi")({
@@ -173,7 +174,17 @@ function EventiPage() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {filteredEvents.map((evento: any) => (
           <Card key={evento.id} className="overflow-hidden">
-            <div className="h-48 bg-gradient-to-r from-primary/80 to-primary/60 relative">
+            <div className="h-48 relative overflow-hidden">
+              {evento.imageUrl ? (
+                <img
+                  src={evento.imageUrl}
+                  alt={evento.title}
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <div className="w-full h-full bg-gradient-to-r from-primary/80 to-primary/60" />
+              )}
+              <div className="absolute inset-0 bg-black/20" />
               <div className="absolute top-4 right-4">
                 <Badge variant={getStatusVariant(evento.status)}>
                   {getStatusText(evento.status)}
@@ -184,9 +195,9 @@ function EventiPage() {
               </div>
             </div>
             <CardContent className="p-6">
-              <p className="text-sm text-muted-foreground mb-4 line-clamp-3">
-                {evento.description}
-              </p>
+              <div className="text-sm text-muted-foreground mb-4 line-clamp-3">
+                <SafeHTML content={evento.description} />
+              </div>
 
               <div className="space-y-2 mb-4">
                 <div className="flex items-center text-sm text-muted-foreground">
@@ -235,11 +246,21 @@ function EventiPage() {
                       </DialogDescription>
                     </DialogHeader>
                     <div className="space-y-4">
+                      {evento.imageUrl && (
+                        <div>
+                          <h4 className="font-semibold mb-2">Immagine</h4>
+                          <img
+                            src={evento.imageUrl}
+                            alt={evento.title}
+                            className="w-full max-h-64 object-cover rounded-md"
+                          />
+                        </div>
+                      )}
                       <div>
                         <h4 className="font-semibold mb-2">Descrizione</h4>
-                        <p className="text-sm text-muted-foreground">
-                          {evento.description}
-                        </p>
+                        <div className="text-sm text-muted-foreground">
+                          <SafeHTML content={evento.description} />
+                        </div>
                       </div>
                       <div className="grid grid-cols-2 gap-4">
                         <div>

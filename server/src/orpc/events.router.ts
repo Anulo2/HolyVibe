@@ -6,6 +6,7 @@ import { db } from "../db";
 import {
   eventRegistrations,
   events,
+  families,
   organizationMember,
   user as userTable,
 } from "../db/schema";
@@ -145,6 +146,7 @@ export const eventsRouter = os.router({
           totalRegistrations: z.number(),
           pendingRegistrations: z.number(),
           totalUsers: z.number(),
+          totalFamilies: z.number(),
           conversionRate: z.number(),
         }),
       ),
@@ -192,6 +194,10 @@ export const eventsRouter = os.router({
           .select({ count: sql<number>`count(*)` })
           .from(userTable);
 
+        const [totalFamilies] = await db
+          .select({ count: sql<number>`count(*)` })
+          .from(families);
+
         // Calculate conversion rate (confirmed registrations / total registrations)
         const [confirmedRegistrations] = await db
           .select({ count: sql<number>`count(*)` })
@@ -211,6 +217,7 @@ export const eventsRouter = os.router({
             totalRegistrations: totalRegistrations.count,
             pendingRegistrations: pendingRegistrations.count,
             totalUsers: totalUsers.count,
+            totalFamilies: totalFamilies.count,
             conversionRate: Math.round(conversionRate * 100) / 100,
           },
         };
@@ -222,20 +229,161 @@ export const eventsRouter = os.router({
       }
     }),
 
+  // Get recent activity
+  getRecentActivity: withAuth
+    .input(
+      z.object({
+        limit: z.number().min(1).max(50).default(10),
+      }),
+    )
+    .output(
+      SuccessResponse(
+        z.array(
+          z.object({
+            id: z.string(),
+            type: z.enum(["registration", "event", "user"]),
+            title: z.string(),
+            description: z.string(),
+            timestamp: z.string(),
+            relatedId: z.string().optional(),
+          }),
+        ),
+      ),
+    )
+    .handler(async ({ input, context }) => {
+      try {
+        // Check if user is admin
+        const membership = await db
+          .select()
+          .from(organizationMember)
+          .where(eq(organizationMember.userId, context.user.id))
+          .limit(1);
+
+        const isAdmin =
+          membership.length > 0 &&
+          ["amministratore", "editor", "animatore"].includes(
+            membership[0].role,
+          );
+
+        if (!isAdmin) {
+          throw new ORPCError("FORBIDDEN", {
+            message: "Access denied",
+          });
+        }
+
+        const activities = [];
+
+        // Get recent registrations
+        const recentRegistrations = await db
+          .select({
+            id: eventRegistrations.id,
+            createdAt: eventRegistrations.createdAt,
+            eventId: eventRegistrations.eventId,
+            parentId: eventRegistrations.parentId,
+            status: eventRegistrations.status,
+            eventTitle: events.title,
+            parentName: userTable.name,
+          })
+          .from(eventRegistrations)
+          .leftJoin(events, eq(eventRegistrations.eventId, events.id))
+          .leftJoin(userTable, eq(eventRegistrations.parentId, userTable.id))
+          .orderBy(desc(eventRegistrations.createdAt))
+          .limit(Math.ceil(input.limit * 0.5));
+
+        for (const reg of recentRegistrations) {
+          activities.push({
+            id: reg.id,
+            type: "registration" as const,
+            title: "Nuova iscrizione",
+            description: `${reg.parentName || "Utente"} si è iscritto a "${reg.eventTitle || "Evento"}"`,
+            timestamp: new Date(reg.createdAt).toISOString(),
+            relatedId: reg.eventId,
+          });
+        }
+
+        // Get recent events
+        const recentEvents = await db
+          .select({
+            id: events.id,
+            title: events.title,
+            createdAt: events.createdAt,
+            status: events.status,
+            createdByName: userTable.name,
+          })
+          .from(events)
+          .leftJoin(userTable, eq(events.createdBy, userTable.id))
+          .orderBy(desc(events.createdAt))
+          .limit(Math.ceil(input.limit * 0.3));
+
+        for (const event of recentEvents) {
+          activities.push({
+            id: event.id,
+            type: "event" as const,
+            title: "Evento creato",
+            description: `Nuovo evento "${event.title}" ${event.status === "open" ? "pubblicato" : "creato"}`,
+            timestamp: new Date(event.createdAt).toISOString(),
+            relatedId: event.id,
+          });
+        }
+
+        // Get recent users
+        const recentUsers = await db
+          .select({
+            id: userTable.id,
+            name: userTable.name,
+            email: userTable.email,
+            createdAt: userTable.createdAt,
+          })
+          .from(userTable)
+          .orderBy(desc(userTable.createdAt))
+          .limit(Math.ceil(input.limit * 0.2));
+
+        for (const user of recentUsers) {
+          activities.push({
+            id: user.id,
+            type: "user" as const,
+            title: "Nuovo utente",
+            description: `${user.name || user.email} si è registrato`,
+            timestamp: new Date(user.createdAt).toISOString(),
+            relatedId: user.id,
+          });
+        }
+
+        // Sort all activities by timestamp and limit
+        const sortedActivities = activities
+          .sort(
+            (a, b) =>
+              new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime(),
+          )
+          .slice(0, input.limit);
+
+        return {
+          success: true,
+          data: sortedActivities,
+        };
+      } catch (error) {
+        console.error("Error fetching recent activity:", error);
+        throw new ORPCError("INTERNAL_SERVER_ERROR", {
+          message: "Failed to fetch recent activity",
+        });
+      }
+    }),
+
   // Create event
   create: withAuth
     .input(
       z.object({
         title: z.string().min(1).max(100),
-        description: z.string().max(1000).optional(),
+        description: z.string().max(1000),
         startDate: z.string(), // ISO date string
         endDate: z.string().optional(), // ISO date string
-        location: z.string().max(200).optional(),
-        minAge: z.number().min(0).max(100).optional(),
-        maxAge: z.number().min(0).max(100).optional(),
-        maxParticipants: z.number().min(1).optional(),
+        location: z.string().min(1).max(200),
+        minAge: z.number().min(0).max(100),
+        maxAge: z.number().min(0).max(100),
+        maxParticipants: z.number().min(1),
         price: z.string().max(20).optional(),
-        imageUrl: z.string().max(500).optional(),
+        imageUrl: z.string().optional(),
+        imageFile: z.instanceof(File).optional(),
       }),
     )
     .output(SuccessResponse(Event))
@@ -260,21 +408,65 @@ export const eventsRouter = os.router({
 
         const eventId = nanoid();
 
+        // Handle file upload if provided
+        let finalImageUrl = input.imageUrl || null;
+        if (input.imageFile) {
+          try {
+            // Validate file size (5MB limit)
+            if (input.imageFile.size > 5 * 1024 * 1024) {
+              throw new ORPCError("BAD_REQUEST", {
+                message: "File size exceeds 5MB limit",
+              });
+            }
+
+            // Validate file type
+            const allowedTypes = [
+              "image/jpeg",
+              "image/jpg",
+              "image/png",
+              "image/webp",
+            ];
+            if (!allowedTypes.includes(input.imageFile.type)) {
+              throw new ORPCError("BAD_REQUEST", {
+                message:
+                  "Invalid file type. Only JPEG, PNG, and WebP are allowed",
+              });
+            }
+
+            // Convert File to base64 data URL for storage
+            const buffer = await input.imageFile.arrayBuffer();
+            const base64 = Buffer.from(buffer).toString("base64");
+            const mimeType = input.imageFile.type || "image/jpeg";
+            finalImageUrl = `data:${mimeType};base64,${base64}`;
+          } catch (fileError) {
+            console.error("Error processing uploaded file:", fileError);
+
+            // Re-throw ORPCError as-is
+            if (fileError instanceof ORPCError) {
+              throw fileError;
+            }
+
+            throw new ORPCError("BAD_REQUEST", {
+              message: "Failed to process uploaded file",
+            });
+          }
+        }
+
         // Create the event object
         const eventData = {
           id: eventId,
           title: input.title,
-          description: input.description || "",
+          description: input.description,
           startDate: new Date(input.startDate),
           endDate: input.endDate ? new Date(input.endDate) : null,
-          location: input.location || "",
-          minAge: input.minAge || 0,
-          maxAge: input.maxAge || 100,
-          maxParticipants: input.maxParticipants || 50,
+          location: input.location,
+          minAge: input.minAge,
+          maxAge: input.maxAge,
+          maxParticipants: input.maxParticipants,
           currentParticipants: 0,
           price: input.price || null,
           status: "draft" as const,
-          imageUrl: input.imageUrl || null,
+          imageUrl: finalImageUrl,
           createdBy: context.user.id,
         };
 
@@ -323,7 +515,8 @@ export const eventsRouter = os.router({
         status: z
           .enum(["draft", "open", "closed", "full", "cancelled"])
           .optional(),
-        imageUrl: z.string().max(500).optional(),
+        imageUrl: z.string().optional(),
+        imageFile: z.instanceof(File).optional(),
       }),
     )
     .output(SuccessResponse(Event))
@@ -347,7 +540,7 @@ export const eventsRouter = os.router({
         }
 
         const updateData: any = {
-          updatedAt: Math.floor(Date.now() / 1000),
+          updatedAt: new Date(),
         };
 
         if (input.title !== undefined) {
@@ -357,12 +550,10 @@ export const eventsRouter = os.router({
           updateData.description = input.description;
         }
         if (input.startDate !== undefined) {
-          updateData.startDate = new Date(input.startDate).getTime() / 1000;
+          updateData.startDate = new Date(input.startDate);
         }
         if (input.endDate !== undefined) {
-          updateData.endDate = input.endDate
-            ? new Date(input.endDate).getTime() / 1000
-            : null;
+          updateData.endDate = input.endDate ? new Date(input.endDate) : null;
         }
         if (input.location !== undefined) {
           updateData.location = input.location;
@@ -382,32 +573,138 @@ export const eventsRouter = os.router({
         if (input.status !== undefined) {
           updateData.status = input.status;
         }
-        if (input.imageUrl !== undefined) {
+
+        // Handle file upload if provided
+        if (input.imageFile) {
+          try {
+            // Validate file size (5MB limit)
+            if (input.imageFile.size > 5 * 1024 * 1024) {
+              throw new ORPCError("BAD_REQUEST", {
+                message: "File size exceeds 5MB limit",
+              });
+            }
+
+            // Validate file type
+            const allowedTypes = [
+              "image/jpeg",
+              "image/jpg",
+              "image/png",
+              "image/webp",
+            ];
+            if (!allowedTypes.includes(input.imageFile.type)) {
+              throw new ORPCError("BAD_REQUEST", {
+                message:
+                  "Invalid file type. Only JPEG, PNG, and WebP are allowed",
+              });
+            }
+
+            // Convert File to base64 data URL for storage
+            const buffer = await input.imageFile.arrayBuffer();
+            const base64 = Buffer.from(buffer).toString("base64");
+            const mimeType = input.imageFile.type || "image/jpeg";
+            updateData.imageUrl = `data:${mimeType};base64,${base64}`;
+          } catch (fileError) {
+            console.error("Error processing uploaded file:", fileError);
+
+            // Re-throw ORPCError as-is
+            if (fileError instanceof ORPCError) {
+              throw fileError;
+            }
+
+            throw new ORPCError("BAD_REQUEST", {
+              message: "Failed to process uploaded file",
+            });
+          }
+        } else if (input.imageUrl !== undefined) {
           updateData.imageUrl = input.imageUrl;
         }
 
-        await db.update(events).set(updateData).where(eq(events.id, input.id));
-
-        const updatedEvent = await db
-          .select()
-          .from(events)
+        const updateResult = await db
+          .update(events)
+          .set(updateData)
           .where(eq(events.id, input.id))
-          .limit(1);
+          .returning();
+
+        if (updateResult.length === 0) {
+          throw new ORPCError("NOT_FOUND", {
+            message: "Event not found or update failed",
+          });
+        }
 
         return {
           success: true,
           data: {
-            ...updatedEvent[0],
-            createdAt: new Date(updatedEvent[0].createdAt).toISOString(),
-            updatedAt: new Date(updatedEvent[0].updatedAt).toISOString(),
-            startDate: new Date(updatedEvent[0].startDate).toISOString(),
-            endDate: updatedEvent[0].endDate
-              ? new Date(updatedEvent[0].endDate).toISOString()
+            ...updateResult[0],
+            createdAt: new Date(updateResult[0].createdAt).toISOString(),
+            updatedAt: new Date(updateResult[0].updatedAt).toISOString(),
+            startDate: new Date(updateResult[0].startDate).toISOString(),
+            endDate: updateResult[0].endDate
+              ? new Date(updateResult[0].endDate).toISOString()
               : null,
           },
         };
       } catch (error) {
         console.error("Error updating event:", error);
+
+        // Re-throw ORPCError as-is
+        if (error instanceof ORPCError) {
+          throw error;
+        }
+
+        // Handle validation errors (Zod)
+        if (
+          error &&
+          typeof error === "object" &&
+          "name" in error &&
+          error.name === "ZodError"
+        ) {
+          console.error("Validation error details:", error);
+          throw new ORPCError("BAD_REQUEST", {
+            message: "Invalid input data provided",
+          });
+        }
+
+        // Handle database errors
+        if (error instanceof Error) {
+          if (error.message.includes("FOREIGN KEY constraint")) {
+            throw new ORPCError("BAD_REQUEST", {
+              message: "Invalid references in event data",
+            });
+          }
+
+          if (error.message.includes("NOT NULL constraint")) {
+            throw new ORPCError("BAD_REQUEST", {
+              message: "Missing required event fields",
+            });
+          }
+
+          if (error.message.includes("UNIQUE constraint")) {
+            throw new ORPCError("BAD_REQUEST", {
+              message: "Event with this data already exists",
+            });
+          }
+
+          console.error("Detailed error:", {
+            message: error.message,
+            stack: error.stack,
+            input: JSON.stringify(
+              input,
+              (key, value) => {
+                // Don't log the actual file content, just metadata
+                if (key === "imageFile" && value) {
+                  return {
+                    name: value.name,
+                    size: value.size,
+                    type: value.type,
+                  };
+                }
+                return value;
+              },
+              2,
+            ),
+          });
+        }
+
         throw new ORPCError("INTERNAL_SERVER_ERROR", {
           message: "Failed to update event",
         });

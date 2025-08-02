@@ -85,7 +85,7 @@ function AdminDashboard() {
               </Link>
               <Link
                 to="/admin/iscrizioni"
-                search={{ eventId: undefined, eventTitle: undefined }}
+                search={{ eventId: undefined }}
                 className="block"
               >
                 <Button

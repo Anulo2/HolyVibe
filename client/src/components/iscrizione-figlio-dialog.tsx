@@ -169,7 +169,7 @@ export function IscrizioneFiglioDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-h-[98vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Iscrivi tuo figlio a {evento.title}</DialogTitle>
           <DialogDescription>

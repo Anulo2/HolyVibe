@@ -250,7 +250,7 @@ function ParrocchiePage() {
                           </div>
                         )}
                         <div className="flex-1 min-w-0">
-                          <CardTitle className="text-base leading-tight break-words hyphens-auto word-break">
+                          <CardTitle className="text-base leading-tight break-words hyphens-auto overflow-wrap-break-word">
                             {org.name}
                           </CardTitle>
                         </div>

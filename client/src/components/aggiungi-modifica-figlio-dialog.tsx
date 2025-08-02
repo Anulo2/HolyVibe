@@ -241,7 +241,7 @@ export function AggiungiModificaFiglioDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-h-[98vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             {child ? "Modifica dati figlio" : "Aggiungi un nuovo figlio"}

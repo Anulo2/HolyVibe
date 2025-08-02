@@ -1,28 +1,54 @@
-"use client"
+"use client";
 
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { CalendarDays, User, Phone, Mail, FileText, Download, Printer } from "lucide-react"
-import { Separator } from "@/components/ui/separator"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
+  CalendarDays,
+  User,
+  Phone,
+  Mail,
+  FileText,
+  Download,
+  Printer,
+} from "lucide-react";
+import { Separator } from "@/components/ui/separator";
 
 interface IscrizioneDetailsDialogProps {
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  iscrizione?: any
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  iscrizione?: any;
 }
 
-export function IscrizioneDetailsDialog({ open, onOpenChange, iscrizione }: IscrizioneDetailsDialogProps) {
-  if (!iscrizione) return null
+export function IscrizioneDetailsDialog({
+  open,
+  onOpenChange,
+  iscrizione,
+}: IscrizioneDetailsDialogProps) {
+  if (!iscrizione) return null;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-h-[98vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Dettagli Iscrizione</DialogTitle>
-          <DialogDescription>Informazioni complete sull'iscrizione</DialogDescription>
+          <DialogDescription>
+            Informazioni complete sull'iscrizione
+          </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-6 mt-4">
@@ -44,7 +70,8 @@ export function IscrizioneDetailsDialog({ open, onOpenChange, iscrizione }: Iscr
                       : "destructive"
                 }
               >
-                {iscrizione.stato.charAt(0).toUpperCase() + iscrizione.stato.slice(1)}
+                {iscrizione.stato.charAt(0).toUpperCase() +
+                  iscrizione.stato.slice(1)}
               </Badge>
               <Badge
                 variant={
@@ -55,7 +82,9 @@ export function IscrizioneDetailsDialog({ open, onOpenChange, iscrizione }: Iscr
                       : "destructive"
                 }
               >
-                Pagamento: {iscrizione.pagamento.charAt(0).toUpperCase() + iscrizione.pagamento.slice(1)}
+                Pagamento:{" "}
+                {iscrizione.pagamento.charAt(0).toUpperCase() +
+                  iscrizione.pagamento.slice(1)}
               </Badge>
             </div>
           </div>
@@ -71,12 +100,19 @@ export function IscrizioneDetailsDialog({ open, onOpenChange, iscrizione }: Iscr
               <CardContent className="space-y-4">
                 <div className="flex items-center gap-3">
                   <Avatar className="h-12 w-12">
-                    <AvatarImage src={iscrizione.bambino.avatar} alt={iscrizione.bambino.nome} />
-                    <AvatarFallback>{iscrizione.bambino.nome.charAt(0)}</AvatarFallback>
+                    <AvatarImage
+                      src={iscrizione.bambino.avatar}
+                      alt={iscrizione.bambino.nome}
+                    />
+                    <AvatarFallback>
+                      {iscrizione.bambino.nome.charAt(0)}
+                    </AvatarFallback>
                   </Avatar>
                   <div>
                     <h3 className="font-medium">{iscrizione.bambino.nome}</h3>
-                    <p className="text-sm text-muted-foreground">{iscrizione.bambino.eta} anni</p>
+                    <p className="text-sm text-muted-foreground">
+                      {iscrizione.bambino.eta} anni
+                    </p>
                   </div>
                 </div>
 
@@ -109,8 +145,13 @@ export function IscrizioneDetailsDialog({ open, onOpenChange, iscrizione }: Iscr
               <CardContent className="space-y-4">
                 <div className="flex items-center gap-3">
                   <Avatar className="h-12 w-12">
-                    <AvatarImage src={iscrizione.genitore.avatar} alt={iscrizione.genitore.nome} />
-                    <AvatarFallback>{iscrizione.genitore.nome.charAt(0)}</AvatarFallback>
+                    <AvatarImage
+                      src={iscrizione.genitore.avatar}
+                      alt={iscrizione.genitore.nome}
+                    />
+                    <AvatarFallback>
+                      {iscrizione.genitore.nome.charAt(0)}
+                    </AvatarFallback>
                   </Avatar>
                   <div>
                     <h3 className="font-medium">{iscrizione.genitore.nome}</h3>
@@ -138,22 +179,34 @@ export function IscrizioneDetailsDialog({ open, onOpenChange, iscrizione }: Iscr
           <Card>
             <CardHeader>
               <CardTitle>Persone Autorizzate</CardTitle>
-              <CardDescription>Persone autorizzate a ritirare il bambino</CardDescription>
+              <CardDescription>
+                Persone autorizzate a ritirare il bambino
+              </CardDescription>
             </CardHeader>
             <CardContent>
-              {iscrizione.personeAutorizzate && iscrizione.personeAutorizzate.length > 0 ? (
+              {iscrizione.personeAutorizzate &&
+              iscrizione.personeAutorizzate.length > 0 ? (
                 <div className="space-y-3">
-                  {iscrizione.personeAutorizzate.map((persona: any, index: number) => (
-                    <div key={index} className="flex items-center gap-3 p-2 rounded-md border">
-                      <div>
-                        <p className="font-medium">{persona.nome}</p>
-                        <p className="text-sm text-muted-foreground">{persona.relazione}</p>
+                  {iscrizione.personeAutorizzate.map(
+                    (persona: any, index: number) => (
+                      <div
+                        key={index}
+                        className="flex items-center gap-3 p-2 rounded-md border"
+                      >
+                        <div>
+                          <p className="font-medium">{persona.nome}</p>
+                          <p className="text-sm text-muted-foreground">
+                            {persona.relazione}
+                          </p>
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    ),
+                  )}
                 </div>
               ) : (
-                <p className="text-muted-foreground">Nessuna persona autorizzata specificata</p>
+                <p className="text-muted-foreground">
+                  Nessuna persona autorizzata specificata
+                </p>
               )}
             </CardContent>
           </Card>
@@ -175,5 +228,5 @@ export function IscrizioneDetailsDialog({ open, onOpenChange, iscrizione }: Iscr
         </div>
       </DialogContent>
     </Dialog>
-  )
+  );
 }

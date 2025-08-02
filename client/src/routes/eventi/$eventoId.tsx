@@ -1,4 +1,8 @@
-import { createFileRoute, useParams, useNavigate } from "@tanstack/react-router";
+import {
+  createFileRoute,
+  useParams,
+  useNavigate,
+} from "@tanstack/react-router";
 import { EventDetailsExtended } from "@/components/events/event-details-extended";
 import { useEventDetailsExtended } from "@/hooks/useEventDetailsExtended";
 import { Card, CardContent } from "@/components/ui/card";
@@ -8,6 +12,8 @@ import { Button } from "@/components/ui/button";
 import { ArrowLeft, AlertTriangle } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "@/hooks/use-toast";
+import { IscrizioneWrapperDialog } from "@/components/iscrizione-wrapper-dialog";
+import { useState } from "react";
 
 export const Route = createFileRoute("/eventi/$eventoId")({
   component: EventDetailsPage,
@@ -17,12 +23,13 @@ function EventDetailsPage() {
   const { eventoId } = useParams({ from: "/eventi/$eventoId" });
   const navigate = useNavigate();
   const { session } = useAuth();
+  const [showRegistrationDialog, setShowRegistrationDialog] = useState(false);
 
   const {
     data: event,
     isLoading,
     error,
-    refetch
+    refetch,
   } = useEventDetailsExtended(eventoId);
 
   const handleBack = () => {
@@ -36,15 +43,11 @@ function EventDetailsPage() {
         description: "Devi effettuare l'accesso per iscriverti agli eventi.",
         variant: "destructive",
       });
-      navigate({ to: "/login" });
+      navigate({ to: "/login", search: { redirect: `/eventi/${eventoId}` } });
       return;
     }
 
-    // TODO: Implement registration logic
-    toast({
-      title: "Iscrizione in corso",
-      description: "La funzionalità di iscrizione sarà disponibile a breve.",
-    });
+    setShowRegistrationDialog(true);
   };
 
   if (isLoading) {
@@ -134,9 +137,7 @@ function EventDetailsPage() {
 
           <Alert>
             <AlertTriangle className="h-4 w-4" />
-            <AlertDescription>
-              Evento non trovato.
-            </AlertDescription>
+            <AlertDescription>Evento non trovato.</AlertDescription>
           </Alert>
         </div>
       </div>
@@ -144,10 +145,11 @@ function EventDetailsPage() {
   }
 
   // Check if user can register
-  const canRegister =
+  const canRegister = Boolean(
     event.status === "open" &&
-    event.currentParticipants < event.maxParticipants &&
-    session?.user;
+      event.currentParticipants < event.maxParticipants &&
+      session?.user,
+  );
 
   // Check if user is already registered (this would need actual registration data)
   const isRegistered = false; // TODO: Implement actual registration check
@@ -160,6 +162,13 @@ function EventDetailsPage() {
         onRegister={handleRegister}
         canRegister={canRegister}
         isRegistered={isRegistered}
+      />
+
+      {/* Registration Dialog */}
+      <IscrizioneWrapperDialog
+        open={showRegistrationDialog}
+        onOpenChange={setShowRegistrationDialog}
+        evento={event}
       />
     </div>
   );

@@ -128,86 +128,106 @@ export function EventDetailsExtended({
         )}
       </div>
 
-      {/* Hero Section */}
+      {/* Hero Section - Layout orizzontale */}
       <Card>
         <CardContent className="p-0">
-          {event.imageUrl && (
-            <div className="relative h-64 md:h-80">
-              <img
-                src={event.imageUrl}
-                alt={event.title}
-                className="w-full h-full object-cover rounded-t-lg"
-              />
-              <div className="absolute top-4 right-4">
-                {getStatusBadge()}
+          <div className="md:flex">
+            {/* Immagine a sinistra */}
+            {event.imageUrl && (
+              <div className="md:w-2/5 h-64 md:h-96 relative overflow-hidden">
+                <img
+                  src={event.imageUrl}
+                  alt={event.title}
+                  className="w-full h-full object-cover"
+                />
+                <div className="absolute top-4 right-4">{getStatusBadge()}</div>
+              </div>
+            )}
+
+            {/* Contenuto informazioni a destra */}
+            <div className={`${event.imageUrl ? "md:w-3/5" : "w-full"} p-6`}>
+              <div className="flex flex-col h-full">
+                <div className="flex-1">
+                  <h1 className="text-3xl font-bold mb-4">{event.title}</h1>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+                    <div className="flex items-center gap-2 text-muted-foreground">
+                      <Calendar className="h-5 w-5 flex-shrink-0" />
+                      <div>
+                        <div className="font-medium text-foreground">
+                          {formatDateTime(event.startDate)}
+                        </div>
+                        {event.endDate && (
+                          <div className="text-sm">
+                            fino al {formatDateTime(event.endDate)}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 text-muted-foreground">
+                      <MapPin className="h-5 w-5 flex-shrink-0" />
+                      <div>
+                        <div className="font-medium text-foreground">
+                          {event.location}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 text-muted-foreground">
+                      <Users className="h-5 w-5 flex-shrink-0" />
+                      <div>
+                        <div className="font-medium text-foreground">
+                          {event.currentParticipants}/{event.maxParticipants}{" "}
+                          partecipanti
+                        </div>
+                        <div className="text-sm">
+                          Età: {event.minAge}-{event.maxAge} anni
+                        </div>
+                      </div>
+                    </div>
+
+                    {event.price && (
+                      <div className="flex items-center gap-2 text-muted-foreground">
+                        <Euro className="h-5 w-5 flex-shrink-0" />
+                        <div>
+                          <div className="font-medium text-foreground">
+                            €{event.price}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {onRegister && (
+                  <div className="mt-6">
+                    <Button
+                      onClick={onRegister}
+                      disabled={!canRegister || isRegistered}
+                      size="lg"
+                      className="w-full sm:w-auto"
+                    >
+                      {isRegistered
+                        ? "Già Iscritto"
+                        : canRegister
+                          ? "Iscriviti"
+                          : "Iscrizioni Chiuse"}
+                    </Button>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Basic Description */}
+          {event.description && (
+            <div className="p-6 pt-0">
+              <div className="text-foreground max-w-none [&_h1]:text-2xl [&_h1]:font-semibold [&_h1]:mt-6 [&_h1]:mb-2 [&_h1]:leading-tight [&_h2]:text-xl [&_h2]:font-semibold [&_h2]:mt-5 [&_h2]:mb-2 [&_h2]:leading-tight [&_h3]:text-lg [&_h3]:font-semibold [&_h3]:mt-4 [&_h3]:mb-2 [&_h3]:leading-tight [&_p]:my-4 [&_p]:leading-relaxed [&_strong]:font-semibold [&_em]:italic [&_ul]:my-4 [&_ul]:pl-6 [&_ol]:my-4 [&_ol]:pl-6 [&_li]:my-2 [&_ul>li]:list-disc [&_ol>li]:list-decimal [&_blockquote]:italic [&_blockquote]:font-medium [&_blockquote]:text-muted-foreground [&_blockquote]:border-l-4 [&_blockquote]:border-border [&_blockquote]:pl-4 [&_blockquote]:my-6">
+                <div dangerouslySetInnerHTML={{ __html: event.description }} />
               </div>
             </div>
           )}
-          <div className="p-6">
-            <div className="flex items-start justify-between mb-4">
-              <div className="flex-1">
-                <h1 className="text-3xl font-bold mb-2">{event.title}</h1>
-                <div className="flex items-center gap-4 text-muted-foreground mb-4">
-                  <div className="flex items-center gap-1">
-                    <Calendar className="h-4 w-4" />
-                    <span>{formatDateTime(event.startDate)}</span>
-                  </div>
-                  {event.endDate && (
-                    <>
-                      <span>-</span>
-                      <span>{formatDateTime(event.endDate)}</span>
-                    </>
-                  )}
-                </div>
-                <div className="flex items-center gap-4 text-muted-foreground mb-4">
-                  <div className="flex items-center gap-1">
-                    <MapPin className="h-4 w-4" />
-                    <span>{event.location}</span>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <Users className="h-4 w-4" />
-                    <span>
-                      {event.currentParticipants}/{event.maxParticipants}{" "}
-                      partecipanti
-                    </span>
-                  </div>
-                  {event.price && (
-                    <div className="flex items-center gap-1">
-                      <Euro className="h-4 w-4" />
-                      <span>{event.price}€</span>
-                    </div>
-                  )}
-                </div>
-                <p className="text-muted-foreground">
-                  Età: {event.minAge}-{event.maxAge} anni
-                </p>
-              </div>
-              {onRegister && (
-                <div className="ml-6">
-                  <Button
-                    onClick={onRegister}
-                    disabled={!canRegister || isRegistered}
-                    size="lg"
-                  >
-                    {isRegistered
-                      ? "Già Iscritto"
-                      : canRegister
-                      ? "Iscriviti"
-                      : "Iscrizioni Chiuse"}
-                  </Button>
-                </div>
-              )}
-            </div>
-
-            {/* Basic Description */}
-            {event.description && (
-              <div className="prose max-w-none">
-                <div
-                  dangerouslySetInnerHTML={{ __html: event.description }}
-                />
-              </div>
-            )}
-          </div>
         </CardContent>
       </Card>
 
@@ -234,7 +254,7 @@ export function EventDetailsExtended({
                 </CardHeader>
                 <CardContent>
                   <div
-                    className="prose max-w-none"
+                    className="text-foreground max-w-none [&_h1]:text-2xl [&_h1]:font-semibold [&_h1]:mt-6 [&_h1]:mb-2 [&_h1]:leading-tight [&_h2]:text-xl [&_h2]:font-semibold [&_h2]:mt-5 [&_h2]:mb-2 [&_h2]:leading-tight [&_h3]:text-lg [&_h3]:font-semibold [&_h3]:mt-4 [&_h3]:mb-2 [&_h3]:leading-tight [&_p]:my-4 [&_p]:leading-relaxed [&_strong]:font-semibold [&_em]:italic [&_ul]:my-4 [&_ul]:pl-6 [&_ol]:my-4 [&_ol]:pl-6 [&_li]:my-2 [&_ul>li]:list-disc [&_ol>li]:list-decimal [&_blockquote]:italic [&_blockquote]:font-medium [&_blockquote]:text-muted-foreground [&_blockquote]:border-l-4 [&_blockquote]:border-border [&_blockquote]:pl-4 [&_blockquote]:my-6"
                     dangerouslySetInnerHTML={{
                       __html: event.detailedDescription,
                     }}
@@ -300,7 +320,7 @@ export function EventDetailsExtended({
               </CardHeader>
               <CardContent>
                 <div
-                  className="prose max-w-none"
+                  className="text-foreground max-w-none [&_h1]:text-2xl [&_h1]:font-semibold [&_h1]:mt-6 [&_h1]:mb-2 [&_h1]:leading-tight [&_h2]:text-xl [&_h2]:font-semibold [&_h2]:mt-5 [&_h2]:mb-2 [&_h2]:leading-tight [&_h3]:text-lg [&_h3]:font-semibold [&_h3]:mt-4 [&_h3]:mb-2 [&_h3]:leading-tight [&_p]:my-4 [&_p]:leading-relaxed [&_strong]:font-semibold [&_em]:italic [&_ul]:my-4 [&_ul]:pl-6 [&_ol]:my-4 [&_ol]:pl-6 [&_li]:my-2 [&_ul>li]:list-disc [&_ol>li]:list-decimal [&_blockquote]:italic [&_blockquote]:font-medium [&_blockquote]:text-muted-foreground [&_blockquote]:border-l-4 [&_blockquote]:border-border [&_blockquote]:pl-4 [&_blockquote]:my-6"
                   dangerouslySetInnerHTML={{ __html: event.program }}
                 />
               </CardContent>
@@ -413,9 +433,7 @@ export function EventDetailsExtended({
           <Card>
             <CardHeader>
               <CardTitle>Servizi Inclusi</CardTitle>
-              <CardDescription>
-                Ecco cosa è incluso nell'evento
-              </CardDescription>
+              <CardDescription>Ecco cosa è incluso nell'evento</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="grid gap-3 md:grid-cols-2">
@@ -480,9 +498,7 @@ export function EventDetailsExtended({
           <Card>
             <CardHeader>
               <CardTitle>Galleria Immagini</CardTitle>
-              <CardDescription>
-                Foto e immagini dell'evento
-              </CardDescription>
+              <CardDescription>Foto e immagini dell'evento</CardDescription>
             </CardHeader>
             <CardContent>
               {additionalImages.length > 0 ? (

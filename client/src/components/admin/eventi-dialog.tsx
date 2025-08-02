@@ -50,6 +50,7 @@ export function EventiDialog({
   const [formData, setFormData] = useState({
     title: "",
     description: "",
+    detailedDescription: "",
     startDate: null as Date | null,
     endDate: null as Date | null,
     location: "",
@@ -81,6 +82,7 @@ export function EventiDialog({
       setFormData({
         title: evento.title || "",
         description: evento.description || "",
+        detailedDescription: evento.detailedDescription || "",
         startDate: evento.startDate ? new Date(evento.startDate) : null,
         endDate: evento.endDate ? new Date(evento.endDate) : null,
         location: evento.location || "",
@@ -97,6 +99,7 @@ export function EventiDialog({
       setFormData({
         title: "",
         description: "",
+        detailedDescription: "",
         startDate: null,
         endDate: null,
         location: "",
@@ -120,6 +123,10 @@ export function EventiDialog({
 
   const handleDescriptionChange = (content: string) => {
     setFormData((prev) => ({ ...prev, description: content }));
+  };
+
+  const handleDetailedDescriptionChange = (content: string) => {
+    setFormData((prev) => ({ ...prev, detailedDescription: content }));
   };
 
   const handleSelectChange = (value: string) => {
@@ -160,6 +167,7 @@ export function EventiDialog({
         id: evento.id,
         title: formData.title || undefined,
         description: formData.description || undefined,
+        detailedDescription: formData.detailedDescription || undefined,
         startDate: formData.startDate?.toISOString(),
         endDate: formData.endDate ? formData.endDate.toISOString() : null,
         location: formData.location || undefined,
@@ -200,7 +208,7 @@ export function EventiDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-h-[98vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
             {evento ? "Modifica evento" : "Crea nuovo evento"}
@@ -225,13 +233,31 @@ export function EventiDialog({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="description">Descrizione *</Label>
+            <Label htmlFor="description">Descrizione Breve *</Label>
             <RichTextEditor
               content={formData.description}
               onChange={handleDescriptionChange}
-              placeholder="Descrivi l'evento in dettaglio..."
-              className="min-h-[150px]"
+              placeholder="Descrizione breve che appare nelle anteprime..."
+              className="min-h-[100px]"
             />
+            <p className="text-xs text-muted-foreground">
+              Questa descrizione appare nelle card e nelle anteprime degli
+              eventi
+            </p>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="detailedDescription">Descrizione Dettagliata</Label>
+            <RichTextEditor
+              content={formData.detailedDescription}
+              onChange={handleDetailedDescriptionChange}
+              placeholder="Descrizione completa e dettagliata dell'evento..."
+              className="min-h-[200px]"
+            />
+            <p className="text-xs text-muted-foreground">
+              Questa descrizione estesa appare solo quando si aprono i dettagli
+              completi dell'evento
+            </p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

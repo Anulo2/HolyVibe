@@ -1,9 +1,9 @@
-"use client"
+"use client";
 
-import type React from "react"
+import type React from "react";
 
-import { useState, useEffect } from "react"
-import { Button } from "@/components/ui/button"
+import { useState, useEffect } from "react";
+import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -11,17 +11,17 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 interface AggiungiModificaPersonaDialogProps {
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  familyId: string | null
-  onAddPerson: (data: any) => void
-  onUpdatePerson: (data: any) => void
-  person?: any
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  familyId: string | null;
+  onAddPerson: (data: any) => void;
+  onUpdatePerson: (data: any) => void;
+  person?: any;
 }
 
 export function AggiungiModificaPersonaDialog({
@@ -37,7 +37,7 @@ export function AggiungiModificaPersonaDialog({
     relationship: "",
     phone: "",
     email: "",
-  })
+  });
 
   useEffect(() => {
     if (person) {
@@ -47,7 +47,7 @@ export function AggiungiModificaPersonaDialog({
         relationship: person.relationship || "",
         phone: person.phone || "",
         email: person.email || "",
-      })
+      });
     } else {
       // Reset del form per una nuova persona
       setFormData({
@@ -55,18 +55,20 @@ export function AggiungiModificaPersonaDialog({
         relationship: "",
         phone: "",
         email: "",
-      })
+      });
     }
-  }, [person, open])
+  }, [person, open]);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    const { id, value } = e.target
-    setFormData((prev) => ({ ...prev, [id]: value }))
-  }
+  const handleChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>,
+  ) => {
+    const { id, value } = e.target;
+    setFormData((prev) => ({ ...prev, [id]: value }));
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!familyId) return
+    e.preventDefault();
+    if (!familyId) return;
 
     // Clean up the data before sending - convert empty strings to undefined
     const cleanedData = {
@@ -74,24 +76,24 @@ export function AggiungiModificaPersonaDialog({
       relationship: formData.relationship,
       phone: formData.phone.trim() || undefined,
       email: formData.email.trim() || undefined,
-    }
+    };
 
     if (person) {
       // Editing existing person
       onUpdatePerson({
         id: person.id,
         ...cleanedData,
-      })
+      });
     } else {
       // Adding new person
       onAddPerson({
         familyId,
         ...cleanedData,
-      })
+      });
     }
-    
-    onOpenChange(false)
-  }
+
+    onOpenChange(false);
+  };
 
   const relazioniOptions = [
     "Nonno",
@@ -104,13 +106,17 @@ export function AggiungiModificaPersonaDialog({
     "Amico di famiglia",
     "Baby sitter",
     "Altro",
-  ]
+  ];
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px]">
+      <DialogContent>
         <DialogHeader>
-          <DialogTitle>{person ? "Modifica persona autorizzata" : "Aggiungi persona autorizzata"}</DialogTitle>
+          <DialogTitle>
+            {person
+              ? "Modifica persona autorizzata"
+              : "Aggiungi persona autorizzata"}
+          </DialogTitle>
           <DialogDescription>
             {person
               ? "Modifica i dati della persona autorizzata a ritirare i tuoi figli."
@@ -121,12 +127,12 @@ export function AggiungiModificaPersonaDialog({
         <form onSubmit={handleSubmit} className="space-y-4 mt-4">
           <div className="space-y-2">
             <Label htmlFor="fullName">Nome completo *</Label>
-            <Input 
-              id="fullName" 
-              value={formData.fullName} 
-              onChange={handleChange} 
-              placeholder="Nome e cognome" 
-              required 
+            <Input
+              id="fullName"
+              value={formData.fullName}
+              onChange={handleChange}
+              placeholder="Nome e cognome"
+              required
             />
           </div>
 
@@ -172,7 +178,11 @@ export function AggiungiModificaPersonaDialog({
           </div>
 
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => onOpenChange(false)}
+            >
               Annulla
             </Button>
             <Button type="submit" disabled={!familyId}>
@@ -182,5 +192,5 @@ export function AggiungiModificaPersonaDialog({
         </form>
       </DialogContent>
     </Dialog>
-  )
+  );
 }

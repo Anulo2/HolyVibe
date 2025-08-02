@@ -109,7 +109,6 @@ export const Route = createFileRoute("/admin/iscrizioni")({
   validateSearch: (search: Record<string, unknown>) => {
     return {
       eventId: search.eventId as string | undefined,
-      eventTitle: search.eventTitle as string | undefined,
     };
   },
 });
@@ -239,18 +238,23 @@ function IscrizioniPage() {
 
   // Create default filters based on URL params
   const defaultFilters = useMemo(() => {
-    if (searchParams.eventTitle) {
-      return [
-        {
-          columnId: "eventTitle",
-          type: "text" as const,
-          operator: "contains" as const,
-          values: [searchParams.eventTitle],
-        },
-      ];
+    if (searchParams.eventId && eventsData?.data) {
+      const event = eventsData.data.find(
+        (e: any) => e.id === searchParams.eventId,
+      );
+      if (event) {
+        return [
+          {
+            columnId: "eventTitle",
+            type: "text" as const,
+            operator: "contains" as const,
+            values: [event.title],
+          },
+        ];
+      }
     }
     return [];
-  }, [searchParams.eventTitle]);
+  }, [searchParams.eventId, eventsData?.data]);
 
   // Define the view details handler before using it in columns
   const handleViewDetails = (registrationId: string) => {
@@ -851,24 +855,31 @@ function IscrizioniPage() {
           <p className="text-muted-foreground">
             Visualizza e gestisci le iscrizioni agli eventi.
           </p>
-          {searchParams.eventTitle && (
-            <div className="mt-2 flex items-center gap-2 text-sm text-blue-600 bg-blue-50 dark:bg-blue-950 dark:text-blue-400 px-3 py-2 rounded-md">
-              <Calendar className="h-4 w-4" />
-              Filtrando per evento: <strong>{searchParams.eventTitle}</strong>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-auto p-1 ml-2"
-                onClick={() => {
-                  // Clear the event filter by navigating without search params
-                  window.history.pushState({}, "", "/admin/iscrizioni");
-                  window.location.reload();
-                }}
-              >
-                <X className="h-3 w-3" />
-              </Button>
-            </div>
-          )}
+          {searchParams.eventId &&
+            eventsData?.data &&
+            (() => {
+              const event = eventsData.data.find(
+                (e: any) => e.id === searchParams.eventId,
+              );
+              return event ? (
+                <div className="mt-2 flex items-center gap-2 text-sm text-blue-600 bg-blue-50 dark:bg-blue-950 dark:text-blue-400 px-3 py-2 rounded-md">
+                  <Calendar className="h-4 w-4" />
+                  Filtrando per evento: <strong>{event.title}</strong>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-auto p-1 ml-2"
+                    onClick={() => {
+                      // Clear the event filter by navigating without search params
+                      window.history.pushState({}, "", "/admin/iscrizioni");
+                      window.location.reload();
+                    }}
+                  >
+                    <X className="h-3 w-3" />
+                  </Button>
+                </div>
+              ) : null;
+            })()}
         </div>
 
         {/* Stats Cards */}

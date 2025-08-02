@@ -12,6 +12,8 @@ import {
 import { useState } from "react";
 import { AdminCreaEventoDialog } from "@/components/admin/admin-crea-evento-dialog";
 import { EventiDialog } from "@/components/admin/eventi-dialog";
+import { EventCard } from "@/components/events/event-card";
+import { EventDetailsDialog } from "@/components/events/event-details-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -139,7 +141,6 @@ function AdminEventiPage() {
       to: "/admin/iscrizioni",
       search: {
         eventId: evento.id,
-        eventTitle: evento.title,
       },
     });
   };
@@ -291,79 +292,15 @@ function AdminEventiPage() {
         <TabsContent value="cards">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredEvents.map((evento: any) => (
-              <Card key={evento.id} className="overflow-hidden">
-                <div className="h-32 relative overflow-hidden">
-                  {evento.imageUrl ? (
-                    <img
-                      src={evento.imageUrl}
-                      alt={evento.title}
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    <div className="w-full h-full bg-gradient-to-r from-blue-500 to-purple-600" />
-                  )}
-                  <div className="absolute inset-0 bg-black/20" />
-                  <div className="absolute top-4 right-4">
-                    <Badge className={getStatusColor(evento.status)}>
-                      {getStatusText(evento.status)}
-                    </Badge>
-                  </div>
-                  <div className="absolute bottom-4 left-4 text-white">
-                    <h3 className="font-bold">{evento.title}</h3>
-                  </div>
-                </div>
-
-                <CardContent className="p-4">
-                  <div className="space-y-2 mb-4">
-                    <div className="flex items-center text-sm">
-                      <CalendarDays className="h-4 w-4 mr-2 text-muted-foreground" />
-                      <span>
-                        {formatDate(evento.startDate)}
-                        {evento.endDate && ` - ${formatDate(evento.endDate)}`}
-                      </span>
-                    </div>
-
-                    <div className="flex items-center text-sm">
-                      <MapPin className="h-4 w-4 mr-2 text-muted-foreground" />
-                      <span>{evento.location}</span>
-                    </div>
-
-                    <div className="flex items-center text-sm">
-                      <Users className="h-4 w-4 mr-2 text-muted-foreground" />
-                      <span>
-                        {evento.currentParticipants}/{evento.maxParticipants}
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="flex gap-1">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleView(evento)}
-                      className="flex-1"
-                    >
-                      <Eye className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleEdit(evento)}
-                      className="flex-1"
-                    >
-                      <Edit className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleDelete(evento.id)}
-                      className="flex-1 text-red-600 hover:text-red-700"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
+              <EventCard
+                key={evento.id}
+                event={evento}
+                mode="admin"
+                layout="vertical"
+                onViewDetails={() => handleView(evento)}
+                onEdit={() => handleEdit(evento)}
+                onDelete={() => handleDelete(evento.id)}
+              />
             ))}
           </div>
         </TabsContent>
@@ -487,107 +424,16 @@ function AdminEventiPage() {
       />
 
       {/* Event Details Dialog */}
-      <Dialog open={showDetailDialog} onOpenChange={setShowDetailDialog}>
-        <DialogContent className="sm:max-w-[700px]">
-          <DialogHeader>
-            <DialogTitle>{selectedEvent?.title}</DialogTitle>
-            <DialogDescription>
-              Dettagli completi dell'evento e gestione iscrizioni
-            </DialogDescription>
-          </DialogHeader>
-          {selectedEvent && (
-            <div className="space-y-6">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <h4 className="font-semibold mb-2">Informazioni Base</h4>
-                  <div className="space-y-2 text-sm">
-                    <div>
-                      <strong>Date:</strong>{" "}
-                      {formatDate(selectedEvent.startDate)} -{" "}
-                      {selectedEvent.endDate
-                        ? formatDate(selectedEvent.endDate)
-                        : "N/A"}
-                    </div>
-                    <div>
-                      <strong>Luogo:</strong> {selectedEvent.location}
-                    </div>
-                    <div>
-                      <strong>Età:</strong> {selectedEvent.minAge}-
-                      {selectedEvent.maxAge} anni
-                    </div>
-                    <div>
-                      <strong>Prezzo:</strong>{" "}
-                      {selectedEvent.price === "0.00"
-                        ? "Gratuito"
-                        : `€${selectedEvent.price}`}
-                    </div>
-                  </div>
-                </div>
-                <div>
-                  <h4 className="font-semibold mb-2">Stato e Partecipazione</h4>
-                  <div className="space-y-2 text-sm">
-                    <div>
-                      <strong>Stato:</strong>{" "}
-                      <Badge className={getStatusColor(selectedEvent.status)}>
-                        {getStatusText(selectedEvent.status)}
-                      </Badge>
-                    </div>
-                    <div>
-                      <strong>Partecipanti:</strong>{" "}
-                      {selectedEvent.currentParticipants}/
-                      {selectedEvent.maxParticipants}
-                    </div>
-                    <div>
-                      <strong>Creato da:</strong> {selectedEvent.createdBy}
-                    </div>
-                    <div>
-                      <strong>Data creazione:</strong>{" "}
-                      {formatDate(selectedEvent.createdAt)}
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {selectedEvent.imageUrl && (
-                <div>
-                  <h4 className="font-semibold mb-2">Immagine</h4>
-                  <img
-                    src={selectedEvent.imageUrl}
-                    alt={selectedEvent.title}
-                    className="w-full max-h-64 object-cover rounded-md"
-                  />
-                </div>
-              )}
-
-              <div>
-                <h4 className="font-semibold mb-2">Descrizione</h4>
-                <div className="text-sm text-muted-foreground">
-                  <SafeHTML content={selectedEvent.description} />
-                </div>
-              </div>
-
-              <div className="flex gap-2">
-                <Button
-                  onClick={() => {
-                    setShowDetailDialog(false);
-                    handleEdit(selectedEvent);
-                  }}
-                >
-                  <Edit className="h-4 w-4 mr-2" />
-                  Modifica Evento
-                </Button>
-                <Button
-                  variant="outline"
-                  onClick={() => handleManageRegistrations(selectedEvent)}
-                >
-                  <Users className="h-4 w-4 mr-2" />
-                  Gestisci Iscrizioni
-                </Button>
-              </div>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
+      <EventDetailsDialog
+        open={showDetailDialog}
+        onOpenChange={setShowDetailDialog}
+        event={selectedEvent}
+        mode="admin"
+        onEdit={() => {
+          setShowDetailDialog(false);
+          handleEdit(selectedEvent);
+        }}
+      />
     </div>
   );
 }

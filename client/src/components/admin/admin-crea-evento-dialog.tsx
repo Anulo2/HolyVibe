@@ -237,7 +237,7 @@ export function AdminCreaEventoDialog({
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>{children}</DialogTrigger>
-      <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-h-[98vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Crea Nuovo Evento</DialogTitle>
           <DialogDescription>

@@ -27,9 +27,9 @@ interface QuickEvent {
   title: string;
   description: string;
   startDate: string;
-  endDate?: string;
+  endDate: string | null;
   location: string;
-  maxParticipants?: number;
+  maxParticipants: number | null;
   currentParticipants: number;
   isRegistered: boolean;
   status: "open" | "closed" | "full";

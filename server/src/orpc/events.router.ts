@@ -4,6 +4,7 @@ import { nanoid } from "nanoid";
 import { z } from "zod";
 import { db } from "../db";
 import {
+  children,
   eventRegistrations,
   events,
   families,
@@ -361,10 +362,550 @@ export const eventsRouter = os.router({
           success: true,
           data: sortedActivities,
         };
+        return { success: true, data: activities };
       } catch (error) {
-        console.error("Error fetching recent activity:", error);
+        console.error("Error getting recent activity:", error);
         throw new ORPCError("INTERNAL_SERVER_ERROR", {
-          message: "Failed to fetch recent activity",
+          message: "Failed to get recent activity",
+        });
+      }
+    }),
+
+  // Get advanced reports for admin
+  getAdvancedReports: withAuth
+    .input(
+      z.object({
+        reportType: z.enum([
+          "events_stats",
+          "user_analytics",
+          "financial_report",
+          "age_distribution",
+        ]),
+        startDate: z.string().optional(),
+        endDate: z.string().optional(),
+      }),
+    )
+    .output(
+      SuccessResponse(
+        z.object({
+          reportType: z.string(),
+          data: z.any(),
+          generatedAt: z.string(),
+        }),
+      ),
+    )
+    .handler(async ({ input, context }) => {
+      try {
+        // Check if user is admin
+        const membership = await db
+          .select()
+          .from(organizationMember)
+          .where(eq(organizationMember.userId, context.user.id))
+          .limit(1);
+
+        const isAdmin =
+          membership.length > 0 &&
+          ["amministratore"].includes(membership[0].role);
+
+        if (!isAdmin) {
+          throw new ORPCError("FORBIDDEN", {
+            message: "Access denied",
+          });
+        }
+
+        let reportData: any = {};
+
+        switch (input.reportType) {
+          case "events_stats":
+            // Eventi per mese negli ultimi 12 mesi
+            const eventsStats = await db
+              .select({
+                month:
+                  sql`strftime('%Y-%m', datetime(${events.startDate}, 'unixepoch'))`.as(
+                    "month",
+                  ),
+                count: sql`count(*)`.as("count"),
+                avgParticipants: sql`avg(${events.currentParticipants})`.as(
+                  "avgParticipants",
+                ),
+                totalRevenue:
+                  sql`sum(case when ${events.price} is not null then cast(${events.price} as real) * ${events.currentParticipants} else 0 end)`.as(
+                    "totalRevenue",
+                  ),
+              })
+              .from(events)
+              .where(
+                input.startDate && input.endDate
+                  ? and(
+                      gte(
+                        events.startDate,
+                        sql`${Math.floor(new Date(input.startDate).getTime() / 1000)}`,
+                      ),
+                      lte(
+                        events.startDate,
+                        sql`${Math.floor(new Date(input.endDate).getTime() / 1000)}`,
+                      ),
+                    )
+                  : gte(
+                      events.startDate,
+                      sql`${Math.floor((Date.now() - 365 * 24 * 60 * 60 * 1000) / 1000)}`,
+                    ),
+              )
+              .groupBy(
+                sql`strftime('%Y-%m', datetime(${events.startDate}, 'unixepoch'))`,
+              )
+              .orderBy(
+                sql`strftime('%Y-%m', datetime(${events.startDate}, 'unixepoch'))`,
+              );
+
+            // Eventi più popolari
+            const popularEvents = await db
+              .select({
+                id: events.id,
+                title: events.title,
+                currentParticipants: events.currentParticipants,
+                maxParticipants: events.maxParticipants,
+                fillRate:
+                  sql`(cast(${events.currentParticipants} as real) / ${events.maxParticipants} * 100)`.as(
+                    "fillRate",
+                  ),
+                revenue:
+                  sql`case when ${events.price} is not null then cast(${events.price} as real) * ${events.currentParticipants} else 0 end`.as(
+                    "revenue",
+                  ),
+              })
+              .from(events)
+              .where(eq(events.status, "open"))
+              .orderBy(desc(events.currentParticipants))
+              .limit(10);
+
+            reportData = {
+              monthlyStats: eventsStats,
+              popularEvents: popularEvents,
+              totalEvents: await db
+                .select({ count: sql`count(*)` })
+                .from(events),
+            };
+            break;
+
+          case "user_analytics":
+            // Crescita utenti per mese
+            const userGrowth = await db
+              .select({
+                month:
+                  sql`strftime('%Y-%m', datetime(${userTable.createdAt}, 'unixepoch'))`.as(
+                    "month",
+                  ),
+                newUsers: sql`count(*)`.as("newUsers"),
+              })
+              .from(userTable)
+              .where(
+                input.startDate && input.endDate
+                  ? and(
+                      gte(
+                        userTable.createdAt,
+                        sql`${Math.floor(new Date(input.startDate).getTime() / 1000)}`,
+                      ),
+                      lte(
+                        userTable.createdAt,
+                        sql`${Math.floor(new Date(input.endDate).getTime() / 1000)}`,
+                      ),
+                    )
+                  : gte(
+                      userTable.createdAt,
+                      sql`${Math.floor((Date.now() - 365 * 24 * 60 * 60 * 1000) / 1000)}`,
+                    ),
+              )
+              .groupBy(
+                sql`strftime('%Y-%m', datetime(${userTable.createdAt}, 'unixepoch'))`,
+              )
+              .orderBy(
+                sql`strftime('%Y-%m', datetime(${userTable.createdAt}, 'unixepoch'))`,
+              );
+
+            // Utenti più attivi (con più iscrizioni)
+            const activeUsers = await db
+              .select({
+                userId: userTable.id,
+                name: userTable.name,
+                email: userTable.email,
+                registrationCount: sql`count(${eventRegistrations.id})`.as(
+                  "registrationCount",
+                ),
+              })
+              .from(userTable)
+              .leftJoin(
+                eventRegistrations,
+                eq(userTable.id, eventRegistrations.parentId),
+              )
+              .groupBy(userTable.id, userTable.name, userTable.email)
+              .orderBy(desc(sql`count(${eventRegistrations.id})`))
+              .limit(10);
+
+            reportData = {
+              monthlyGrowth: userGrowth,
+              activeUsers: activeUsers,
+              totalUsers: await db
+                .select({ count: sql`count(*)` })
+                .from(userTable),
+            };
+            break;
+
+          case "financial_report":
+            // Report finanziario
+            const financialStats = await db
+              .select({
+                month:
+                  sql`strftime('%Y-%m', datetime(${events.startDate}, 'unixepoch'))`.as(
+                    "month",
+                  ),
+                totalRevenue:
+                  sql`sum(case when ${events.price} is not null then cast(${events.price} as real) * ${events.currentParticipants} else 0 end)`.as(
+                    "totalRevenue",
+                  ),
+                paidEvents:
+                  sql`count(case when ${events.price} is not null and cast(${events.price} as real) > 0 then 1 end)`.as(
+                    "paidEvents",
+                  ),
+                freeEvents:
+                  sql`count(case when ${events.price} is null or cast(${events.price} as real) = 0 then 1 end)`.as(
+                    "freeEvents",
+                  ),
+              })
+              .from(events)
+              .where(
+                input.startDate && input.endDate
+                  ? and(
+                      gte(
+                        events.startDate,
+                        sql`${Math.floor(new Date(input.startDate).getTime() / 1000)}`,
+                      ),
+                      lte(
+                        events.startDate,
+                        sql`${Math.floor(new Date(input.endDate).getTime() / 1000)}`,
+                      ),
+                    )
+                  : gte(
+                      events.startDate,
+                      sql`${Math.floor((Date.now() - 365 * 24 * 60 * 60 * 1000) / 1000)}`,
+                    ),
+              )
+              .groupBy(
+                sql`strftime('%Y-%m', datetime(${events.startDate}, 'unixepoch'))`,
+              )
+              .orderBy(
+                sql`strftime('%Y-%m', datetime(${events.startDate}, 'unixepoch'))`,
+              );
+
+            // Eventi per tipo di prezzo
+            const revenueByEvent = await db
+              .select({
+                id: events.id,
+                title: events.title,
+                price: events.price,
+                participants: events.currentParticipants,
+                revenue:
+                  sql`case when ${events.price} is not null then cast(${events.price} as real) * ${events.currentParticipants} else 0 end`.as(
+                    "revenue",
+                  ),
+              })
+              .from(events)
+              .where(
+                input.startDate && input.endDate
+                  ? and(
+                      gte(
+                        events.startDate,
+                        sql`${Math.floor(new Date(input.startDate).getTime() / 1000)}`,
+                      ),
+                      lte(
+                        events.startDate,
+                        sql`${Math.floor(new Date(input.endDate).getTime() / 1000)}`,
+                      ),
+                    )
+                  : gte(
+                      events.startDate,
+                      sql`${Math.floor((Date.now() - 365 * 24 * 60 * 60 * 1000) / 1000)}`,
+                    ),
+              )
+              .orderBy(
+                desc(
+                  sql`case when ${events.price} is not null then cast(${events.price} as real) * ${events.currentParticipants} else 0 end`,
+                ),
+              );
+
+            reportData = {
+              monthlyFinancial: financialStats,
+              revenueByEvent: revenueByEvent,
+            };
+            break;
+
+          case "age_distribution":
+            // Distribuzione per età dei bambini iscritti
+            const ageDistribution = await db
+              .select({
+                ageGroup: sql`
+                case
+                  when (julianday('now') - julianday(${children.birthDate})) / 365.25 < 5 then '0-4'
+                  when (julianday('now') - julianday(${children.birthDate})) / 365.25 < 8 then '5-7'
+                  when (julianday('now') - julianday(${children.birthDate})) / 365.25 < 11 then '8-10'
+                  when (julianday('now') - julianday(${children.birthDate})) / 365.25 < 14 then '11-13'
+                  else '14+'
+                end
+              `.as("ageGroup"),
+                count: sql`count(*)`.as("count"),
+              })
+              .from(children)
+              .innerJoin(
+                eventRegistrations,
+                eq(children.id, eventRegistrations.childId),
+              ).groupBy(sql`
+              case
+                when (julianday('now') - julianday(${children.birthDate})) / 365.25 < 5 then '0-4'
+                when (julianday('now') - julianday(${children.birthDate})) / 365.25 < 8 then '5-7'
+                when (julianday('now') - julianday(${children.birthDate})) / 365.25 < 11 then '8-10'
+                when (julianday('now') - julianday(${children.birthDate})) / 365.25 < 14 then '11-13'
+                else '14+'
+              end
+            `);
+
+            reportData = {
+              ageDistribution: ageDistribution,
+            };
+            break;
+        }
+
+        return {
+          success: true,
+          data: {
+            reportType: input.reportType,
+            data: reportData,
+            generatedAt: new Date().toISOString(),
+          },
+        };
+      } catch (error) {
+        console.error("Error generating advanced report:", error);
+        throw new ORPCError("INTERNAL_SERVER_ERROR", {
+          message: "Failed to generate report",
+        });
+      }
+    }),
+
+  // Export data endpoint
+  exportData: withAuth
+    .input(
+      z.object({
+        exportType: z.enum(["events", "users", "registrations", "children"]),
+        format: z.enum(["csv", "json"]),
+        startDate: z.string().optional(),
+        endDate: z.string().optional(),
+      }),
+    )
+    .output(
+      SuccessResponse(
+        z.object({
+          data: z.string(),
+          filename: z.string(),
+          contentType: z.string(),
+        }),
+      ),
+    )
+    .handler(async ({ input, context }) => {
+      try {
+        // Check if user is admin
+        const membership = await db
+          .select()
+          .from(organizationMember)
+          .where(eq(organizationMember.userId, context.user.id))
+          .limit(1);
+
+        const isAdmin =
+          membership.length > 0 &&
+          ["amministratore"].includes(membership[0].role);
+
+        if (!isAdmin) {
+          throw new ORPCError("FORBIDDEN", {
+            message: "Access denied",
+          });
+        }
+
+        let exportData: any[] = [];
+        let filename = "";
+
+        switch (input.exportType) {
+          case "events":
+            exportData = await db
+              .select({
+                id: events.id,
+                title: events.title,
+                description: events.description,
+                startDate: events.startDate,
+                endDate: events.endDate,
+                location: events.location,
+                minAge: events.minAge,
+                maxAge: events.maxAge,
+                maxParticipants: events.maxParticipants,
+                currentParticipants: events.currentParticipants,
+                price: events.price,
+                status: events.status,
+                createdAt: events.createdAt,
+              })
+              .from(events)
+              .where(
+                input.startDate && input.endDate
+                  ? and(
+                      gte(
+                        events.startDate,
+                        sql`${Math.floor(new Date(input.startDate).getTime() / 1000)}`,
+                      ),
+                      lte(
+                        events.startDate,
+                        sql`${Math.floor(new Date(input.endDate).getTime() / 1000)}`,
+                      ),
+                    )
+                  : undefined,
+              );
+            filename = `eventi_${new Date().toISOString().split("T")[0]}`;
+            break;
+
+          case "users":
+            exportData = await db
+              .select({
+                id: userTable.id,
+                name: userTable.name,
+                email: userTable.email,
+                phoneNumber: userTable.phoneNumber,
+                birthDate: userTable.birthDate,
+                createdAt: userTable.createdAt,
+              })
+              .from(userTable)
+              .where(
+                input.startDate && input.endDate
+                  ? and(
+                      gte(
+                        userTable.createdAt,
+                        sql`${Math.floor(new Date(input.startDate).getTime() / 1000)}`,
+                      ),
+                      lte(
+                        userTable.createdAt,
+                        sql`${Math.floor(new Date(input.endDate).getTime() / 1000)}`,
+                      ),
+                    )
+                  : undefined,
+              );
+            filename = `utenti_${new Date().toISOString().split("T")[0]}`;
+            break;
+
+          case "registrations":
+            exportData = await db
+              .select({
+                registrationId: eventRegistrations.id,
+                eventTitle: events.title,
+                childName:
+                  sql`${children.firstName} || ' ' || ${children.lastName}`.as(
+                    "childName",
+                  ),
+                parentName: userTable.name,
+                parentEmail: userTable.email,
+                status: eventRegistrations.status,
+                paymentStatus: eventRegistrations.paymentStatus,
+                registrationDate: eventRegistrations.registrationDate,
+              })
+              .from(eventRegistrations)
+              .innerJoin(events, eq(eventRegistrations.eventId, events.id))
+              .innerJoin(children, eq(eventRegistrations.childId, children.id))
+              .innerJoin(
+                userTable,
+                eq(eventRegistrations.parentId, userTable.id),
+              )
+              .where(
+                input.startDate && input.endDate
+                  ? and(
+                      gte(
+                        eventRegistrations.registrationDate,
+                        sql`${Math.floor(new Date(input.startDate).getTime() / 1000)}`,
+                      ),
+                      lte(
+                        eventRegistrations.registrationDate,
+                        sql`${Math.floor(new Date(input.endDate).getTime() / 1000)}`,
+                      ),
+                    )
+                  : undefined,
+              );
+            filename = `iscrizioni_${new Date().toISOString().split("T")[0]}`;
+            break;
+
+          case "children":
+            exportData = await db
+              .select({
+                id: children.id,
+                firstName: children.firstName,
+                lastName: children.lastName,
+                birthDate: children.birthDate,
+                birthPlace: children.birthPlace,
+                fiscalCode: children.fiscalCode,
+                gender: children.gender,
+                familyName: families.name,
+                createdAt: children.createdAt,
+              })
+              .from(children)
+              .innerJoin(families, eq(children.familyId, families.id))
+              .where(
+                input.startDate && input.endDate
+                  ? and(
+                      gte(
+                        children.createdAt,
+                        sql`${Math.floor(new Date(input.startDate).getTime() / 1000)}`,
+                      ),
+                      lte(
+                        children.createdAt,
+                        sql`${Math.floor(new Date(input.endDate).getTime() / 1000)}`,
+                      ),
+                    )
+                  : undefined,
+              );
+            filename = `bambini_${new Date().toISOString().split("T")[0]}`;
+            break;
+        }
+
+        let responseData = "";
+        let contentType = "";
+
+        if (input.format === "csv") {
+          // Convert to CSV
+          if (exportData.length > 0) {
+            const headers = Object.keys(exportData[0]).join(",");
+            const rows = exportData.map((row) =>
+              Object.values(row)
+                .map((value) =>
+                  typeof value === "string"
+                    ? `"${value.replace(/"/g, '""')}"`
+                    : value,
+                )
+                .join(","),
+            );
+            responseData = [headers, ...rows].join("\n");
+          }
+          contentType = "text/csv";
+          filename += ".csv";
+        } else {
+          // JSON format
+          responseData = JSON.stringify(exportData, null, 2);
+          contentType = "application/json";
+          filename += ".json";
+        }
+
+        return {
+          success: true,
+          data: {
+            data: responseData,
+            filename: filename,
+            contentType: contentType,
+          },
+        };
+      } catch (error) {
+        console.error("Error exporting data:", error);
+        throw new ORPCError("INTERNAL_SERVER_ERROR", {
+          message: "Failed to export data",
         });
       }
     }),
@@ -384,6 +925,24 @@ export const eventsRouter = os.router({
         price: z.string().max(20).optional(),
         imageUrl: z.string().optional(),
         imageFile: z.instanceof(File).optional(),
+        // Extended information fields
+        detailedDescription: z.string().max(5000).optional(),
+        program: z.string().max(3000).optional(),
+        requirements: z.string().max(1000).optional(),
+        whatToBring: z.string().max(1000).optional(),
+        parentNotes: z.string().max(2000).optional(),
+        emergencyContacts: z.string().max(1000).optional(),
+        meetingPoint: z.string().max(500).optional(),
+        dropOffTime: z.string().max(20).optional(),
+        pickUpTime: z.string().max(20).optional(),
+        includesLunch: z.boolean().optional(),
+        includesSnack: z.boolean().optional(),
+        transportProvided: z.boolean().optional(),
+        weatherDependent: z.boolean().optional(),
+        specialNotes: z.string().max(2000).optional(),
+        cancellationPolicy: z.string().max(1000).optional(),
+        photographyConsent: z.boolean().optional(),
+        additionalImages: z.string().optional(), // JSON array
       }),
     )
     .output(SuccessResponse(Event))
@@ -467,6 +1026,24 @@ export const eventsRouter = os.router({
           price: input.price || null,
           status: "draft" as const,
           imageUrl: finalImageUrl,
+          // Extended information fields
+          detailedDescription: input.detailedDescription || null,
+          program: input.program || null,
+          requirements: input.requirements || null,
+          whatToBring: input.whatToBring || null,
+          parentNotes: input.parentNotes || null,
+          emergencyContacts: input.emergencyContacts || null,
+          meetingPoint: input.meetingPoint || null,
+          dropOffTime: input.dropOffTime || null,
+          pickUpTime: input.pickUpTime || null,
+          includesLunch: input.includesLunch || false,
+          includesSnack: input.includesSnack || false,
+          transportProvided: input.transportProvided || false,
+          weatherDependent: input.weatherDependent || false,
+          specialNotes: input.specialNotes || null,
+          cancellationPolicy: input.cancellationPolicy || null,
+          photographyConsent: input.photographyConsent ?? true,
+          additionalImages: input.additionalImages || null,
           createdBy: context.user.id,
         };
 
@@ -507,16 +1084,34 @@ export const eventsRouter = os.router({
         description: z.string().max(1000).optional(),
         startDate: z.string().optional(),
         endDate: z.string().nullable().optional(),
-        location: z.string().max(200).optional(),
+        location: z.string().min(1).max(200).optional(),
         minAge: z.number().min(0).max(100).optional(),
         maxAge: z.number().min(0).max(100).optional(),
         maxParticipants: z.number().min(1).optional(),
-        price: z.string().max(20).optional(),
+        price: z.string().max(20).nullable().optional(),
         status: z
           .enum(["draft", "open", "closed", "full", "cancelled"])
           .optional(),
-        imageUrl: z.string().optional(),
+        imageUrl: z.string().nullable().optional(),
         imageFile: z.instanceof(File).optional(),
+        // Extended information fields
+        detailedDescription: z.string().max(5000).nullable().optional(),
+        program: z.string().max(3000).nullable().optional(),
+        requirements: z.string().max(1000).nullable().optional(),
+        whatToBring: z.string().max(1000).nullable().optional(),
+        parentNotes: z.string().max(2000).nullable().optional(),
+        emergencyContacts: z.string().max(1000).nullable().optional(),
+        meetingPoint: z.string().max(500).nullable().optional(),
+        dropOffTime: z.string().max(20).nullable().optional(),
+        pickUpTime: z.string().max(20).nullable().optional(),
+        includesLunch: z.boolean().nullable().optional(),
+        includesSnack: z.boolean().nullable().optional(),
+        transportProvided: z.boolean().nullable().optional(),
+        weatherDependent: z.boolean().nullable().optional(),
+        specialNotes: z.string().max(2000).nullable().optional(),
+        cancellationPolicy: z.string().max(1000).nullable().optional(),
+        photographyConsent: z.boolean().nullable().optional(),
+        additionalImages: z.string().nullable().optional(),
       }),
     )
     .output(SuccessResponse(Event))
@@ -617,6 +1212,59 @@ export const eventsRouter = os.router({
           }
         } else if (input.imageUrl !== undefined) {
           updateData.imageUrl = input.imageUrl;
+        }
+
+        // Update extended information fields
+        if (input.detailedDescription !== undefined) {
+          updateData.detailedDescription = input.detailedDescription;
+        }
+        if (input.program !== undefined) {
+          updateData.program = input.program;
+        }
+        if (input.requirements !== undefined) {
+          updateData.requirements = input.requirements;
+        }
+        if (input.whatToBring !== undefined) {
+          updateData.whatToBring = input.whatToBring;
+        }
+        if (input.parentNotes !== undefined) {
+          updateData.parentNotes = input.parentNotes;
+        }
+        if (input.emergencyContacts !== undefined) {
+          updateData.emergencyContacts = input.emergencyContacts;
+        }
+        if (input.meetingPoint !== undefined) {
+          updateData.meetingPoint = input.meetingPoint;
+        }
+        if (input.dropOffTime !== undefined) {
+          updateData.dropOffTime = input.dropOffTime;
+        }
+        if (input.pickUpTime !== undefined) {
+          updateData.pickUpTime = input.pickUpTime;
+        }
+        if (input.includesLunch !== undefined) {
+          updateData.includesLunch = input.includesLunch;
+        }
+        if (input.includesSnack !== undefined) {
+          updateData.includesSnack = input.includesSnack;
+        }
+        if (input.transportProvided !== undefined) {
+          updateData.transportProvided = input.transportProvided;
+        }
+        if (input.weatherDependent !== undefined) {
+          updateData.weatherDependent = input.weatherDependent;
+        }
+        if (input.specialNotes !== undefined) {
+          updateData.specialNotes = input.specialNotes;
+        }
+        if (input.cancellationPolicy !== undefined) {
+          updateData.cancellationPolicy = input.cancellationPolicy;
+        }
+        if (input.photographyConsent !== undefined) {
+          updateData.photographyConsent = input.photographyConsent;
+        }
+        if (input.additionalImages !== undefined) {
+          updateData.additionalImages = input.additionalImages;
         }
 
         const updateResult = await db

@@ -12,3 +12,5 @@ drizzle
 # local db file
 local.db
 *.local.db
+
+uploads/events

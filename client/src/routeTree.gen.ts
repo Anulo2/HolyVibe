@@ -19,6 +19,7 @@ import { Route as AdminRouteImport } from './routes/admin'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AdminIndexRouteImport } from './routes/admin/index'
 import { Route as InvitiAccettaRouteImport } from './routes/inviti.accetta'
+import { Route as EventiEventoIdRouteImport } from './routes/eventi/$eventoId'
 import { Route as AdminUtentiRouteImport } from './routes/admin/utenti'
 import { Route as AdminReportisticaRouteImport } from './routes/admin/reportistica'
 import { Route as AdminIscrizioniRouteImport } from './routes/admin/iscrizioni'
@@ -75,6 +76,11 @@ const InvitiAccettaRoute = InvitiAccettaRouteImport.update({
   path: '/inviti/accetta',
   getParentRoute: () => rootRouteImport,
 } as any)
+const EventiEventoIdRoute = EventiEventoIdRouteImport.update({
+  id: '/$eventoId',
+  path: '/$eventoId',
+  getParentRoute: () => EventiRoute,
+} as any)
 const AdminUtentiRoute = AdminUtentiRouteImport.update({
   id: '/utenti',
   path: '/utenti',
@@ -105,7 +111,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/admin': typeof AdminRouteWithChildren
   '/dashboard': typeof DashboardRoute
-  '/eventi': typeof EventiRoute
+  '/eventi': typeof EventiRouteWithChildren
   '/famiglia': typeof FamigliaRoute
   '/login': typeof LoginRoute
   '/parrocchie': typeof ParrocchieRoute
@@ -115,13 +121,14 @@ export interface FileRoutesByFullPath {
   '/admin/iscrizioni': typeof AdminIscrizioniRoute
   '/admin/reportistica': typeof AdminReportisticaRoute
   '/admin/utenti': typeof AdminUtentiRoute
+  '/eventi/$eventoId': typeof EventiEventoIdRoute
   '/inviti/accetta': typeof InvitiAccettaRoute
   '/admin/': typeof AdminIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/dashboard': typeof DashboardRoute
-  '/eventi': typeof EventiRoute
+  '/eventi': typeof EventiRouteWithChildren
   '/famiglia': typeof FamigliaRoute
   '/login': typeof LoginRoute
   '/parrocchie': typeof ParrocchieRoute
@@ -131,6 +138,7 @@ export interface FileRoutesByTo {
   '/admin/iscrizioni': typeof AdminIscrizioniRoute
   '/admin/reportistica': typeof AdminReportisticaRoute
   '/admin/utenti': typeof AdminUtentiRoute
+  '/eventi/$eventoId': typeof EventiEventoIdRoute
   '/inviti/accetta': typeof InvitiAccettaRoute
   '/admin': typeof AdminIndexRoute
 }
@@ -139,7 +147,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/admin': typeof AdminRouteWithChildren
   '/dashboard': typeof DashboardRoute
-  '/eventi': typeof EventiRoute
+  '/eventi': typeof EventiRouteWithChildren
   '/famiglia': typeof FamigliaRoute
   '/login': typeof LoginRoute
   '/parrocchie': typeof ParrocchieRoute
@@ -149,6 +157,7 @@ export interface FileRoutesById {
   '/admin/iscrizioni': typeof AdminIscrizioniRoute
   '/admin/reportistica': typeof AdminReportisticaRoute
   '/admin/utenti': typeof AdminUtentiRoute
+  '/eventi/$eventoId': typeof EventiEventoIdRoute
   '/inviti/accetta': typeof InvitiAccettaRoute
   '/admin/': typeof AdminIndexRoute
 }
@@ -168,6 +177,7 @@ export interface FileRouteTypes {
     | '/admin/iscrizioni'
     | '/admin/reportistica'
     | '/admin/utenti'
+    | '/eventi/$eventoId'
     | '/inviti/accetta'
     | '/admin/'
   fileRoutesByTo: FileRoutesByTo
@@ -184,6 +194,7 @@ export interface FileRouteTypes {
     | '/admin/iscrizioni'
     | '/admin/reportistica'
     | '/admin/utenti'
+    | '/eventi/$eventoId'
     | '/inviti/accetta'
     | '/admin'
   id:
@@ -201,6 +212,7 @@ export interface FileRouteTypes {
     | '/admin/iscrizioni'
     | '/admin/reportistica'
     | '/admin/utenti'
+    | '/eventi/$eventoId'
     | '/inviti/accetta'
     | '/admin/'
   fileRoutesById: FileRoutesById
@@ -209,7 +221,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AdminRoute: typeof AdminRouteWithChildren
   DashboardRoute: typeof DashboardRoute
-  EventiRoute: typeof EventiRoute
+  EventiRoute: typeof EventiRouteWithChildren
   FamigliaRoute: typeof FamigliaRoute
   LoginRoute: typeof LoginRoute
   ParrocchieRoute: typeof ParrocchieRoute
@@ -289,6 +301,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof InvitiAccettaRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/eventi/$eventoId': {
+      id: '/eventi/$eventoId'
+      path: '/$eventoId'
+      fullPath: '/eventi/$eventoId'
+      preLoaderRoute: typeof EventiEventoIdRouteImport
+      parentRoute: typeof EventiRoute
+    }
     '/admin/utenti': {
       id: '/admin/utenti'
       path: '/utenti'
@@ -347,11 +366,22 @@ const AdminRouteChildren: AdminRouteChildren = {
 
 const AdminRouteWithChildren = AdminRoute._addFileChildren(AdminRouteChildren)
 
+interface EventiRouteChildren {
+  EventiEventoIdRoute: typeof EventiEventoIdRoute
+}
+
+const EventiRouteChildren: EventiRouteChildren = {
+  EventiEventoIdRoute: EventiEventoIdRoute,
+}
+
+const EventiRouteWithChildren =
+  EventiRoute._addFileChildren(EventiRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AdminRoute: AdminRouteWithChildren,
   DashboardRoute: DashboardRoute,
-  EventiRoute: EventiRoute,
+  EventiRoute: EventiRouteWithChildren,
   FamigliaRoute: FamigliaRoute,
   LoginRoute: LoginRoute,
   ParrocchieRoute: ParrocchieRoute,

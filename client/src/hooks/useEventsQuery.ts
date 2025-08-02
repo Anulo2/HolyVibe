@@ -50,6 +50,25 @@ export const useCreateEventMutation = () => {
       maxParticipants: number;
       price?: string;
       imageUrl?: string;
+      imageFile?: File;
+      // Extended information fields
+      detailedDescription?: string;
+      program?: string;
+      requirements?: string;
+      whatToBring?: string;
+      parentNotes?: string;
+      emergencyContacts?: string;
+      meetingPoint?: string;
+      dropOffTime?: string;
+      pickUpTime?: string;
+      includesLunch?: boolean;
+      includesSnack?: boolean;
+      transportProvided?: boolean;
+      weatherDependent?: boolean;
+      specialNotes?: string;
+      cancellationPolicy?: string;
+      photographyConsent?: boolean;
+      additionalImages?: string;
     }) => orpc.events.create(data),
     onSuccess: () => {
       // Invalidate and refetch events
@@ -77,6 +96,24 @@ export const useUpdateEventMutation = () => {
       status?: "draft" | "open" | "closed" | "full" | "cancelled";
       imageUrl?: string;
       imageFile?: File;
+      // Extended information fields
+      detailedDescription?: string;
+      program?: string;
+      requirements?: string;
+      whatToBring?: string;
+      parentNotes?: string;
+      emergencyContacts?: string;
+      meetingPoint?: string;
+      dropOffTime?: string;
+      pickUpTime?: string;
+      includesLunch?: boolean;
+      includesSnack?: boolean;
+      transportProvided?: boolean;
+      weatherDependent?: boolean;
+      specialNotes?: string;
+      cancellationPolicy?: string;
+      photographyConsent?: boolean;
+      additionalImages?: string;
     }) => orpc.events.update(data),
     onSuccess: (_, variables) => {
       // Invalidate and refetch events

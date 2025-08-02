@@ -50,6 +50,24 @@ export function AdminCreaEventoDialog({
     status: "draft" as "draft" | "open" | "closed" | "full" | "cancelled",
     immagine: null as File | null,
     imageUrl: "",
+    // Extended information fields
+    dettagliCompleti: "",
+    programma: "",
+    requisiti: "",
+    cosPortare: "",
+    noteGenitori: "",
+    contattiEmergenza: "",
+    puntoRitrovo: "",
+    orarioConsegna: "",
+    orarioRitiro: "",
+    includePranzo: false,
+    includeMerenda: false,
+    trasportoFornito: false,
+    dipendeMeteo: false,
+    noteSpeciali: "",
+    politicaCancellazione: "",
+    consensoFoto: true,
+    immaginiAggiuntive: "",
   });
 
   const createEventMutation = useCreateEventMutation();
@@ -141,6 +159,24 @@ export function AdminCreaEventoDialog({
         maxParticipants: parseInt(formData.postiDisponibili),
         price: formData.prezzo || "0",
         imageUrl: formData.imageUrl || undefined,
+        // Extended information fields
+        detailedDescription: formData.dettagliCompleti || undefined,
+        program: formData.programma || undefined,
+        requirements: formData.requisiti || undefined,
+        whatToBring: formData.cosPortare || undefined,
+        parentNotes: formData.noteGenitori || undefined,
+        emergencyContacts: formData.contattiEmergenza || undefined,
+        meetingPoint: formData.puntoRitrovo || undefined,
+        dropOffTime: formData.orarioConsegna || undefined,
+        pickUpTime: formData.orarioRitiro || undefined,
+        includesLunch: formData.includePranzo,
+        includesSnack: formData.includeMerenda,
+        transportProvided: formData.trasportoFornito,
+        weatherDependent: formData.dipendeMeteo,
+        specialNotes: formData.noteSpeciali || undefined,
+        cancellationPolicy: formData.politicaCancellazione || undefined,
+        photographyConsent: formData.consensoFoto,
+        additionalImages: formData.immaginiAggiuntive || undefined,
       };
 
       // Upload image if selected
@@ -173,6 +209,24 @@ export function AdminCreaEventoDialog({
         status: "draft",
         immagine: null,
         imageUrl: "",
+        // Extended information fields
+        dettagliCompleti: "",
+        programma: "",
+        requisiti: "",
+        cosPortare: "",
+        noteGenitori: "",
+        contattiEmergenza: "",
+        puntoRitrovo: "",
+        orarioConsegna: "",
+        orarioRitiro: "",
+        includePranzo: false,
+        includeMerenda: false,
+        trasportoFornito: false,
+        dipendeMeteo: false,
+        noteSpeciali: "",
+        politicaCancellazione: "",
+        consensoFoto: true,
+        immaginiAggiuntive: "",
       });
     } catch (error) {
       console.error("Errore durante la creazione dell'evento:", error);
@@ -195,8 +249,8 @@ export function AdminCreaEventoDialog({
         <form onSubmit={handleSubmit} className="space-y-4 mt-4">
           <Tabs defaultValue="informazioni" className="w-full">
             <TabsList className="grid w-full grid-cols-3">
-              <TabsTrigger value="informazioni">Informazioni</TabsTrigger>
-              <TabsTrigger value="dettagli">Dettagli</TabsTrigger>
+              <TabsTrigger value="informazioni">Informazioni Base</TabsTrigger>
+              <TabsTrigger value="dettagli">Dettagli Estesi</TabsTrigger>
               <TabsTrigger value="media">Media</TabsTrigger>
             </TabsList>
 
@@ -307,105 +361,261 @@ export function AdminCreaEventoDialog({
               </div>
             </TabsContent>
 
-            <TabsContent value="dettagli" className="space-y-4 mt-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="etaMin">Età Minima *</Label>
-                  <Input
-                    id="etaMin"
-                    type="number"
-                    min="6"
-                    max="100"
-                    value={formData.etaMin}
-                    onChange={handleChange}
-                    placeholder="Età minima"
-                    required
+            <TabsContent value="dettagli" className="space-y-4">
+              <div className="space-y-4">
+                <div>
+                  <Label htmlFor="dettagliCompleti">
+                    Descrizione Dettagliata
+                  </Label>
+                  <RichTextEditor
+                    content={formData.dettagliCompleti}
+                    onChange={(content) =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        dettagliCompleti: content,
+                      }))
+                    }
+                    placeholder="Descrizione completa e dettagliata dell'evento..."
+                    className="min-h-[120px]"
                   />
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="etaMax">Età Massima *</Label>
-                  <Input
-                    id="etaMax"
-                    type="number"
-                    min="6"
-                    max="100"
-                    value={formData.etaMax}
-                    onChange={handleChange}
-                    placeholder="Età massima"
-                    required
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="postiDisponibili">Posti Disponibili *</Label>
-                  <Input
-                    id="postiDisponibili"
-                    type="number"
-                    min="1"
-                    value={formData.postiDisponibili}
-                    onChange={handleChange}
-                    placeholder="Numero di posti"
-                    required
+                <div>
+                  <Label htmlFor="programma">Programma della Giornata</Label>
+                  <RichTextEditor
+                    content={formData.programma}
+                    onChange={(content) =>
+                      setFormData((prev) => ({ ...prev, programma: content }))
+                    }
+                    placeholder="Es: 9:00 - Accoglienza, 9:30 - Attività..."
+                    className="min-h-[100px]"
                   />
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="prezzo">Prezzo (€) *</Label>
-                  <Input
-                    id="prezzo"
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={formData.prezzo}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="requisiti">Requisiti</Label>
+                    <textarea
+                      id="requisiti"
+                      value={formData.requisiti}
+                      onChange={handleChange}
+                      className="w-full px-3 py-2 border rounded-md min-h-[80px]"
+                      placeholder="Requisiti o prerequisiti necessari..."
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="cosPortare">Cosa Portare</Label>
+                    <textarea
+                      id="cosPortare"
+                      value={formData.cosPortare}
+                      onChange={handleChange}
+                      className="w-full px-3 py-2 border rounded-md min-h-[80px]"
+                      placeholder="Lista di cosa devono portare i partecipanti..."
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <Label htmlFor="noteGenitori">Note per i Genitori</Label>
+                  <textarea
+                    id="noteGenitori"
+                    value={formData.noteGenitori}
                     onChange={handleChange}
-                    placeholder="Prezzo in euro"
-                    required
+                    className="w-full px-3 py-2 border rounded-md min-h-[80px]"
+                    placeholder="Informazioni importanti per i genitori..."
                   />
                 </div>
-              </div>
 
-              <div className="space-y-2">
-                <Label>Stato Evento</Label>
-                <select
-                  value={formData.status}
-                  onChange={(e) =>
-                    setFormData((prev) => ({
-                      ...prev,
-                      status: e.target.value as any,
-                    }))
-                  }
-                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  <option value="draft">Bozza</option>
-                  <option value="open">Aperto</option>
-                  <option value="closed">Chiuso</option>
-                  <option value="full">Completo</option>
-                  <option value="cancelled">Annullato</option>
-                </select>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="contattiEmergenza">
+                      Contatti di Emergenza
+                    </Label>
+                    <textarea
+                      id="contattiEmergenza"
+                      value={formData.contattiEmergenza}
+                      onChange={handleChange}
+                      className="w-full px-3 py-2 border rounded-md min-h-[60px]"
+                      placeholder="Numeri di telefono per emergenze..."
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="puntoRitrovo">Punto di Ritrovo</Label>
+                    <Input
+                      id="puntoRitrovo"
+                      value={formData.puntoRitrovo}
+                      onChange={handleChange}
+                      placeholder="Luogo specifico di ritrovo"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="orarioConsegna">Orario Consegna</Label>
+                    <Input
+                      id="orarioConsegna"
+                      type="time"
+                      value={formData.orarioConsegna}
+                      onChange={handleChange}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="orarioRitiro">Orario Ritiro</Label>
+                    <Input
+                      id="orarioRitiro"
+                      type="time"
+                      value={formData.orarioRitiro}
+                      onChange={handleChange}
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  <h4 className="font-medium">Servizi Inclusi</h4>
+                  <div className="grid grid-cols-2 gap-4">
+                    <label className="flex items-center space-x-2">
+                      <input
+                        type="checkbox"
+                        checked={formData.includePranzo}
+                        onChange={(e) =>
+                          setFormData((prev) => ({
+                            ...prev,
+                            includePranzo: e.target.checked,
+                          }))
+                        }
+                        className="rounded"
+                      />
+                      <span>Include Pranzo</span>
+                    </label>
+                    <label className="flex items-center space-x-2">
+                      <input
+                        type="checkbox"
+                        checked={formData.includeMerenda}
+                        onChange={(e) =>
+                          setFormData((prev) => ({
+                            ...prev,
+                            includeMerenda: e.target.checked,
+                          }))
+                        }
+                        className="rounded"
+                      />
+                      <span>Include Merenda</span>
+                    </label>
+                    <label className="flex items-center space-x-2">
+                      <input
+                        type="checkbox"
+                        checked={formData.trasportoFornito}
+                        onChange={(e) =>
+                          setFormData((prev) => ({
+                            ...prev,
+                            trasportoFornito: e.target.checked,
+                          }))
+                        }
+                        className="rounded"
+                      />
+                      <span>Trasporto Fornito</span>
+                    </label>
+                    <label className="flex items-center space-x-2">
+                      <input
+                        type="checkbox"
+                        checked={formData.dipendeMeteo}
+                        onChange={(e) =>
+                          setFormData((prev) => ({
+                            ...prev,
+                            dipendeMeteo: e.target.checked,
+                          }))
+                        }
+                        className="rounded"
+                      />
+                      <span>Dipende dal Meteo</span>
+                    </label>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="noteSpeciali">Note Speciali</Label>
+                    <textarea
+                      id="noteSpeciali"
+                      value={formData.noteSpeciali}
+                      onChange={handleChange}
+                      className="w-full px-3 py-2 border rounded-md min-h-[80px]"
+                      placeholder="Note speciali o avvertenze..."
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="politicaCancellazione">
+                      Politica di Cancellazione
+                    </Label>
+                    <textarea
+                      id="politicaCancellazione"
+                      value={formData.politicaCancellazione}
+                      onChange={handleChange}
+                      className="w-full px-3 py-2 border rounded-md min-h-[80px]"
+                      placeholder="Regole per cancellazioni e rimborsi..."
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="flex items-center space-x-2">
+                    <input
+                      type="checkbox"
+                      checked={formData.consensoFoto}
+                      onChange={(e) =>
+                        setFormData((prev) => ({
+                          ...prev,
+                          consensoFoto: e.target.checked,
+                        }))
+                      }
+                      className="rounded"
+                    />
+                    <span>
+                      Richiedi consenso per foto/video durante l'evento
+                    </span>
+                  </label>
+                </div>
               </div>
             </TabsContent>
 
-            <TabsContent value="media" className="space-y-4 mt-4">
-              <div className="space-y-2">
-                <Label>Immagine Evento</Label>
-                <FileUpload
-                  onFileSelect={handleFileSelect}
-                  onFileRemove={handleFileRemove}
-                  accept="image/*"
-                  maxSize={5 * 1024 * 1024} // 5MB
-                  value={formData.immagine || formData.imageUrl}
-                  placeholder="Trascina qui un'immagine o clicca per caricarla"
-                  showPreview={true}
-                  disabled={
-                    createEventMutation.isPending || fileUpload.isUploading
-                  }
-                  uploadProgress={fileUpload.uploadProgress}
-                  isUploading={fileUpload.isUploading}
-                  onValidationError={(error) => toast.error(error)}
-                />
+            <TabsContent value="media" className="space-y-4">
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label>Immagine Evento Principale</Label>
+                  <FileUpload
+                    onFileSelect={handleFileSelect}
+                    onFileRemove={handleFileRemove}
+                    accept="image/*"
+                    maxSize={5 * 1024 * 1024} // 5MB
+                    value={formData.immagine || formData.imageUrl}
+                    placeholder="Trascina qui un'immagine o clicca per caricarla"
+                    showPreview={true}
+                    disabled={
+                      createEventMutation.isPending || fileUpload.isUploading
+                    }
+                    uploadProgress={fileUpload.uploadProgress}
+                    isUploading={fileUpload.isUploading}
+                    onValidationError={(error) => toast.error(error)}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="immaginiAggiuntive">
+                    URL Immagini Aggiuntive (JSON)
+                  </Label>
+                  <textarea
+                    id="immaginiAggiuntive"
+                    value={formData.immaginiAggiuntive}
+                    onChange={handleChange}
+                    className="w-full px-3 py-2 border rounded-md min-h-[80px]"
+                    placeholder='["https://esempio1.jpg", "https://esempio2.jpg"]'
+                  />
+                  <p className="text-sm text-muted-foreground">
+                    Inserisci un array JSON di URL immagini aggiuntive per la
+                    galleria dell'evento
+                  </p>
+                </div>
                 {fileUpload.isError && (
                   <p className="text-sm text-destructive">
                     {fileUpload.error?.message ||

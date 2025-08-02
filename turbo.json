@@ -1,12 +1,15 @@
 {
-	"$schema": "https://turbo.build/schema.json",
-	"tasks": {
-		"dev": {
-			"cache": false,
-			"persistent": true
-		},
-		"check": {
-			"dependsOn": ["^check"]
-		}
-	}
+  "$schema": "https://turbo.build/schema.json",
+  "tasks": {
+    "dev": {
+      "cache": false,
+      "persistent": true
+    },
+    "check": {
+      "dependsOn": ["^check"]
+    },
+    "check-types": {
+      "dependsOn": ["^check-types"]
+    }
+  }
 }

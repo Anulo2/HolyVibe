@@ -21,7 +21,6 @@ async function resetDatabase() {
 		await db.delete(schema.account);
 		await db.delete(schema.session);
 		await db.delete(schema.user);
-		await db.delete(schema.todos);
 
 		console.log("✅ Database cleared successfully!");
 

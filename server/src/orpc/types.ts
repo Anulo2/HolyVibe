@@ -1,8 +1,11 @@
 import type { InferRouterInputs, InferRouterOutputs } from "@orpc/server";
-import type { router } from "./server";
+import type { AppRouter } from "./index";
+import type { AuthContext } from "better-auth";
+
+declare module "@orpc/server" {}
 
 // Export the router type for client use
-export type AppRouter = typeof router;
+export type { AppRouter };
 
 // Export input and output types for all routes
 export type RouterInputs = InferRouterInputs<AppRouter>;
@@ -17,3 +20,6 @@ export type EventsOutputs = RouterOutputs["events"];
 
 export type UserInputs = RouterInputs["user"];
 export type UserOutputs = RouterOutputs["user"];
+
+export type RegistrationsInputs = RouterInputs["registrations"];
+export type RegistrationsOutputs = RouterOutputs["registrations"];

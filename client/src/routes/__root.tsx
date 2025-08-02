@@ -3,6 +3,7 @@ import { createRootRouteWithContext, Outlet } from "@tanstack/react-router";
 import { TanStackRouterDevtools } from "@tanstack/react-router-devtools";
 import { Header } from "@/components/Header";
 import { Sidebar } from "@/components/Sidebar";
+import { ProfileCompletionGuard } from "@/components/ProfileCompletionGuard";
 import type { authClient } from "@/lib/auth-client";
 
 // Better Auth session type from their useSession hook
@@ -69,15 +70,17 @@ function RootComponent() {
 	return (
 		<>
 			{showLayout ? (
-				<div className="min-h-screen bg-background">
-					<Header currentUser={currentUser} />
-					<div className="container mx-auto flex">
-						<Sidebar />
-						<main className="flex-1 p-6">
-							<Outlet />
-						</main>
+				<ProfileCompletionGuard>
+					<div className="min-h-screen bg-background">
+						<Header currentUser={currentUser} />
+						<div className="container mx-auto flex">
+							<Sidebar />
+							<main className="flex-1 p-6">
+								<Outlet />
+							</main>
+						</div>
 					</div>
-				</div>
+				</ProfileCompletionGuard>
 			) : (
 				<Outlet />
 			)}

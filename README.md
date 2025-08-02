@@ -1,8 +1,6 @@
-![Logo](https://raw.github.com/tanishqmanuja/static/main/banners/todos-react-elysia.webp?maxAge=2592000)
+# HolyVibe - Church Management Application
 
-# Todos App (React + ElysiaJS)
-
-A simple starter fullstack todos app built with React and ElysiaJS using bunJS. This project is purposefully kept minimal so that it can be used as a starting point for beginners-intermediate level developers.
+A comprehensive church/parish events management platform built with React and ElysiaJS using Bun. This application enables parishes to manage families, children, events, and authorized persons for child pickup/supervision with a focus on safety and organization.
 
 ## 💻 Client
 
@@ -32,6 +30,9 @@ Uses the following tech stack.
 - Linting: [BiomeJS](https://biomejs.dev)
 - Build System: [Turbo](https://turbo.build)
 - Monorepo Management: [Bun Workspaces](https://bun.sh/docs/install/workspaces)
+- Authentication: [Better Auth](https://better-auth.com)
+- RPC Communication: [ORPC](https://orpc.dev)
+- UI Components: [shadcn/ui](https://ui.shadcn.com)
 
 ## 🚀 Usage
 
@@ -66,8 +67,6 @@ bun run dev
 ```
 
 Yes, run both at the same time, its that simple !!!
-
-https://github.com/tanishqmanuja/todos-react-elysia/assets/40914272/42b085bc-93c1-47f0-a361-c2d940121619
 
 ## 🍀 Show your Support
 

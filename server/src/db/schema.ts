@@ -307,16 +307,3 @@ export const invitations = sqliteTable("invitations", {
 		.default(sql`(strftime('%s', 'now'))`)
 		.notNull(),
 });
-
-// Legacy todos table (can be removed later)
-export const todos = sqliteTable("todos", {
-	id: text("id").primaryKey(),
-	title: text("title").notNull(),
-	completed: integer("completed", { mode: "boolean" }).notNull().default(false),
-	createdAt: integer("created_at", { mode: "number" })
-		.default(sql`(strftime('%s', 'now'))`)
-		.notNull(),
-	updatedAt: integer("updated_at", { mode: "number" })
-		.default(sql`(strftime('%s', 'now'))`)
-		.notNull(),
-});

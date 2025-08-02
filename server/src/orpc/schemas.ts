@@ -1,0 +1,157 @@
+import { z } from "zod";
+
+// Schema definitions
+export const Family = z.object({
+  id: z.string(),
+  name: z.string(),
+  description: z.string().nullable(),
+  createdBy: z.string(),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+});
+
+export const Child = z.object({
+  id: z.string(),
+  familyId: z.string(),
+  firstName: z.string(),
+  lastName: z.string(),
+  birthDate: z.string(),
+  birthPlace: z.string().nullable(),
+  fiscalCode: z.string().nullable(),
+  gender: z.enum(["M", "F", "O"]).nullable(),
+  allergies: z.string().nullable(),
+  medicalNotes: z.string().nullable(),
+  avatarUrl: z.string().nullable(),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+});
+
+export const AuthorizedPerson = z.object({
+  id: z.string(),
+  familyId: z.string(),
+  fullName: z.string(),
+  relationship: z.string(),
+  phone: z.string().nullable(),
+  email: z.string().nullable(),
+  avatarUrl: z.string().nullable(),
+  isActive: z.boolean(),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+});
+
+export const Event = z.object({
+  id: z.string(),
+  title: z.string(),
+  description: z.string().nullable(),
+  startDate: z.string(),
+  endDate: z.string().nullable(),
+  location: z.string().nullable(),
+  minAge: z.number().nullable(),
+  maxAge: z.number().nullable(),
+  maxParticipants: z.number().nullable(),
+  currentParticipants: z.number(),
+  price: z.string().nullable(),
+  status: z.enum(["draft", "open", "closed", "full", "cancelled"]),
+  imageUrl: z.string().nullable(),
+  createdBy: z.string(),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+});
+
+export const User = z.object({
+  id: z.string(),
+  name: z.string().nullable(),
+  email: z.string(),
+  phoneNumber: z.string().nullable(),
+  birthDate: z.string().nullable(),
+  image: z.string().nullable(),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+});
+
+export const Registration = z.object({
+  id: z.string(),
+  eventId: z.string(),
+  childId: z.string(),
+  parentId: z.string(),
+  status: z.enum(["pending", "confirmed", "cancelled", "waitlist"]),
+  paymentStatus: z.enum(["pending", "completed", "failed", "refunded"]),
+  registrationDate: z.string(),
+  notes: z.string().nullable(),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+});
+
+export const RegistrationWithDetails = z.object({
+  id: z.string(),
+  eventId: z.string(),
+  status: z.enum(["pending", "confirmed", "cancelled", "waitlist"]),
+  paymentStatus: z.enum(["pending", "completed", "failed", "refunded"]),
+  registrationDate: z.string(),
+  notes: z.string().nullable(),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+  child: z.object({
+    id: z.string(),
+    firstName: z.string(),
+    lastName: z.string(),
+    birthDate: z.string(),
+    allergies: z.string().nullable(),
+    medicalNotes: z.string().nullable(),
+  }),
+  parent: z.object({
+    id: z.string(),
+    name: z.string(),
+    email: z.string(),
+    phoneNumber: z.string().nullable(),
+  }),
+  event: z.object({
+    id: z.string(),
+    title: z.string(),
+    startDate: z.string(),
+    endDate: z.string().nullable(),
+    price: z.string().nullable(),
+  }),
+  family: z.object({
+    id: z.string(),
+    name: z.string(),
+  }),
+  authorizedPersons: z.array(
+    z.object({
+      id: z.string(),
+      fullName: z.string(),
+      relationship: z.string(),
+      phone: z.string().nullable(),
+      email: z.string().nullable(),
+    }),
+  ),
+});
+
+export const UserWithRole = z.object({
+  id: z.string(),
+  name: z.string().nullable(),
+  email: z.string(),
+  phoneNumber: z.string().nullable(),
+  birthDate: z.string().nullable(),
+  image: z.string().nullable(),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+  role: z.string().nullable(),
+  organizationId: z.string().nullable(),
+  joinedAt: z.string().nullable(),
+});
+
+export const Invitation = z.object({
+  id: z.string(),
+  familyId: z.string(),
+  email: z.string().nullable(),
+  phoneNumber: z.string().nullable(),
+  invitedBy: z.string(),
+  message: z.string().nullable(),
+  status: z.enum(["pending", "accepted", "rejected", "expired"]),
+  token: z.string(),
+  expiresAt: z.string(),
+  acceptedAt: z.string().nullable(),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+});

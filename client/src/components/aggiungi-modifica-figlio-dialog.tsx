@@ -1,9 +1,9 @@
-"use client"
+"use client";
 
-import type React from "react"
+import type React from "react";
 
-import { useState, useEffect } from "react"
-import { Button } from "@/components/ui/button"
+import { useState, useEffect } from "react";
+import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -11,34 +11,47 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { CalendarIcon, AlertCircle, Loader2 } from "lucide-react"
-import { Calendar } from "@/components/ui/calendar"
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { cn } from "@/lib/utils"
-import { format } from "date-fns"
-import { it } from "date-fns/locale"
-import { toast } from "sonner"
-import { useAddChildMutation, useUpdateChildMutation } from "../hooks/useFamilyQuery"
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { CalendarIcon, AlertCircle, Loader2 } from "lucide-react";
+import { Calendar } from "@/components/ui/calendar";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { cn } from "@/lib/utils";
+import { format } from "date-fns";
+import { it } from "date-fns/locale";
+import { toast } from "sonner";
+import {
+  useAddChildMutation,
+  useUpdateChildMutation,
+} from "../hooks/useFamilyQuery";
 
 // Helper function to format date as YYYY-MM-DD without timezone issues
 const formatDateForSubmission = (date: Date): string => {
-  const year = date.getFullYear()
-  const month = String(date.getMonth() + 1).padStart(2, '0')
-  const day = String(date.getDate()).padStart(2, '0')
-  return `${year}-${month}-${day}`
-}
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
 
 // Helper function to parse date string without timezone issues
 const parseDateString = (dateString: string): Date => {
-  const [year, month, day] = dateString.split('-').map(Number)
-  return new Date(year, month - 1, day) // month is 0-indexed in Date constructor
-}
+  const [year, month, day] = dateString.split("-").map(Number);
+  return new Date(year, month - 1, day); // month is 0-indexed in Date constructor
+};
 
 interface Child {
   id: string;
@@ -47,18 +60,18 @@ interface Child {
   birthDate: string;
   birthPlace?: string;
   fiscalCode?: string;
-  gender?: 'M' | 'F' | 'A';
+  gender?: "M" | "F" | "A";
   allergies?: string;
   medicalNotes?: string;
   familyId: string;
 }
 
 interface AggiungiModificaFiglioDialogProps {
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  child?: Child
-  familyId: string
-  onSuccess: () => void
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  child?: Child;
+  familyId: string;
+  onSuccess: () => void;
 }
 
 export function AggiungiModificaFiglioDialog({
@@ -77,13 +90,13 @@ export function AggiungiModificaFiglioDialog({
     gender: "" as "" | "M" | "F" | "A",
     allergies: "",
     medicalNotes: "",
-  })
+  });
 
-  const [isSubmitting, setIsSubmitting] = useState(false)
-  const [errors, setErrors] = useState<Record<string, string>>({})
-  
-  const { mutateAsync: addChildMutation } = useAddChildMutation()
-  const { mutateAsync: updateChildMutation } = useUpdateChildMutation()
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errors, setErrors] = useState<Record<string, string>>({});
+
+  const { mutateAsync: addChildMutation } = useAddChildMutation();
+  const { mutateAsync: updateChildMutation } = useUpdateChildMutation();
 
   useEffect(() => {
     if (child) {
@@ -97,7 +110,7 @@ export function AggiungiModificaFiglioDialog({
         gender: child.gender || "",
         allergies: child.allergies || "",
         medicalNotes: child.medicalNotes || "",
-      })
+      });
     } else {
       // Reset del form per un nuovo figlio
       setFormData({
@@ -109,71 +122,73 @@ export function AggiungiModificaFiglioDialog({
         gender: "",
         allergies: "",
         medicalNotes: "",
-      })
+      });
     }
-    setErrors({})
-  }, [child, open])
+    setErrors({});
+  }, [child, open]);
 
-  const handleChange = (field: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    const { value } = e.target
-    setFormData((prev) => ({ ...prev, [field]: value }))
-    // Clear error when user starts typing
-    if (errors[field]) {
-      setErrors(prev => ({ ...prev, [field]: "" }))
-    }
-  }
+  const handleChange =
+    (field: string) =>
+    (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+      const { value } = e.target;
+      setFormData((prev) => ({ ...prev, [field]: value }));
+      // Clear error when user starts typing
+      if (errors[field]) {
+        setErrors((prev) => ({ ...prev, [field]: "" }));
+      }
+    };
 
   const handleSelectChange = (field: string) => (value: string) => {
-    setFormData((prev) => ({ ...prev, [field]: value }))
+    setFormData((prev) => ({ ...prev, [field]: value }));
     if (errors[field]) {
-      setErrors(prev => ({ ...prev, [field]: "" }))
+      setErrors((prev) => ({ ...prev, [field]: "" }));
     }
-  }
+  };
 
-  const handleDateChange = (date: Date | null) => {
-    setFormData((prev) => ({ ...prev, birthDate: date }))
+  const handleDateChange = (date: Date | undefined) => {
+    setFormData((prev) => ({ ...prev, birthDate: date || null }));
     if (errors.birthDate) {
-      setErrors(prev => ({ ...prev, birthDate: "" }))
+      setErrors((prev) => ({ ...prev, birthDate: "" }));
     }
-  }
+  };
 
   const validateForm = () => {
-    const newErrors: Record<string, string> = {}
+    const newErrors: Record<string, string> = {};
 
     if (!formData.firstName.trim()) {
-      newErrors.firstName = "Il nome è obbligatorio"
+      newErrors.firstName = "Il nome è obbligatorio";
     }
 
     if (!formData.lastName.trim()) {
-      newErrors.lastName = "Il cognome è obbligatorio"
+      newErrors.lastName = "Il cognome è obbligatorio";
     }
 
     if (!formData.birthDate) {
-      newErrors.birthDate = "La data di nascita è obbligatoria"
+      newErrors.birthDate = "La data di nascita è obbligatoria";
     } else if (formData.birthDate > new Date()) {
-      newErrors.birthDate = "La data di nascita non può essere nel futuro"
+      newErrors.birthDate = "La data di nascita non può essere nel futuro";
     }
 
     if (!formData.gender) {
-      newErrors.gender = "Il genere è obbligatorio"
+      newErrors.gender = "Il genere è obbligatorio";
     }
 
     if (formData.fiscalCode && formData.fiscalCode.length !== 16) {
-      newErrors.fiscalCode = "Il codice fiscale deve essere di 16 caratteri"
+      newErrors.fiscalCode = "Il codice fiscale deve essere di 16 caratteri";
     }
 
-    setErrors(newErrors)
-    return Object.keys(newErrors).length === 0
-  }
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    
+    e.preventDefault();
+
     if (!validateForm()) {
-      return
+      return;
     }
 
-    setIsSubmitting(true)
+    setIsSubmitting(true);
 
     try {
       const submitData = {
@@ -183,10 +198,11 @@ export function AggiungiModificaFiglioDialog({
         birthDate: formatDateForSubmission(formData.birthDate!), // Format as YYYY-MM-DD
         birthPlace: formData.birthPlace.trim() || undefined,
         fiscalCode: formData.fiscalCode.trim() || undefined,
-        gender: formData.gender === 'A' ? 'O' : formData.gender as 'M' | 'F' | 'O',
+        gender:
+          formData.gender === "A" ? "O" : (formData.gender as "M" | "F" | "O"),
         allergies: formData.allergies.trim() || undefined,
         medicalNotes: formData.medicalNotes.trim() || undefined,
-      }
+      };
 
       if (child) {
         // Update existing child
@@ -197,28 +213,31 @@ export function AggiungiModificaFiglioDialog({
           birthDate: formatDateForSubmission(formData.birthDate!),
           birthPlace: formData.birthPlace.trim() || undefined,
           fiscalCode: formData.fiscalCode.trim() || undefined,
-          gender: formData.gender === 'A' ? 'O' : formData.gender as 'M' | 'F' | 'O',
+          gender:
+            formData.gender === "A"
+              ? "O"
+              : (formData.gender as "M" | "F" | "O"),
           allergies: formData.allergies.trim() || undefined,
           medicalNotes: formData.medicalNotes.trim() || undefined,
         };
-        
+
         console.log("Sending update data:", updateData);
         await updateChildMutation(updateData);
-        toast.success("Bambino modificato con successo!")
+        toast.success("Bambino modificato con successo!");
       } else {
         // Add new child
-        await addChildMutation(submitData)
-        toast.success("Bambino aggiunto con successo!")
+        await addChildMutation(submitData);
+        toast.success("Bambino aggiunto con successo!");
       }
-      onSuccess()
-      onOpenChange(false)
+      onSuccess();
+      onOpenChange(false);
     } catch (error) {
-      console.error("Errore durante il salvataggio:", error)
-      toast.error("Errore durante il salvataggio. Riprova.")
+      console.error("Errore durante il salvataggio:", error);
+      toast.error("Errore durante il salvataggio. Riprova.");
     } finally {
-      setIsSubmitting(false)
+      setIsSubmitting(false);
     }
-  }
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -283,7 +302,7 @@ export function AggiungiModificaFiglioDialog({
                         className={cn(
                           "w-full justify-start text-left font-normal",
                           !formData.birthDate && "text-muted-foreground",
-                          errors.birthDate && "border-red-500"
+                          errors.birthDate && "border-red-500",
                         )}
                         disabled={isSubmitting}
                       >
@@ -299,12 +318,17 @@ export function AggiungiModificaFiglioDialog({
                       <div className="p-3">
                         <div className="flex items-center justify-between space-x-2 mb-3">
                           <Select
-                            value={formData.birthDate ? formData.birthDate.getFullYear().toString() : ""}
+                            value={
+                              formData.birthDate
+                                ? formData.birthDate.getFullYear().toString()
+                                : ""
+                            }
                             onValueChange={(year) => {
-                              const currentDate = formData.birthDate || new Date()
-                              const newDate = new Date(currentDate)
-                              newDate.setFullYear(parseInt(year))
-                              handleDateChange(newDate)
+                              const currentDate =
+                                formData.birthDate || new Date();
+                              const newDate = new Date(currentDate);
+                              newDate.setFullYear(parseInt(year));
+                              handleDateChange(newDate);
                             }}
                           >
                             <SelectTrigger className="w-[100px]">
@@ -312,23 +336,31 @@ export function AggiungiModificaFiglioDialog({
                             </SelectTrigger>
                             <SelectContent>
                               {Array.from({ length: 35 }, (_, i) => {
-                                const year = new Date().getFullYear() - i
+                                const year = new Date().getFullYear() - i;
                                 return (
-                                  <SelectItem key={year} value={year.toString()}>
+                                  <SelectItem
+                                    key={year}
+                                    value={year.toString()}
+                                  >
                                     {year}
                                   </SelectItem>
-                                )
+                                );
                               })}
                             </SelectContent>
                           </Select>
-                          
+
                           <Select
-                            value={formData.birthDate ? formData.birthDate.getMonth().toString() : ""}
+                            value={
+                              formData.birthDate
+                                ? formData.birthDate.getMonth().toString()
+                                : ""
+                            }
                             onValueChange={(month) => {
-                              const currentDate = formData.birthDate || new Date()
-                              const newDate = new Date(currentDate)
-                              newDate.setMonth(parseInt(month))
-                              handleDateChange(newDate)
+                              const currentDate =
+                                formData.birthDate || new Date();
+                              const newDate = new Date(currentDate);
+                              newDate.setMonth(parseInt(month));
+                              handleDateChange(newDate);
                             }}
                           >
                             <SelectTrigger className="w-[120px]">
@@ -336,17 +368,30 @@ export function AggiungiModificaFiglioDialog({
                             </SelectTrigger>
                             <SelectContent>
                               {[
-                                "Gennaio", "Febbraio", "Marzo", "Aprile", "Maggio", "Giugno",
-                                "Luglio", "Agosto", "Settembre", "Ottobre", "Novembre", "Dicembre"
+                                "Gennaio",
+                                "Febbraio",
+                                "Marzo",
+                                "Aprile",
+                                "Maggio",
+                                "Giugno",
+                                "Luglio",
+                                "Agosto",
+                                "Settembre",
+                                "Ottobre",
+                                "Novembre",
+                                "Dicembre",
                               ].map((month, index) => (
-                                <SelectItem key={index} value={index.toString()}>
+                                <SelectItem
+                                  key={index}
+                                  value={index.toString()}
+                                >
                                   {month}
                                 </SelectItem>
                               ))}
                             </SelectContent>
                           </Select>
                         </div>
-                        
+
                         <Calendar
                           mode="single"
                           selected={formData.birthDate || undefined}
@@ -354,6 +399,7 @@ export function AggiungiModificaFiglioDialog({
                           disabled={(date) => date > new Date()}
                           month={formData.birthDate || undefined}
                           className="border-0"
+                          required={false}
                         />
                       </div>
                     </PopoverContent>
@@ -364,12 +410,14 @@ export function AggiungiModificaFiglioDialog({
                 </div>
                 <div className="space-y-2">
                   <Label>Genere *</Label>
-                  <Select 
-                    value={formData.gender} 
+                  <Select
+                    value={formData.gender}
                     onValueChange={handleSelectChange("gender")}
                     disabled={isSubmitting}
                   >
-                    <SelectTrigger className={cn(errors.gender && "border-red-500")}>
+                    <SelectTrigger
+                      className={cn(errors.gender && "border-red-500")}
+                    >
                       <SelectValue placeholder="Seleziona genere" />
                     </SelectTrigger>
                     <SelectContent>
@@ -403,7 +451,10 @@ export function AggiungiModificaFiglioDialog({
                   onChange={handleChange("fiscalCode")}
                   placeholder="Codice fiscale (opzionale)"
                   maxLength={16}
-                  className={cn("uppercase", errors.fiscalCode && "border-red-500")}
+                  className={cn(
+                    "uppercase",
+                    errors.fiscalCode && "border-red-500",
+                  )}
                   disabled={isSubmitting}
                 />
                 {errors.fiscalCode && (
@@ -432,7 +483,8 @@ export function AggiungiModificaFiglioDialog({
                   disabled={isSubmitting}
                 />
                 <p className="text-xs text-muted-foreground">
-                  Queste informazioni sono importanti per garantire la sicurezza del bambino durante gli eventi
+                  Queste informazioni sono importanti per garantire la sicurezza
+                  del bambino durante gli eventi
                 </p>
               </div>
 
@@ -447,22 +499,25 @@ export function AggiungiModificaFiglioDialog({
                   disabled={isSubmitting}
                 />
                 <p className="text-xs text-muted-foreground">
-                  Informazioni aggiuntive che potrebbero essere utili in caso di emergenza
+                  Informazioni aggiuntive che potrebbero essere utili in caso di
+                  emergenza
                 </p>
               </div>
             </TabsContent>
 
             <DialogFooter className="mt-6">
-              <Button 
-                type="button" 
-                variant="outline" 
+              <Button
+                type="button"
+                variant="outline"
                 onClick={() => onOpenChange(false)}
                 disabled={isSubmitting}
               >
                 Annulla
               </Button>
               <Button type="submit" disabled={isSubmitting}>
-                {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {isSubmitting && (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                )}
                 {child ? "Salva Modifiche" : "Aggiungi Figlio"}
               </Button>
             </DialogFooter>
@@ -470,5 +525,5 @@ export function AggiungiModificaFiglioDialog({
         </Tabs>
       </DialogContent>
     </Dialog>
-  )
+  );
 }

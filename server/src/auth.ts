@@ -15,7 +15,7 @@ export const auth = betterAuth({
 	}),
 	session: {
 		freshAge: 60 * 60 * 24, // 1 day
-		updateAge: 60 * 60 * 24 * 7, // 1 week
+		updateAge: 60 * 60 * 24 * 30, // 30 days
 	},
 	cookieOptions: {
 		secure: env.NODE_ENV === "production",
@@ -26,18 +26,27 @@ export const auth = betterAuth({
 	plugins: [
 		organization(), // Enable organization management for parishes
 		phoneNumber({
-			sendOTP: ({ phoneNumber, code }) => {
-				// For development, we'll just log the OTP
-				// In production, implement actual SMS sending
-				console.log(`📱 OTP for ${phoneNumber}: ${code}`);
+      sendOTP: async ({ phoneNumber, code }) => {
+        const response = await fetch("https://portal.bulkgate.com/api/1.0/simple/transactional", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            application_id: env.BULKGATE_APPID,
+            application_token: env.BULKGATE_TOKEN,
+            number: phoneNumber,
+            text: `Il tuo codice di verifica per HolyVibe è ${code}`,
+            sender_id: "g-35167",
+            sender_id_value: "HolyVibe",
+          }),
+        });
 
-				// You can integrate with services like:
-				// - Twilio
-				// - AWS SNS
-				// - Vonage (Nexmo)
-				// - Firebase Cloud Messaging
-				return Promise.resolve();
-			},
+        if (!response.ok) {
+          console.error("Error sending OTP:", await response.text());
+          throw new Error("Error sending OTP");
+        }
+      },
 			signUpOnVerification: {
 				getTempEmail: (phoneNumber) => {
 					// Generate a temporary email from phone number

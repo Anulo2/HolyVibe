@@ -1,7 +1,14 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { CalendarDays, Users, UserCheck, TrendingUp } from "lucide-react"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { CalendarDays, Users, UserCheck, TrendingUp } from "lucide-react";
+import { useDashboardStatsQuery } from "@/hooks/useDashboardStatsQuery";
 
 export function AdminStatsCards() {
+  const { data, isLoading } = useDashboardStatsQuery();
+
+  if (isLoading) {
+    return <div>Loading...</div>;
+  }
+
   return (
     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
       <Card>
@@ -10,8 +17,7 @@ export function AdminStatsCards() {
           <CalendarDays className="h-4 w-4 text-muted-foreground" />
         </CardHeader>
         <CardContent>
-          <div className="text-2xl font-bold">12</div>
-          <p className="text-xs text-muted-foreground">+2 nell'ultimo mese</p>
+          <div className="text-2xl font-bold">{data?.totalEvents}</div>
         </CardContent>
       </Card>
 
@@ -21,8 +27,7 @@ export function AdminStatsCards() {
           <Users className="h-4 w-4 text-muted-foreground" />
         </CardHeader>
         <CardContent>
-          <div className="text-2xl font-bold">120</div>
-          <p className="text-xs text-muted-foreground">+8 nell'ultimo mese</p>
+          <div className="text-2xl font-bold">{data?.totalUsers}</div>
         </CardContent>
       </Card>
 
@@ -32,8 +37,7 @@ export function AdminStatsCards() {
           <UserCheck className="h-4 w-4 text-muted-foreground" />
         </CardHeader>
         <CardContent>
-          <div className="text-2xl font-bold">45</div>
-          <p className="text-xs text-muted-foreground">+15 nell'ultimo mese</p>
+          <div className="text-2xl font-bold">{data?.totalRegistrations}</div>
         </CardContent>
       </Card>
 
@@ -43,10 +47,9 @@ export function AdminStatsCards() {
           <TrendingUp className="h-4 w-4 text-muted-foreground" />
         </CardHeader>
         <CardContent>
-          <div className="text-2xl font-bold">24%</div>
-          <p className="text-xs text-muted-foreground">+5% rispetto al mese scorso</p>
+          <div className="text-2xl font-bold">{data?.conversionRate.toFixed(2)}%</div>
         </CardContent>
       </Card>
     </div>
-  )
+  );
 }

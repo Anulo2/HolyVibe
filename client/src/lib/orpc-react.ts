@@ -15,7 +15,13 @@ export const queryClient = new QueryClient({
 
 // Create HTTP-based oRPC client for browser usage with proper link
 const link = new RPCLink({
-  url: "/orpc", // Proxy configured in vite.config.ts
+  url: import.meta.env.DEV ? "http://localhost:3000/orpc" : "/orpc",
+  fetch: (input, init) => {
+    return fetch(input, {
+      ...init,
+      credentials: "include", // Include cookies for authentication
+    });
+  },
 });
 
 export const orpc = createORPCClient<AppRouter>(link);

@@ -28,10 +28,22 @@ export const app = new Elysia()
   .use(swagger())
   .use(authPlugin)
   // Handle oRPC requests using the correct pattern
+  .all("/orpc", async ({ request }) => {
+    const { matched, response } = await handler.handle(request, {
+      prefix: "/orpc",
+      context: { req: request }, // Provide request context with correct key
+    });
+
+    if (matched) {
+      return response;
+    }
+
+    return new Response("Not Found", { status: 404 });
+  })
   .all("/orpc/*", async ({ request }) => {
     const { matched, response } = await handler.handle(request, {
       prefix: "/orpc",
-      context: { request }, // Provide request context
+      context: { req: request }, // Provide request context with correct key
     });
 
     if (matched) {

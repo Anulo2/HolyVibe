@@ -102,6 +102,39 @@ export const useOrganizationInfoQuery = (organizationId?: string) => {
   });
 };
 
+// Hook for organization statistics
+export const useOrganizationStatsQuery = (organizationId?: string) => {
+  return useQuery({
+    queryKey: ["organization-stats", organizationId],
+    queryFn: async () => {
+      const res = await orpc.settings.getOrganizationStats(
+        organizationId ? { organizationId } : undefined,
+      );
+      return res.data;
+    },
+    enabled: !!organizationId,
+  });
+};
+
+// Hook for organization events
+export const useOrganizationEventsQuery = (
+  organizationId?: string,
+  options?: { limit?: number; upcoming?: boolean },
+) => {
+  return useQuery({
+    queryKey: ["organization-events", organizationId, options],
+    queryFn: async () => {
+      const res = await orpc.settings.getOrganizationEvents({
+        organizationId,
+        limit: options?.limit || 10,
+        upcoming: options?.upcoming !== false,
+      });
+      return res.data;
+    },
+    enabled: !!organizationId,
+  });
+};
+
 // Hook for parish settings
 export const useParishSettingsQuery = (organizationId?: string) => {
   return useQuery({

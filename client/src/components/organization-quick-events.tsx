@@ -13,8 +13,7 @@ import {
   CalendarDays,
   UserPlus,
 } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
-import { orpc } from "@/lib/orpc-react";
+import { useOrganizationEventsQuery } from "@/hooks/useSettings";
 import { format, isToday, isTomorrow, isThisWeek } from "date-fns";
 import { it } from "date-fns/locale";
 
@@ -40,48 +39,13 @@ export function OrganizationQuickEvents({
   organizationId,
   limit = 5,
 }: OrganizationQuickEventsProps) {
-  const { data: events, isLoading, error } = useQuery({
-    queryKey: ["organization-quick-events", organizationId, limit],
-    queryFn: async () => {
-      // This would be implemented as a new endpoint
-      // For now, we'll mock some data
-      return [
-        {
-          id: "1",
-          title: "Messa Domenicale",
-          description: "Celebrazione eucaristica domenicale",
-          startDate: "2024-01-14T10:00:00Z",
-          location: "Chiesa Principale",
-          maxParticipants: 150,
-          currentParticipants: 89,
-          isRegistered: true,
-          status: "open",
-        },
-        {
-          id: "2",
-          title: "Catechismo Bambini",
-          description: "Lezione di catechismo per bambini 6-10 anni",
-          startDate: "2024-01-15T16:30:00Z",
-          location: "Aula Catechismo",
-          maxParticipants: 25,
-          currentParticipants: 18,
-          isRegistered: false,
-          status: "open",
-        },
-        {
-          id: "3",
-          title: "Gruppo Giovani",
-          description: "Incontro settimanale del gruppo giovani",
-          startDate: "2024-01-17T20:00:00Z",
-          location: "Salone Parrocchiale",
-          maxParticipants: 40,
-          currentParticipants: 32,
-          isRegistered: true,
-          status: "open",
-        },
-      ] as QuickEvent[];
-    },
-    enabled: !!organizationId,
+  const {
+    data: events,
+    isLoading,
+    error,
+  } = useOrganizationEventsQuery(organizationId, {
+    limit,
+    upcoming: true,
   });
 
   const formatEventDate = (dateString: string) => {
@@ -199,7 +163,9 @@ export function OrganizationQuickEvents({
             <div className="space-y-3">
               <div className="flex items-start justify-between">
                 <div className="flex-1 min-w-0">
-                  <h4 className="font-medium text-sm truncate">{event.title}</h4>
+                  <h4 className="font-medium text-sm truncate">
+                    {event.title}
+                  </h4>
                   <p className="text-xs text-muted-foreground mt-1">
                     {event.description}
                   </p>
@@ -232,16 +198,17 @@ export function OrganizationQuickEvents({
 
               <div className="flex items-center justify-between">
                 <Button variant="outline" size="sm" asChild>
-                  <a href={`/eventi/${event.id}`} className="flex items-center gap-2">
+                  <a
+                    href={`/eventi/${event.id}`}
+                    className="flex items-center gap-2"
+                  >
                     <Eye className="h-3 w-3" />
                     <span>Dettagli</span>
                   </a>
                 </Button>
                 {!event.isRegistered && event.status === "open" && (
                   <Button size="sm" asChild>
-                    <a href={`/eventi/${event.id}`}>
-                      Iscriviti
-                    </a>
+                    <a href={`/eventi/${event.id}`}>Iscriviti</a>
                   </Button>
                 )}
               </div>

@@ -9,8 +9,7 @@ import {
   TrendingUp,
   Activity,
 } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
-import { orpc } from "@/lib/orpc-react";
+import { useOrganizationStatsQuery } from "@/hooks/useSettings";
 
 interface OrganizationStatsProps {
   organizationId?: string;
@@ -32,22 +31,11 @@ export function OrganizationStats({
   showUserRole = true,
   userRole,
 }: OrganizationStatsProps) {
-  const { data: stats, isLoading, error } = useQuery({
-    queryKey: ["organization-stats", organizationId],
-    queryFn: async () => {
-      // This would be implemented as a new endpoint
-      // For now, we'll mock some data
-      return {
-        totalMembers: 156,
-        totalEvents: 24,
-        upcomingEvents: 8,
-        myRegistrations: 3,
-        recentActivity: 12,
-        memberSince: "2023-06-15",
-      } as OrganizationStats;
-    },
-    enabled: !!organizationId,
-  });
+  const {
+    data: stats,
+    isLoading,
+    error,
+  } = useOrganizationStatsQuery(organizationId);
 
   if (isLoading) {
     return (

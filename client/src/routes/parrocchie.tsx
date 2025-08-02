@@ -236,36 +236,42 @@ function ParrocchiePage() {
                   className="cursor-pointer hover:shadow-md transition-shadow"
                 >
                   <CardHeader className="pb-3">
-                    <div className="flex items-center space-x-3">
-                      {org.image ? (
-                        <img
-                          src={org.image}
-                          alt={org.name}
-                          className="h-10 w-10 rounded-full object-cover"
-                        />
-                      ) : (
-                        <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center">
-                          <Building2 className="h-5 w-5 text-muted-foreground" />
+                    <div className="flex flex-col space-y-3">
+                      <div className="flex items-center space-x-3">
+                        {org.image ? (
+                          <img
+                            src={org.image}
+                            alt={org.name}
+                            className="h-10 w-10 rounded-full object-cover flex-shrink-0"
+                          />
+                        ) : (
+                          <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center flex-shrink-0">
+                            <Building2 className="h-5 w-5 text-muted-foreground" />
+                          </div>
+                        )}
+                        <div className="flex-1 min-w-0">
+                          <CardTitle className="text-base leading-tight break-words hyphens-auto word-break">
+                            {org.name}
+                          </CardTitle>
                         </div>
-                      )}
-                      <div className="flex-1 min-w-0">
-                        <CardTitle className="text-base truncate">
-                          {org.name}
-                        </CardTitle>
-                        <Badge variant="outline" className="text-xs mt-1">
+                      </div>
+                      <div className="flex justify-start">
+                        <Badge variant="outline" className="text-xs">
                           {org.role}
                         </Badge>
                       </div>
                     </div>
                   </CardHeader>
                   <CardContent className="pt-0">
-                    <div className="space-y-2">
-                      <div className="flex items-center text-xs text-muted-foreground">
-                        <User className="h-3 w-3 mr-1" />
-                        Il tuo ruolo: {org.role}
+                    <div className="space-y-3">
+                      <div className="text-xs text-muted-foreground">
+                        <div className="flex items-center">
+                          <User className="h-3 w-3 mr-1 flex-shrink-0" />
+                          <span>Il tuo ruolo: {org.role}</span>
+                        </div>
                       </div>
                       {activeOrganizationId === org.id && (
-                        <Badge variant="default" className="text-xs">
+                        <Badge variant="default" className="text-xs w-fit">
                           Attualmente selezionata
                         </Badge>
                       )}

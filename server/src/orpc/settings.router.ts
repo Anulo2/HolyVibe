@@ -1,9 +1,14 @@
 import { ORPCError, os } from "@orpc/server";
-import { and, eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { nanoid } from "nanoid";
 import { z } from "zod";
 import { db } from "../db";
-import { organizationMember, organization } from "../db/schema";
+import {
+  organizationMember,
+  organization,
+  events,
+  eventRegistrations,
+} from "../db/schema";
 import { SuccessResponse } from "./helpers";
 import { withAuth } from "./middleware";
 
@@ -190,6 +195,313 @@ export const settingsRouter = os.router({
         console.error("Error getting organization info:", error);
         throw new ORPCError("INTERNAL_SERVER_ERROR", {
           message: "Failed to get organization info",
+        });
+      }
+    }),
+
+  // Get organization statistics
+  getOrganizationStats: withAuth
+    .input(
+      z
+        .object({
+          organizationId: z.string().optional(),
+        })
+        .optional(),
+    )
+    .output(
+      SuccessResponse(
+        z.object({
+          totalMembers: z.number(),
+          totalEvents: z.number(),
+          upcomingEvents: z.number(),
+          myRegistrations: z.number(),
+          recentActivity: z.number(),
+          memberSince: z.string(),
+        }),
+      ),
+    )
+    .handler(async ({ input, context }) => {
+      try {
+        // Get target organization ID
+        let targetOrgId = input?.organizationId;
+
+        // If no specific org requested, get user's organizations and use first one
+        if (!targetOrgId) {
+          const memberships = await db
+            .select({ organizationId: organizationMember.organizationId })
+            .from(organizationMember)
+            .where(eq(organizationMember.userId, context.user.id))
+            .limit(1);
+
+          if (memberships.length === 0) {
+            throw new ORPCError("FORBIDDEN", {
+              message: "User is not member of any organization",
+            });
+          }
+
+          targetOrgId = memberships[0].organizationId;
+        }
+
+        // Check if user is member of the target organization
+        const membership = await db
+          .select()
+          .from(organizationMember)
+          .where(
+            and(
+              eq(organizationMember.userId, context.user.id),
+              eq(organizationMember.organizationId, targetOrgId),
+            ),
+          )
+          .limit(1);
+
+        if (membership.length === 0) {
+          throw new ORPCError("FORBIDDEN", {
+            message: "Access denied to this organization",
+          });
+        }
+
+        // Get total members count
+        const totalMembersResult = await db
+          .select({ count: sql`count(*)` })
+          .from(organizationMember)
+          .where(eq(organizationMember.organizationId, targetOrgId));
+
+        // Get total events count for this year
+        const currentYear = new Date().getFullYear();
+        const totalEventsResult = await db
+          .select({ count: sql`count(*)` })
+          .from(events)
+          .innerJoin(
+            organizationMember,
+            eq(events.createdBy, organizationMember.userId),
+          )
+          .where(
+            and(
+              eq(organizationMember.organizationId, targetOrgId),
+              sql`strftime('%Y', ${events.startDate}) = ${currentYear.toString()}`,
+            ),
+          );
+
+        // Get upcoming events count
+        const now = new Date().toISOString();
+        const upcomingEventsResult = await db
+          .select({ count: sql`count(*)` })
+          .from(events)
+          .innerJoin(
+            organizationMember,
+            eq(events.createdBy, organizationMember.userId),
+          )
+          .where(
+            and(
+              eq(organizationMember.organizationId, targetOrgId),
+              sql`${events.startDate} > ${now}`,
+            ),
+          );
+
+        // Get user's registrations count
+        const myRegistrationsResult = await db
+          .select({ count: sql`count(*)` })
+          .from(eventRegistrations)
+          .innerJoin(events, eq(eventRegistrations.eventId, events.id))
+          .innerJoin(
+            organizationMember,
+            eq(events.createdBy, organizationMember.userId),
+          )
+          .where(
+            and(
+              eq(eventRegistrations.parentId, context.user.id),
+              eq(organizationMember.organizationId, targetOrgId),
+              sql`${events.startDate} > ${now}`,
+            ),
+          );
+
+        // Get recent activity (last 7 days)
+        const sevenDaysAgo = new Date();
+        sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+        const recentActivityResult = await db
+          .select({ count: sql`count(*)` })
+          .from(events)
+          .innerJoin(
+            organizationMember,
+            eq(events.createdBy, organizationMember.userId),
+          )
+          .where(
+            and(
+              eq(organizationMember.organizationId, targetOrgId),
+              sql`${events.createdAt} > ${sevenDaysAgo.toISOString()}`,
+            ),
+          );
+
+        return {
+          success: true,
+          data: {
+            totalMembers: Number(totalMembersResult[0]?.count || 0),
+            totalEvents: Number(totalEventsResult[0]?.count || 0),
+            upcomingEvents: Number(upcomingEventsResult[0]?.count || 0),
+            myRegistrations: Number(myRegistrationsResult[0]?.count || 0),
+            recentActivity: Number(recentActivityResult[0]?.count || 0),
+            memberSince: membership[0].createdAt.toISOString(),
+          },
+        };
+      } catch (error) {
+        console.error("Error getting organization stats:", error);
+        throw new ORPCError("INTERNAL_SERVER_ERROR", {
+          message: "Failed to get organization stats",
+        });
+      }
+    }),
+
+  // Get organization events
+  getOrganizationEvents: withAuth
+    .input(
+      z
+        .object({
+          organizationId: z.string().optional(),
+          limit: z.number().min(1).max(50).default(10),
+          upcoming: z.boolean().default(true),
+        })
+        .optional(),
+    )
+    .output(
+      SuccessResponse(
+        z.array(
+          z.object({
+            id: z.string(),
+            title: z.string(),
+            description: z.string(),
+            startDate: z.string(),
+            endDate: z.string().nullable(),
+            location: z.string(),
+            maxParticipants: z.number().nullable(),
+            currentParticipants: z.number(),
+            isRegistered: z.boolean(),
+            status: z.enum(["open", "closed", "full"]),
+          }),
+        ),
+      ),
+    )
+    .handler(async ({ input, context }) => {
+      try {
+        // Get target organization ID
+        let targetOrgId = input?.organizationId;
+
+        // If no specific org requested, get user's organizations and use first one
+        if (!targetOrgId) {
+          const memberships = await db
+            .select({ organizationId: organizationMember.organizationId })
+            .from(organizationMember)
+            .where(eq(organizationMember.userId, context.user.id))
+            .limit(1);
+
+          if (memberships.length === 0) {
+            throw new ORPCError("FORBIDDEN", {
+              message: "User is not member of any organization",
+            });
+          }
+
+          targetOrgId = memberships[0].organizationId;
+        }
+
+        // Check if user is member of the target organization
+        const membership = await db
+          .select()
+          .from(organizationMember)
+          .where(
+            and(
+              eq(organizationMember.userId, context.user.id),
+              eq(organizationMember.organizationId, targetOrgId),
+            ),
+          )
+          .limit(1);
+
+        if (membership.length === 0) {
+          throw new ORPCError("FORBIDDEN", {
+            message: "Access denied to this organization",
+          });
+        }
+
+        // Build the where condition
+        const now = new Date().toISOString();
+        const whereConditions = [
+          eq(organizationMember.organizationId, targetOrgId),
+        ];
+
+        if (input?.upcoming) {
+          whereConditions.push(sql`${events.startDate} > ${now}`);
+        }
+
+        // Get events
+        const eventsData = await db
+          .select({
+            id: events.id,
+            title: events.title,
+            description: events.description,
+            startDate: events.startDate,
+            endDate: events.endDate,
+            location: events.location,
+            maxParticipants: events.maxParticipants,
+            currentParticipants: sql`COALESCE((
+              SELECT COUNT(*)
+              FROM ${eventRegistrations}
+              WHERE ${eventRegistrations.eventId} = ${events.id}
+              AND ${eventRegistrations.status} = 'confirmed'
+            ), 0)`.as("currentParticipants"),
+            isRegistered: sql`CASE
+              WHEN EXISTS(
+                SELECT 1 FROM ${eventRegistrations}
+                WHERE ${eventRegistrations.eventId} = ${events.id}
+                AND ${eventRegistrations.parentId} = ${context.user.id}
+              ) THEN 1 ELSE 0 END`.as("isRegistered"),
+          })
+          .from(events)
+          .innerJoin(
+            organizationMember,
+            eq(events.createdBy, organizationMember.userId),
+          )
+          .where(and(...whereConditions))
+          .orderBy(events.startDate)
+          .limit(input?.limit || 10);
+
+        // Process the results
+        const processedEvents = eventsData.map((event) => {
+          const currentParticipants = Number(event.currentParticipants);
+          const maxParticipants = event.maxParticipants;
+
+          let status: "open" | "closed" | "full" = "open";
+
+          // Check if event is full
+          if (maxParticipants && currentParticipants >= maxParticipants) {
+            status = "full";
+          }
+
+          // Check if registration is closed (e.g., event started)
+          const eventStarted = new Date(event.startDate) <= new Date();
+          if (eventStarted) {
+            status = "closed";
+          }
+
+          return {
+            id: event.id,
+            title: event.title,
+            description: event.description,
+            startDate: event.startDate.toISOString(),
+            endDate: event.endDate ? event.endDate.toISOString() : null,
+            location: event.location,
+            maxParticipants: event.maxParticipants,
+            currentParticipants: currentParticipants,
+            isRegistered: Boolean(Number(event.isRegistered)),
+            status: status,
+          };
+        });
+
+        return {
+          success: true,
+          data: processedEvents,
+        };
+      } catch (error) {
+        console.error("Error getting organization events:", error);
+        throw new ORPCError("INTERNAL_SERVER_ERROR", {
+          message: "Failed to get organization events",
         });
       }
     }),

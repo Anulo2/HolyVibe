@@ -1,5 +1,5 @@
-import { nanoid } from "nanoid";
 import { eq } from "drizzle-orm";
+import { nanoid } from "nanoid";
 import * as readline from "readline";
 import { db } from "../src/db";
 import * as schema from "../src/db/schema";
@@ -13,8 +13,13 @@ interface CreateOrgOptions {
 }
 
 async function createOrganization(options: CreateOrgOptions) {
-	const { organizationName, adminName, adminEmail, adminPhone, adminBirthDate } =
-		options;
+	const {
+		organizationName,
+		adminName,
+		adminEmail,
+		adminPhone,
+		adminBirthDate,
+	} = options;
 
 	console.log(`🏢 Creating organization: ${organizationName}`);
 	console.log(`👤 Admin: ${adminName} (${adminEmail})`);
@@ -81,7 +86,9 @@ async function createOrganization(options: CreateOrgOptions) {
 			createdAt: new Date(),
 			updatedAt: new Date(),
 		});
-		console.log(`✅ Added ${adminName} as administrator to ${organizationName}`);
+		console.log(
+			`✅ Added ${adminName} as administrator to ${organizationName}`,
+		);
 
 		console.log("\n🎉 Organization created successfully!");
 		console.log(`Organization ID: ${organizationId}`);
@@ -98,7 +105,9 @@ const rl = readline.createInterface({
 });
 
 function askQuestion(query: string, defaultValue?: string): Promise<string> {
-	const fullQuery = defaultValue ? `${query} [${defaultValue}]: ` : `${query}: `;
+	const fullQuery = defaultValue
+		? `${query} [${defaultValue}]: `
+		: `${query}: `;
 	return new Promise((resolve) =>
 		rl.question(fullQuery, (answer) => {
 			const value = answer.trim();

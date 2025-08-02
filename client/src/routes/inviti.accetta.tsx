@@ -1,10 +1,13 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { CheckCircle, AlertCircle, Loader2, UserPlus } from "lucide-react";
+import { AlertCircle, CheckCircle, Loader2, UserPlus } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { useAcceptInvitationMutation, useInvitationDetailsQuery } from "@/hooks/useFamily";
+import {
+	useAcceptInvitationMutation,
+	useInvitationDetailsQuery,
+} from "@/hooks/useFamily";
 import { authClient } from "@/lib/auth-client";
 
 export const Route = createFileRoute("/inviti/accetta")({
@@ -18,15 +21,21 @@ export const Route = createFileRoute("/inviti/accetta")({
 
 function InvitationAcceptancePage() {
 	const { token } = Route.useSearch();
-	const [status, setStatus] = useState<"loading" | "success" | "error" | "expired" | "login-required">("loading");
+	const [status, setStatus] = useState<
+		"loading" | "success" | "error" | "expired" | "login-required"
+	>("loading");
 	const [errorMessage, setErrorMessage] = useState<string>("");
-	
+
 	// Get current session
 	const session = authClient.useSession();
-	
+
 	// Get invitation details (public endpoint)
-	const { data: invitationDetails, isLoading: detailsLoading, error: detailsError } = useInvitationDetailsQuery(token);
-	
+	const {
+		data: invitationDetails,
+		isLoading: detailsLoading,
+		error: detailsError,
+	} = useInvitationDetailsQuery(token);
+
 	// Accept invitation mutation (requires auth)
 	const acceptInvitationMutation = useAcceptInvitationMutation();
 
@@ -58,14 +67,21 @@ function InvitationAcceptancePage() {
 				{
 					onSuccess: (data) => {
 						setStatus("success");
-						toast.success(`Sei stato aggiunto alla famiglia "${data.familyName}"!`);
+						toast.success(
+							`Sei stato aggiunto alla famiglia "${data.familyName}"!`,
+						);
 					},
 					onError: (error: any) => {
 						console.error("Error accepting invitation:", error);
-						
-						if (error.message?.includes("GONE") || error.message?.includes("expired")) {
+
+						if (
+							error.message?.includes("GONE") ||
+							error.message?.includes("expired")
+						) {
 							setStatus("expired");
-							setErrorMessage("Questo invito è scaduto. Richiedi un nuovo invito.");
+							setErrorMessage(
+								"Questo invito è scaduto. Richiedi un nuovo invito.",
+							);
 						} else if (error.message?.includes("NOT_FOUND")) {
 							setStatus("error");
 							setErrorMessage("Invito non valido o già utilizzato.");
@@ -77,10 +93,12 @@ function InvitationAcceptancePage() {
 							setErrorMessage("Questo invito non è destinato al tuo account.");
 						} else {
 							setStatus("error");
-							setErrorMessage("Errore durante l'accettazione dell'invito. Riprova più tardi.");
+							setErrorMessage(
+								"Errore durante l'accettazione dell'invito. Riprova più tardi.",
+							);
 						}
 					},
-				}
+				},
 			);
 		}
 
@@ -90,7 +108,13 @@ function InvitationAcceptancePage() {
 			setStatus("error");
 			setErrorMessage("Invito non valido o già utilizzato.");
 		}
-	}, [token, invitationDetails, session.data?.user, acceptInvitationMutation, detailsError]);
+	}, [
+		token,
+		invitationDetails,
+		session.data?.user,
+		acceptInvitationMutation,
+		detailsError,
+	]);
 
 	const handleGoToDashboard = () => {
 		window.location.href = "/dashboard";
@@ -138,7 +162,8 @@ function InvitationAcceptancePage() {
 						{status === "login-required" && (
 							<div className="space-y-2">
 								<p className="text-blue-600 font-medium">
-									Sei stato invitato a unirti alla famiglia "{invitationDetails?.familyName}".
+									Sei stato invitato a unirti alla famiglia "
+									{invitationDetails?.familyName}".
 								</p>
 								{invitationDetails?.message && (
 									<p className="text-sm text-muted-foreground italic">
@@ -153,19 +178,21 @@ function InvitationAcceptancePage() {
 						{status === "success" && (
 							<div className="space-y-2">
 								<p className="text-green-600 font-medium">
-									Congratulazioni! Sei stato aggiunto con successo alla famiglia.
+									Congratulazioni! Sei stato aggiunto con successo alla
+									famiglia.
 								</p>
 								{invitationDetails?.familyName && (
 									<p className="text-sm text-muted-foreground">
-										Famiglia: <span className="font-medium">{invitationDetails.familyName}</span>
+										Famiglia:{" "}
+										<span className="font-medium">
+											{invitationDetails.familyName}
+										</span>
 									</p>
 								)}
 							</div>
 						)}
 						{(status === "error" || status === "expired") && (
-							<p className="text-red-600">
-								{errorMessage}
-							</p>
+							<p className="text-red-600">{errorMessage}</p>
 						)}
 					</div>
 
@@ -185,9 +212,9 @@ function InvitationAcceptancePage() {
 								<Button onClick={handleGoToLogin} className="w-full">
 									Accedi al tuo account
 								</Button>
-								<Button 
-									variant="outline" 
-									onClick={() => window.location.href = "/"}
+								<Button
+									variant="outline"
+									onClick={() => (window.location.href = "/")}
 									className="w-full"
 								>
 									Torna alla Home
@@ -199,4 +226,4 @@ function InvitationAcceptancePage() {
 			</Card>
 		</div>
 	);
-} 
+}

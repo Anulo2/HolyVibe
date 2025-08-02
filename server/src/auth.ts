@@ -26,27 +26,30 @@ export const auth = betterAuth({
 	plugins: [
 		organization(), // Enable organization management for parishes
 		phoneNumber({
-      sendOTP: async ({ phoneNumber, code }) => {
-        const response = await fetch("https://portal.bulkgate.com/api/1.0/simple/transactional", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            application_id: env.BULKGATE_APPID,
-            application_token: env.BULKGATE_TOKEN,
-            number: phoneNumber,
-            text: `Il tuo codice di verifica per HolyVibe è ${code}`,
-            sender_id: "g-35167",
-            sender_id_value: "HolyVibe",
-          }),
-        });
+			sendOTP: async ({ phoneNumber, code }) => {
+				const response = await fetch(
+					"https://portal.bulkgate.com/api/1.0/simple/transactional",
+					{
+						method: "POST",
+						headers: {
+							"Content-Type": "application/json",
+						},
+						body: JSON.stringify({
+							application_id: env.BULKGATE_APPID,
+							application_token: env.BULKGATE_TOKEN,
+							number: phoneNumber,
+							text: `Il tuo codice di verifica è ${code}`,
+							sender_id: "g-35167",
+							sender_id_value: "Parrocchia",
+						}),
+					},
+				);
 
-        if (!response.ok) {
-          console.error("Error sending OTP:", await response.text());
-          throw new Error("Error sending OTP");
-        }
-      },
+				if (!response.ok) {
+					console.error("Error sending OTP:", await response.text());
+					throw new Error("Error sending OTP");
+				}
+			},
 			signUpOnVerification: {
 				getTempEmail: (phoneNumber) => {
 					// Generate a temporary email from phone number

@@ -1,4 +1,4 @@
-# HolyVibe - Church Management Application
+# Gestione Eventi Parrocchia
 
 A comprehensive church/parish events management platform built with React and ElysiaJS using Bun. This application enables parishes to manage families, children, events, and authorized persons for child pickup/supervision with a focus on safety and organization.
 

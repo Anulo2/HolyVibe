@@ -2,8 +2,8 @@ import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import { createRootRouteWithContext, Outlet } from "@tanstack/react-router";
 import { TanStackRouterDevtools } from "@tanstack/react-router-devtools";
 import { Header } from "@/components/Header";
-import { Sidebar } from "@/components/Sidebar";
 import { ProfileCompletionGuard } from "@/components/ProfileCompletionGuard";
+import { Sidebar } from "@/components/Sidebar";
 import type { authClient } from "@/lib/auth-client";
 
 // Better Auth session type from their useSession hook
@@ -84,7 +84,7 @@ function RootComponent() {
 			) : (
 				<Outlet />
 			)}
-			
+
 			{process.env.NODE_ENV === "development" && (
 				<>
 					<ReactQueryDevtools initialIsOpen={false} />

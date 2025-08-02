@@ -1,11 +1,11 @@
-export type { AppRouter } from "./src/orpc/types";
 export type {
-  RouterInputs,
-  RouterOutputs,
-  FamilyInputs,
-  FamilyOutputs,
-  EventsInputs,
-  EventsOutputs,
-  UserInputs,
-  UserOutputs,
+	AppRouter,
+	EventsInputs,
+	EventsOutputs,
+	FamilyInputs,
+	FamilyOutputs,
+	RouterInputs,
+	RouterOutputs,
+	UserInputs,
+	UserOutputs,
 } from "./src/orpc/types";

@@ -1,6 +1,6 @@
 import type { InferRouterInputs, InferRouterOutputs } from "@orpc/server";
-import type { AppRouter } from "./index";
 import type { AuthContext } from "better-auth";
+import type { AppRouter } from "./index";
 
 declare module "@orpc/server" {}
 

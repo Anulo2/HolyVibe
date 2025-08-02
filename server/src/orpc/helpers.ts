@@ -5,7 +5,10 @@ import { db } from "../db";
 import { familyMembers } from "../db/schema";
 
 // Helper to check if user is member of family
-export const checkFamilyMembership = async (familyId: string, userId: string) => {
+export const checkFamilyMembership = async (
+	familyId: string,
+	userId: string,
+) => {
 	const membership = await db
 		.select()
 		.from(familyMembers)

@@ -40,7 +40,7 @@ Creates a new organization and adds an admin user to it.
 ### Supreme Admin Management
 ```bash
 bun run create-supreme-admin          # Create supreme admin with default values
-bun run create-supreme-admin "Super Admin" "admin@holyvibe.com" "+39 320 0000000"
+bun run create-supreme-admin "Super Admin" "admin@parrocchia.com" "+39 320 0000000"
 bun run create-supreme-admin add-existing "existing@email.com"
 ```
 Creates a supreme admin user that has administrator access to all organizations.

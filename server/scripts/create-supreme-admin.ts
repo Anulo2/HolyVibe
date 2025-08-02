@@ -1,5 +1,5 @@
-import { nanoid } from "nanoid";
 import { eq } from "drizzle-orm";
+import { nanoid } from "nanoid";
 import * as readline from "readline";
 import { db } from "../src/db";
 import * as schema from "../src/db/schema";
@@ -50,7 +50,9 @@ async function createSupremeAdmin(options: CreateSupremeAdminOptions) {
 		const allOrganizations = await db.select().from(schema.organization);
 
 		if (allOrganizations.length === 0) {
-			console.log("⚠️  No organizations found. Create some organizations first.");
+			console.log(
+				"⚠️  No organizations found. Create some organizations first.",
+			);
 			return;
 		}
 
@@ -62,7 +64,9 @@ async function createSupremeAdmin(options: CreateSupremeAdminOptions) {
 			.from(schema.organizationMember)
 			.where(eq(schema.organizationMember.userId, adminUserId));
 
-		const existingOrgIds = new Set(existingMemberships.map((m) => m.organizationId));
+		const existingOrgIds = new Set(
+			existingMemberships.map((m) => m.organizationId),
+		);
 
 		// Add supreme admin to all organizations
 		let addedCount = 0;
@@ -75,7 +79,7 @@ async function createSupremeAdmin(options: CreateSupremeAdminOptions) {
 					role: "amministratore",
 					createdAt: new Date(),
 					updatedAt: new Date(),
-			});
+				});
 				console.log(`✅ Added to organization: ${org.name}`);
 				addedCount++;
 			} else {
@@ -125,7 +129,9 @@ async function addExistingUserToAllOrgs(userEmail: string) {
 			.from(schema.organizationMember)
 			.where(eq(schema.organizationMember.userId, userId));
 
-		const existingOrgIds = new Set(existingMemberships.map((m) => m.organizationId));
+		const existingOrgIds = new Set(
+			existingMemberships.map((m) => m.organizationId),
+		);
 
 		// Add to all organizations
 		let addedCount = 0;
@@ -160,7 +166,9 @@ const rl = readline.createInterface({
 });
 
 function askQuestion(query: string, defaultValue?: string): Promise<string> {
-	const fullQuery = defaultValue ? `${query} [${defaultValue}]: ` : `${query}: `;
+	const fullQuery = defaultValue
+		? `${query} [${defaultValue}]: `
+		: `${query}: `;
 	return new Promise((resolve) =>
 		rl.question(fullQuery, (answer) => {
 			const value = answer.trim();
@@ -204,7 +212,7 @@ async function main() {
 			const name = await askQuestion("Enter admin's full name", "Super Admin");
 			const email = await askQuestion(
 				"Enter admin's email",
-				"admin@holyvibe.com",
+				"admin@parrocchia.com",
 			);
 			const phone = await askQuestion(
 				"Enter admin's phone number",

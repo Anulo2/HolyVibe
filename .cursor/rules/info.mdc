@@ -1,13 +1,13 @@
 ---
-description: 
-globs: 
+description:
+globs:
 alwaysApply: true
 ---
-# HolyVibe - Church Management Application
+# Gestione Eventi Parrocchia
 
 ## Project Overview
 
-HolyVibe is a comprehensive church/parish events management platform built with modern web technologies. The application enables parishes to manage families, children, events, and authorized persons for child pickup/supervision with a focus on safety and organization.
+Gestione Eventi Parrocchia is a comprehensive church/parish events management platform built with modern web technologies. The application enables parishes to manage families, children, events, and authorized persons for child pickup/supervision with a focus on safety and organization.
 
 ## Tech Stack
 
@@ -23,7 +23,7 @@ HolyVibe is a comprehensive church/parish events management platform built with 
 - **Icons**: Lucide React
 - **Build Tool**: Vite v6.3+ with TypeScript native preview
 
-### Backend  
+### Backend
 - **Runtime**: Bun
 - **Framework**: Elysia v1.3+ with TypeScript
 - **API Layer**: ORPC v1.5+ (instead of REST/tRPC)
@@ -127,7 +127,7 @@ export const auth = betterAuth({
 - **children**: Child records with personal info (firstName, lastName, birthDate, birthPlace, fiscalCode, gender), medical info (allergies, medicalNotes), avatars
 - **authorizedPersons**: Non-parent pickup authorization with fullName, relationship, contact info (phone, email), isActive status
 
-### Event System  
+### Event System
 - **events**: Events with title, description, dates (startDate, endDate), location, age limits (minAge, maxAge), capacity (maxParticipants, currentParticipants), pricing, status, imageUrl, creator
 - **eventRegistrations**: Child-event registrations with status (pending, confirmed, cancelled, waitlist), paymentStatus (pending, completed, failed, refunded), registrationDate, notes
 - **registrationAuthorizedPersons**: Junction table linking event registrations to authorized pickup persons
@@ -146,7 +146,7 @@ File-based routing with TanStack Router:
 /dashboard           → User dashboard with family overview
 /famiglia            → Family management interface
 /eventi              → Event browsing and registration
-/profilo             → User profile management  
+/profilo             → User profile management
 /parrocchie          → Organization/parish management
 /admin               → Admin panel with nested routes:
   ├── /admin/         → Dashboard with statistics
@@ -205,7 +205,7 @@ useFamilyAuthorizedPersonsQuery(familyId) → Get authorized persons
 useAddAuthorizedPersonMutation() → Add authorized person
 useUpdateAuthorizedPersonMutation() → Update authorized person
 
-// Event Management  
+// Event Management
 useEventsQuery(params) → List events with filtering (search, minAge, maxAge, limit, offset)
 useEventQuery(eventId) → Get single event details
 useCreateEventMutation() → Create new event
@@ -231,7 +231,7 @@ useUserQuery() → Get current user information
 ### Role Hierarchy (via Better Auth Organizations)
 1. **User (Genitore)**: Basic family and event management, child registration
 2. **Animatore**: Event assistance, limited admin access to help with events
-3. **Editor**: Event creation and content management, user assistance  
+3. **Editor**: Event creation and content management, user assistance
 4. **Amministratore**: Full system access, user management, reporting
 
 ### Role-Based Access Control
@@ -241,7 +241,7 @@ useUserQuery() → Get current user information
   <AdminContent />
 </RoleGuard>
 
-// Route-level protection  
+// Route-level protection
 beforeLoad: ({ context }) => {
   if (!context.auth.data?.user) {
     throw redirect({ to: "/login" });
@@ -262,7 +262,7 @@ const canAccessAdmin = ["amministratore", "editor"].includes(userRole);
 - **Real-time statistics**: Family member counts, children counts, authorized persons counts
 - **Member invitation system**: Email-based invitations with secure tokens
 
-### 2. Event Management (/eventi)  
+### 2. Event Management (/eventi)
 - **Age-based filtering**: Automatic event filtering based on children's ages
 - **Capacity management**: Real-time participant tracking with waitlist functionality
 - **Multi-child registration**: Register multiple children for same event
@@ -368,10 +368,10 @@ const withAuth = os.use(async ({ context, next }) => {
     if (!session?.user) {
       throw new ORPCError("UNAUTHORIZED", "Authentication required");
     }
-    return next({ 
-      context: { 
-        user: session.user, 
-        session: session.session 
+    return next({
+      context: {
+        user: session.user,
+        session: session.session
       }
     });
   } catch (error) {
@@ -493,4 +493,3 @@ bun start        # Production server start
 - **API Documentation**: Automatic API docs with Swagger integration
 
 This application represents a modern, type-safe, and secure solution for church event management with a strong focus on child safety, organizational efficiency, and developer experience.
-

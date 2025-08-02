@@ -1,7 +1,7 @@
 import { env } from "./env";
 import { app } from "./orpc/app";
 
-console.log("🦊 Starting HolyVibe server with oRPC...");
+console.log("🦊 Starting server with oRPC...");
 
 const server = app.listen(env.PORT, () => {
 	console.log(`🚀 oRPC Server running on port ${env.PORT}`);

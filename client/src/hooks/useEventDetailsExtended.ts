@@ -41,7 +41,7 @@ export interface ExtendedEventDetails {
   organization?: {
     id: string;
     name: string;
-    photoVideoMinorsDeclaration?: string;
+    photoVideoMinorsDeclaration?: string | null;
   };
 }
 

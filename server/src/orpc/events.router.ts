@@ -110,7 +110,7 @@ export const eventsRouter = os.router({
             .object({
               id: z.string(),
               name: z.string(),
-              photoVideoMinorsDeclaration: z.string().optional(),
+              photoVideoMinorsDeclaration: z.string().nullable().optional(),
             })
             .optional(),
         }),
@@ -162,7 +162,7 @@ export const eventsRouter = os.router({
                     id: creatorOrg[0].id!,
                     name: creatorOrg[0].name!,
                     photoVideoMinorsDeclaration:
-                      creatorOrg[0].photoVideoMinorsDeclaration || "",
+                      creatorOrg[0].photoVideoMinorsDeclaration || null,
                   }
                 : undefined,
           },

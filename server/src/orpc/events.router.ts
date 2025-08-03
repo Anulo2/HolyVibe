@@ -130,21 +130,37 @@ export const eventsRouter = os.router({
           });
         }
 
-        // Get organization data from event creator
-        const creatorOrg = await db
-          .select({
-            id: organization.id,
-            name: organization.name,
-            photoVideoMinorsDeclaration:
-              organization.photoVideoMinorsDeclaration,
-          })
-          .from(organizationMember)
-          .leftJoin(
-            organization,
-            eq(organizationMember.organizationId, organization.id),
-          )
-          .where(eq(organizationMember.userId, event[0].createdBy))
-          .limit(1);
+        // Get organization data - either from event.organizationId or from event creator
+        let eventOrg = [];
+        if (event[0].organizationId) {
+          // Get organization directly from event
+          eventOrg = await db
+            .select({
+              id: organization.id,
+              name: organization.name,
+              photoVideoMinorsDeclaration:
+                organization.photoVideoMinorsDeclaration,
+            })
+            .from(organization)
+            .where(eq(organization.id, event[0].organizationId))
+            .limit(1);
+        } else {
+          // Fallback: get organization from event creator
+          eventOrg = await db
+            .select({
+              id: organization.id,
+              name: organization.name,
+              photoVideoMinorsDeclaration:
+                organization.photoVideoMinorsDeclaration,
+            })
+            .from(organizationMember)
+            .leftJoin(
+              organization,
+              eq(organizationMember.organizationId, organization.id),
+            )
+            .where(eq(organizationMember.userId, event[0].createdBy))
+            .limit(1);
+        }
 
         return {
           success: true,
@@ -157,12 +173,12 @@ export const eventsRouter = os.router({
               ? new Date(event[0].endDate).toISOString()
               : null,
             organization:
-              creatorOrg.length > 0
+              eventOrg.length > 0
                 ? {
-                    id: creatorOrg[0].id!,
-                    name: creatorOrg[0].name!,
+                    id: eventOrg[0].id!,
+                    name: eventOrg[0].name!,
                     photoVideoMinorsDeclaration:
-                      creatorOrg[0].photoVideoMinorsDeclaration || null,
+                      eventOrg[0].photoVideoMinorsDeclaration || null,
                   }
                 : undefined,
           },
@@ -987,6 +1003,7 @@ export const eventsRouter = os.router({
         willTakePhotos: z.boolean().optional(),
         photosForSocialMedia: z.boolean().optional(),
         additionalImages: z.string().optional(), // JSON array
+        organizationId: z.string().optional(),
       }),
     )
     .output(SuccessResponse(Event))
@@ -1090,6 +1107,7 @@ export const eventsRouter = os.router({
           willTakePhotos: input.willTakePhotos ?? false,
           photosForSocialMedia: input.photosForSocialMedia ?? false,
           additionalImages: input.additionalImages || null,
+          organizationId: input.organizationId || null,
           createdBy: context.user.id,
         };
 
@@ -1160,6 +1178,7 @@ export const eventsRouter = os.router({
         willTakePhotos: z.boolean().nullable().optional(),
         photosForSocialMedia: z.boolean().nullable().optional(),
         additionalImages: z.string().nullable().optional(),
+        organizationId: z.string().nullable().optional(),
       }),
     )
     .output(SuccessResponse(Event))
@@ -1320,6 +1339,9 @@ export const eventsRouter = os.router({
         if (input.additionalImages !== undefined) {
           updateData.additionalImages = input.additionalImages;
         }
+        if (input.organizationId !== undefined) {
+          updateData.organizationId = input.organizationId;
+        }
 
         const updateResult = await db
           .update(events)
@@ -1409,6 +1431,98 @@ export const eventsRouter = os.router({
 
         throw new ORPCError("INTERNAL_SERVER_ERROR", {
           message: "Failed to update event",
+        });
+      }
+    }),
+
+  // Assign event to organization
+  assignToOrganization: withAuth
+    .input(
+      z.object({
+        eventId: z.string(),
+        organizationId: z.string().nullable(),
+      }),
+    )
+    .output(SuccessResponse(Event))
+    .handler(async ({ input, context }) => {
+      try {
+        // Check if user is admin
+        const membership = await db
+          .select()
+          .from(organizationMember)
+          .where(eq(organizationMember.userId, context.user.id))
+          .limit(1);
+
+        const isAdmin =
+          membership.length > 0 &&
+          ["amministratore", "editor"].includes(membership[0].role);
+
+        if (!isAdmin) {
+          throw new ORPCError("FORBIDDEN", {
+            message: "Only administrators can assign events to organizations",
+          });
+        }
+
+        // Check if event exists
+        const [event] = await db
+          .select()
+          .from(events)
+          .where(eq(events.id, input.eventId))
+          .limit(1);
+
+        if (!event) {
+          throw new ORPCError("NOT_FOUND", {
+            message: "Event not found",
+          });
+        }
+
+        // If organizationId is provided, verify it exists
+        if (input.organizationId) {
+          const [org] = await db
+            .select()
+            .from(organization)
+            .where(eq(organization.id, input.organizationId))
+            .limit(1);
+
+          if (!org) {
+            throw new ORPCError("NOT_FOUND", {
+              message: "Organization not found",
+            });
+          }
+        }
+
+        // Update the event's organization
+        const updateResult = await db
+          .update(events)
+          .set({
+            organizationId: input.organizationId,
+            updatedAt: new Date(),
+          })
+          .where(eq(events.id, input.eventId))
+          .returning();
+
+        return {
+          success: true,
+          data: {
+            ...updateResult[0],
+            createdAt: new Date(updateResult[0].createdAt).toISOString(),
+            updatedAt: new Date(updateResult[0].updatedAt).toISOString(),
+            startDate: new Date(updateResult[0].startDate).toISOString(),
+            endDate: updateResult[0].endDate
+              ? new Date(updateResult[0].endDate).toISOString()
+              : null,
+          },
+        };
+      } catch (error) {
+        console.error("Error assigning event to organization:", error);
+
+        // Re-throw ORPCError as-is
+        if (error instanceof ORPCError) {
+          throw error;
+        }
+
+        throw new ORPCError("INTERNAL_SERVER_ERROR", {
+          message: "Failed to assign event to organization",
         });
       }
     }),

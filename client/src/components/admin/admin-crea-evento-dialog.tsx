@@ -29,7 +29,15 @@ import { RichTextEditor } from "@/components/ui/rich-text-editor";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useCreateEventMutation } from "@/hooks/useEventsQuery";
 import { useFileUpload } from "@/hooks/useFileUpload";
+import { useOrganizationsQuery } from "@/hooks/useSettings";
 import { cn } from "@/lib/utils";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 export function AdminCreaEventoDialog({
   children,
@@ -54,9 +62,12 @@ export function AdminCreaEventoDialog({
     dettagliCompleti: "",
     verrannoScattateFoto: false,
     immaginiAggiuntive: "",
+    organizationId: "",
   });
 
   const createEventMutation = useCreateEventMutation();
+  const { data: organizations, isLoading: organizationsLoading } =
+    useOrganizationsQuery();
   const fileUpload = useFileUpload({
     folder: "events",
     optimize: true,
@@ -149,6 +160,7 @@ export function AdminCreaEventoDialog({
         detailedDescription: formData.dettagliCompleti || undefined,
         willTakePhotos: formData.verrannoScattateFoto,
         additionalImages: formData.immaginiAggiuntive || undefined,
+        organizationId: formData.organizationId || undefined,
       };
 
       // Upload image if selected
@@ -185,6 +197,7 @@ export function AdminCreaEventoDialog({
         dettagliCompleti: "",
         verrannoScattateFoto: false,
         immaginiAggiuntive: "",
+        organizationId: "",
       });
     } catch (error) {
       console.error("Errore durante la creazione dell'evento:", error);
@@ -222,6 +235,34 @@ export function AdminCreaEventoDialog({
                   placeholder="Inserisci il titolo dell'evento"
                   required
                 />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="organizationId">Organizzazione</Label>
+                <Select
+                  value={formData.organizationId}
+                  onValueChange={(value) =>
+                    setFormData((prev) => ({ ...prev, organizationId: value }))
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Seleziona un'organizzazione (opzionale)" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">Nessuna organizzazione</SelectItem>
+                    {organizationsLoading ? (
+                      <SelectItem value="" disabled>
+                        Caricamento...
+                      </SelectItem>
+                    ) : (
+                      organizations?.map((org) => (
+                        <SelectItem key={org.id} value={org.id}>
+                          {org.name}
+                        </SelectItem>
+                      ))
+                    )}
+                  </SelectContent>
+                </Select>
               </div>
 
               <div className="space-y-2">

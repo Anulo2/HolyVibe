@@ -1,6 +1,6 @@
 import { format } from "date-fns";
 import { it } from "date-fns/locale";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   AlertCircle,
   CalendarDays,
@@ -172,9 +172,21 @@ export function RegistrationDetailsDialog({
     }
   }, [registration?.event]);
 
-  // Initialize form when registration data loads
-  React.useEffect(() => {
+  // Initialize state when registration data changes
+  useEffect(() => {
     if (registration) {
+      console.log("🔍 Registration data received:", registration);
+      console.log("🔍 Extended registration data:", extendedRegistration);
+      console.log("🔍 canExitAlone:", extendedRegistration?.canExitAlone);
+      console.log(
+        "🔍 allowedExitLocations:",
+        extendedRegistration?.allowedExitLocations,
+      );
+      console.log(
+        "🔍 locationAuthorizations:",
+        extendedRegistration?.locationAuthorizations,
+      );
+
       setStatus(registration.status);
       setPaymentStatus(registration.paymentStatus);
       setNotes(registration.notes || "");
@@ -185,7 +197,7 @@ export function RegistrationDetailsDialog({
 
       // Initialize authorized persons
       const authorizedPersonIds =
-        extendedRegistration?.authorizedPersons?.map((p) => p.id) || [];
+        registration.authorizedPersons?.map((p) => p.id) || [];
       setSelectedAuthorizedPersons(authorizedPersonIds);
 
       // Initialize location authorizations
@@ -197,6 +209,8 @@ export function RegistrationDetailsDialog({
         locationAuth[auth.authorizedPersonId][auth.location] = auth.canPickup;
       });
       setLocationAuthorizations(locationAuth);
+
+      console.log("🔍 Initialized location auth:", locationAuth);
     }
   }, [registration, extendedRegistration]);
 

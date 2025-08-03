@@ -76,6 +76,15 @@ export const Event = z.object({
   createdBy: z.string(),
   createdAt: z.string(),
   updatedAt: z.string(),
+  organizationId: z.string().nullable(),
+  organization: z
+    .object({
+      id: z.string(),
+      name: z.string(),
+      photoVideoMinorsDeclaration: z.string().nullable(),
+    })
+    .nullable()
+    .optional(),
 });
 
 export const User = z.object({

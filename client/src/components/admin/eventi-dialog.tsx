@@ -35,6 +35,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useUpdateEventMutation } from "@/hooks/useEventsQuery";
 import { useFileUpload } from "@/hooks/useFileUpload";
+import { useOrganizationsQuery } from "@/hooks/useSettings";
 import { cn } from "@/lib/utils";
 
 interface EventiDialogProps {
@@ -63,9 +64,12 @@ export function EventiDialog({
     imageUrl: "",
     dettagliCompleti: "",
     verrannoScattateFoto: false,
+    organizationId: "",
   });
 
   const updateEventMutation = useUpdateEventMutation();
+  const { data: organizations, isLoading: organizationsLoading } =
+    useOrganizationsQuery();
   const fileUpload = useFileUpload({
     folder: "events",
     optimize: true,
@@ -80,11 +84,6 @@ export function EventiDialog({
 
   useEffect(() => {
     if (evento && open) {
-      // Debug: Log the event object to understand its structure
-      console.log("🔍 Event data received for editing:", evento);
-      console.log("🔍 Event locations field:", evento.locations);
-      console.log("🔍 Event location field:", evento.location);
-
       // Populate form with existing event data
       // Handle locations field - ensure it's always an array
       let luoghi = [""];
@@ -92,10 +91,8 @@ export function EventiDialog({
       // Check all possible location field variations
       if (Array.isArray(evento.locations) && evento.locations.length > 0) {
         luoghi = evento.locations;
-        console.log("🔍 Using evento.locations (array):", luoghi);
       } else if (Array.isArray(evento.location) && evento.location.length > 0) {
         luoghi = evento.location;
-        console.log("🔍 Using evento.location (array):", luoghi);
       } else if (
         typeof evento.locations === "string" &&
         evento.locations.trim()
@@ -105,29 +102,19 @@ export function EventiDialog({
           const parsedLocations = JSON.parse(evento.locations);
           if (Array.isArray(parsedLocations) && parsedLocations.length > 0) {
             luoghi = parsedLocations;
-            console.log("🔍 Using evento.locations (parsed JSON):", luoghi);
           } else {
             luoghi = [evento.locations];
-            console.log("🔍 Using evento.locations (string):", luoghi);
           }
         } catch {
           // If JSON parsing fails, treat as regular string
           luoghi = [evento.locations];
-          console.log("🔍 Using evento.locations (string):", luoghi);
         }
       } else if (
         typeof evento.location === "string" &&
         evento.location.trim()
       ) {
         luoghi = [evento.location];
-        console.log("🔍 Using evento.location (string):", luoghi);
-      } else {
-        console.log(
-          "🔍 No valid location data found, using default empty array",
-        );
       }
-
-      console.log("🔍 Final luoghi array:", luoghi);
 
       setFormData({
         titolo: evento.title || "",
@@ -144,6 +131,7 @@ export function EventiDialog({
         imageUrl: evento.imageUrl || "",
         dettagliCompleti: evento.detailedDescription || "",
         verrannoScattateFoto: evento.willTakePhotos || false,
+        organizationId: evento.organizationId || evento.organization?.id || "",
       });
     } else if (!evento && open) {
       // Reset form for new event
@@ -162,6 +150,7 @@ export function EventiDialog({
         imageUrl: "",
         dettagliCompleti: "",
         verrannoScattateFoto: false,
+        organizationId: "",
       });
     }
   }, [evento, open]);
@@ -269,6 +258,7 @@ export function EventiDialog({
         detailedDescription: formData.dettagliCompleti || undefined,
         willTakePhotos: formData.verrannoScattateFoto,
         status: formData.status,
+        organizationId: formData.organizationId || undefined,
       };
 
       // Upload image if a new file is selected
@@ -532,6 +522,40 @@ export function EventiDialog({
                     <SelectItem value="closed">Chiuso</SelectItem>
                     <SelectItem value="full">Completo</SelectItem>
                     <SelectItem value="cancelled">Cancellato</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="organizationId">Organizzazione</Label>
+                <Select
+                  value={formData.organizationId || "none"}
+                  onValueChange={(value) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      organizationId: value === "none" ? "" : value,
+                    }))
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Seleziona un'organizzazione (opzionale)" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Nessuna organizzazione</SelectItem>
+                    {organizationsLoading ? (
+                      <SelectItem value="loading" disabled>
+                        <div className="flex items-center gap-2">
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                          Caricamento...
+                        </div>
+                      </SelectItem>
+                    ) : (
+                      organizations?.map((org) => (
+                        <SelectItem key={org.id} value={org.id}>
+                          {org.name}
+                        </SelectItem>
+                      ))
+                    )}
                   </SelectContent>
                 </Select>
               </div>

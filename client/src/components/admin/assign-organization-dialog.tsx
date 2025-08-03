@@ -91,18 +91,18 @@ export function AssignOrganizationDialog({
           <div className="space-y-2">
             <Label htmlFor="organization">Organizzazione</Label>
             <Select
-              value={selectedOrganizationId || ""}
+              value={selectedOrganizationId || "none"}
               onValueChange={(value) =>
-                setSelectedOrganizationId(value || null)
+                setSelectedOrganizationId(value === "none" ? null : value)
               }
             >
               <SelectTrigger>
                 <SelectValue placeholder="Seleziona un'organizzazione" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Nessuna organizzazione</SelectItem>
+                <SelectItem value="none">Nessuna organizzazione</SelectItem>
                 {organizationsLoading ? (
-                  <SelectItem value="" disabled>
+                  <SelectItem value="loading" disabled>
                     <div className="flex items-center gap-2">
                       <Loader2 className="h-4 w-4 animate-spin" />
                       Caricamento...

@@ -240,18 +240,21 @@ export function AdminCreaEventoDialog({
               <div className="space-y-2">
                 <Label htmlFor="organizationId">Organizzazione</Label>
                 <Select
-                  value={formData.organizationId}
+                  value={formData.organizationId || "none"}
                   onValueChange={(value) =>
-                    setFormData((prev) => ({ ...prev, organizationId: value }))
+                    setFormData((prev) => ({
+                      ...prev,
+                      organizationId: value === "none" ? "" : value,
+                    }))
                   }
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Seleziona un'organizzazione (opzionale)" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Nessuna organizzazione</SelectItem>
+                    <SelectItem value="none">Nessuna organizzazione</SelectItem>
                     {organizationsLoading ? (
-                      <SelectItem value="" disabled>
+                      <SelectItem value="loading" disabled>
                         Caricamento...
                       </SelectItem>
                     ) : (

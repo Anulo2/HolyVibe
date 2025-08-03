@@ -44,7 +44,6 @@ export const eventsRouter = os.router({
             membership[0].role,
           );
 
-        let query = db.select().from(events);
         const conditions = [];
 
         // Show only open events to non-admin users
@@ -66,25 +65,48 @@ export const eventsRouter = os.router({
           conditions.push(lte(events.minAge, input.maxAge));
         }
 
+        // Query events with organization data
+        const eventsQuery = db
+          .select({
+            event: events,
+            organization: {
+              id: organization.id,
+              name: organization.name,
+              photoVideoMinorsDeclaration:
+                organization.photoVideoMinorsDeclaration,
+            },
+          })
+          .from(events)
+          .leftJoin(organization, eq(events.organizationId, organization.id));
+
         // Apply all conditions
+        let finalQuery = eventsQuery;
         if (conditions.length > 0) {
-          query = query.where(and(...conditions)) as any;
+          finalQuery = eventsQuery.where(and(...conditions)) as any;
         }
 
-        const eventsList = await query
+        const eventsWithOrg = await finalQuery
           .orderBy(desc(events.startDate))
           .limit(input.limit)
           .offset(input.offset);
 
         return {
           success: true,
-          data: eventsList.map((event) => ({
-            ...event,
-            createdAt: new Date(event.createdAt).toISOString(),
-            updatedAt: new Date(event.updatedAt).toISOString(),
-            startDate: new Date(event.startDate).toISOString(),
-            endDate: event.endDate
-              ? new Date(event.endDate).toISOString()
+          data: eventsWithOrg.map((row) => ({
+            ...row.event,
+            createdAt: new Date(row.event.createdAt).toISOString(),
+            updatedAt: new Date(row.event.updatedAt).toISOString(),
+            startDate: new Date(row.event.startDate).toISOString(),
+            endDate: row.event.endDate
+              ? new Date(row.event.endDate).toISOString()
+              : null,
+            organization: row.organization?.id
+              ? {
+                  id: row.organization.id,
+                  name: row.organization.name,
+                  photoVideoMinorsDeclaration:
+                    row.organization.photoVideoMinorsDeclaration || null,
+                }
               : null,
           })),
         };

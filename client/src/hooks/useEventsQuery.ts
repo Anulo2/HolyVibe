@@ -89,7 +89,7 @@ export const useUpdateEventMutation = () => {
       description?: string;
       startDate?: string;
       endDate?: string | null;
-      location?: string;
+      locations?: string[];
       minAge?: number;
       maxAge?: number;
       maxParticipants?: number;
@@ -115,6 +115,7 @@ export const useUpdateEventMutation = () => {
       cancellationPolicy?: string;
       photographyConsent?: boolean;
       additionalImages?: string;
+      organizationId?: string;
     }) => orpc.events.update(data),
     onSuccess: (_, variables) => {
       // Invalidate and refetch events

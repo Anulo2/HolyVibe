@@ -350,8 +350,13 @@ export default function Dashboard() {
                           {registration.child.firstName}{" "}
                           {registration.child.lastName}
                         </p>
-                        <p className="text-xs text-muted-foreground">
+                        <p className="text-sm text-muted-foreground">
                           {registration.event.title}
+                          {registration.parent.name && (
+                            <span className="block text-xs mt-1">
+                              Iscritto da {registration.parent.name}
+                            </span>
+                          )}
                         </p>
                       </div>
                     </div>

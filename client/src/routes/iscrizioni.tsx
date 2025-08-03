@@ -165,6 +165,14 @@ function IscrizioniPage() {
             Storico completo delle iscrizioni di tutti i figli delle tue
             famiglie agli eventi
           </p>
+          <div className="mt-2 rounded-md bg-blue-50 p-3 text-sm border border-blue-200">
+            <p className="text-blue-800">
+              <strong>Nota:</strong> Qui vengono mostrate tutte le iscrizioni
+              dei figli delle famiglie di cui fai parte, indipendentemente da
+              chi ha effettuato l'iscrizione. Il nome del genitore che ha
+              iscritto il bambino è indicato sotto al nome della famiglia.
+            </p>
+          </div>
         </div>
 
         {/* Stats Cards */}

@@ -63,7 +63,7 @@ function FamigliaComponent() {
 
   // Auto-select family logic - consolidated into one effect
   useEffect(() => {
-    if (families.length === 0) {
+    if (!Array.isArray(families) || families.length === 0) {
       // No families, clear selection
       if (selectedFamilyId) {
         setSelectedFamilyId("");
@@ -72,13 +72,17 @@ function FamigliaComponent() {
     }
 
     // Check if current selection is valid
-    const currentFamilyExists = selectedFamilyId && families.find(f => f.id === selectedFamilyId);
+    const currentFamilyExists =
+      selectedFamilyId && families.find((f) => f && f.id === selectedFamilyId);
 
     if (!selectedFamilyId || !currentFamilyExists) {
       // No selection or invalid selection, select first family
-      setSelectedFamilyId(families[0].id);
+      const firstValidFamily = families.find((f) => f && f.id);
+      if (firstValidFamily) {
+        setSelectedFamilyId(firstValidFamily.id);
+      }
     }
-  }, [families]);
+  }, [families, selectedFamilyId]);
 
   const handleCreateFamilySubmit = async (data: {
     name: string;
@@ -194,8 +198,6 @@ function FamigliaComponent() {
     }
   };
 
-
-
   return (
     <>
       <div className="space-y-6">
@@ -243,41 +245,43 @@ function FamigliaComponent() {
               <span>Nuova</span>
             </button>
           </div>
-          {families.length > 0 ? (
+          {Array.isArray(families) && families.length > 0 ? (
             <div className="grid gap-2 md:grid-cols-3">
-              {families.map((family: any) => (
-                <div
-                  key={family.id}
-                  onClick={() => {
-                    setSelectedFamilyId(family.id);
-                  }}
-                  className={`rounded-md border p-3 text-left transition-colors hover:bg-accent cursor-pointer ${
-                    selectedFamilyId === family.id
-                      ? "border-primary bg-accent"
-                      : ""
-                  }`}
-                >
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <h4 className="font-medium">{family.name}</h4>
-                      {family.description && (
-                        <p className="text-sm text-muted-foreground">
-                          {family.description}
-                        </p>
-                      )}
+              {families
+                .filter((family: any) => family && family.id)
+                .map((family: any) => (
+                  <div
+                    key={family.id}
+                    onClick={() => {
+                      setSelectedFamilyId(family.id);
+                    }}
+                    className={`rounded-md border p-3 text-left transition-colors hover:bg-accent cursor-pointer ${
+                      selectedFamilyId === family.id
+                        ? "border-primary bg-accent"
+                        : ""
+                    }`}
+                  >
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <h4 className="font-medium">{family.name}</h4>
+                        {family.description && (
+                          <p className="text-sm text-muted-foreground">
+                            {family.description}
+                          </p>
+                        )}
+                      </div>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleEditFamily(family);
+                        }}
+                        className="ml-2 rounded-md p-1 text-muted-foreground hover:bg-accent"
+                      >
+                        <Edit2 size={14} />
+                      </button>
                     </div>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleEditFamily(family);
-                      }}
-                      className="ml-2 rounded-md p-1 text-muted-foreground hover:bg-accent"
-                    >
-                      <Edit2 size={14} />
-                    </button>
                   </div>
-                </div>
-              ))}
+                ))}
             </div>
           ) : (
             <div className="text-center py-8">
@@ -302,45 +306,49 @@ function FamigliaComponent() {
             <div className="flex items-center justify-center p-8">
               <Loader2 className="h-8 w-8 animate-spin" />
             </div>
-          ) : children.length > 0 ? (
+          ) : Array.isArray(children) && children.length > 0 ? (
             <div className="grid gap-4 md:grid-cols-2">
-              {children.map((child: any) => (
-                <div
-                  key={child.id}
-                  className="rounded-md border p-4 transition-colors hover:bg-accent"
-                >
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <h4 className="font-medium">
-                        {child.firstName} {child.lastName}
-                      </h4>
-                      <p className="text-sm text-muted-foreground">
-                        Nato:{" "}
-                        {new Date(child.birthDate).toLocaleDateString("it-IT")}
-                      </p>
-                      {child.birthPlace && (
+              {children
+                .filter((child: any) => child && child.id)
+                .map((child: any) => (
+                  <div
+                    key={child.id}
+                    className="rounded-md border p-4 transition-colors hover:bg-accent"
+                  >
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <h4 className="font-medium">
+                          {child.firstName} {child.lastName}
+                        </h4>
                         <p className="text-sm text-muted-foreground">
-                          Luogo: {child.birthPlace}
+                          Nato:{" "}
+                          {new Date(child.birthDate).toLocaleDateString(
+                            "it-IT",
+                          )}
                         </p>
-                      )}
-                      {child.allergies && (
-                        <p className="text-sm text-red-600">
-                          Allergie: {child.allergies}
-                        </p>
-                      )}
+                        {child.birthPlace && (
+                          <p className="text-sm text-muted-foreground">
+                            Luogo: {child.birthPlace}
+                          </p>
+                        )}
+                        {child.allergies && (
+                          <p className="text-sm text-red-600">
+                            Allergie: {child.allergies}
+                          </p>
+                        )}
+                      </div>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleEditChild(child);
+                        }}
+                        className="ml-2 rounded-md p-1 text-muted-foreground hover:bg-accent"
+                      >
+                        <Edit2 size={14} />
+                      </button>
                     </div>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleEditChild(child);
-                      }}
-                      className="ml-2 rounded-md p-1 text-muted-foreground hover:bg-accent"
-                    >
-                      <Edit2 size={14} />
-                    </button>
                   </div>
-                </div>
-              ))}
+                ))}
             </div>
           ) : (
             <p className="text-center text-muted-foreground">
@@ -356,42 +364,45 @@ function FamigliaComponent() {
             <div className="flex items-center justify-center p-8">
               <Loader2 className="h-8 w-8 animate-spin" />
             </div>
-          ) : authorizedPersons.length > 0 ? (
+          ) : Array.isArray(authorizedPersons) &&
+            authorizedPersons.length > 0 ? (
             <div className="grid gap-4 md:grid-cols-2">
-              {authorizedPersons.map((person: any) => (
-                <div
-                  key={person.id}
-                  className="rounded-md border p-4 transition-colors hover:bg-accent"
-                >
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <h4 className="font-medium">{person.fullName}</h4>
-                      <p className="text-sm text-muted-foreground">
-                        {person.relationship}
-                      </p>
-                      {person.phone && (
+              {authorizedPersons
+                .filter((person: any) => person && person.id)
+                .map((person: any) => (
+                  <div
+                    key={person.id}
+                    className="rounded-md border p-4 transition-colors hover:bg-accent"
+                  >
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <h4 className="font-medium">{person.fullName}</h4>
                         <p className="text-sm text-muted-foreground">
-                          Tel: {person.phone}
+                          {person.relationship}
                         </p>
-                      )}
-                      {person.email && (
-                        <p className="text-sm text-muted-foreground">
-                          Email: {person.email}
-                        </p>
-                      )}
+                        {person.phone && (
+                          <p className="text-sm text-muted-foreground">
+                            Tel: {person.phone}
+                          </p>
+                        )}
+                        {person.email && (
+                          <p className="text-sm text-muted-foreground">
+                            Email: {person.email}
+                          </p>
+                        )}
+                      </div>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleEditPerson(person);
+                        }}
+                        className="ml-2 rounded-md p-1 text-muted-foreground hover:bg-accent"
+                      >
+                        <Edit2 size={14} />
+                      </button>
                     </div>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleEditPerson(person);
-                      }}
-                      className="ml-2 rounded-md p-1 text-muted-foreground hover:bg-accent"
-                    >
-                      <Edit2 size={14} />
-                    </button>
                   </div>
-                </div>
-              ))}
+                ))}
             </div>
           ) : (
             <p className="text-center text-muted-foreground">
@@ -442,7 +453,11 @@ function FamigliaComponent() {
       <InvitaGenitoreDialog
         open={showInviteParentDialog}
         onOpenChange={setShowInviteParentDialog}
-        famiglia={families.find((f: any) => f.id === selectedFamilyId)}
+        famiglia={
+          Array.isArray(families)
+            ? families.find((f: any) => f && f.id === selectedFamilyId)
+            : undefined
+        }
       />
     </>
   );

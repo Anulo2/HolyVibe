@@ -9,515 +9,618 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import {
-	Dialog,
-	DialogContent,
-	DialogDescription,
-	DialogFooter,
-	DialogHeader,
-	DialogTitle,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
 } from "@/components/ui/dialog";
 import { FileUpload } from "@/components/ui/file-upload";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
-	Popover,
-	PopoverContent,
-	PopoverTrigger,
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
 } from "@/components/ui/popover";
 import { RichTextEditor } from "@/components/ui/rich-text-editor";
 import {
-	Select,
-	SelectContent,
-	SelectItem,
-	SelectTrigger,
-	SelectValue,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
 } from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useUpdateEventMutation } from "@/hooks/useEventsQuery";
 import { useFileUpload } from "@/hooks/useFileUpload";
 import { cn } from "@/lib/utils";
 
 interface EventiDialogProps {
-	open: boolean;
-	onOpenChange: (open: boolean) => void;
-	evento?: any;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  evento?: any;
 }
 
 export function EventiDialog({
-	open,
-	onOpenChange,
-	evento,
+  open,
+  onOpenChange,
+  evento,
 }: EventiDialogProps) {
-	const [formData, setFormData] = useState({
-		title: "",
-		description: "",
-		detailedDescription: "",
-		startDate: null as Date | null,
-		endDate: null as Date | null,
-		location: "",
-		minAge: "",
-		maxAge: "",
-		maxParticipants: "",
-		price: "",
-		status: "draft",
-		imageUrl: "",
-		imageFile: null as File | null,
-		willTakePhotos: false,
-		photosForSocialMedia: false,
-	});
+  const [formData, setFormData] = useState({
+    titolo: "",
+    descrizione: "",
+    dataInizio: null as Date | null,
+    dataFine: null as Date | null,
+    luoghi: [""],
+    etaMin: "",
+    etaMax: "",
+    postiDisponibili: "",
+    prezzo: "",
+    status: "draft" as "draft" | "open" | "closed" | "full" | "cancelled",
+    immagine: null as File | null,
+    imageUrl: "",
+    dettagliCompleti: "",
+    verrannoScattateFoto: false,
+  });
 
-	const updateEventMutation = useUpdateEventMutation();
-	const fileUpload = useFileUpload({
-		folder: "events",
-		optimize: true,
-		onUploadSuccess: (result) => {
-			setFormData((prev) => ({
-				...prev,
-				imageUrl: result.url,
-			}));
-		},
-		showToasts: false, // We'll handle toasts ourselves
-	});
+  const updateEventMutation = useUpdateEventMutation();
+  const fileUpload = useFileUpload({
+    folder: "events",
+    optimize: true,
+    onUploadSuccess: (result) => {
+      setFormData((prev) => ({
+        ...prev,
+        imageUrl: result.url,
+      }));
+    },
+    showToasts: false,
+  });
 
-	useEffect(() => {
-		if (evento && open) {
-			// Populate form with existing event data
-			setFormData({
-				title: evento.title || "",
-				description: evento.description || "",
-				detailedDescription: evento.detailedDescription || "",
-				startDate: evento.startDate ? new Date(evento.startDate) : null,
-				endDate: evento.endDate ? new Date(evento.endDate) : null,
-				location: evento.location || "",
-				minAge: evento.minAge?.toString() || "",
-				maxAge: evento.maxAge?.toString() || "",
-				maxParticipants: evento.maxParticipants?.toString() || "",
-				price: evento.price || "",
-				status: evento.status || "draft",
-				imageUrl: evento.imageUrl || "",
-				imageFile: null,
-				willTakePhotos: evento.willTakePhotos || false,
-				photosForSocialMedia: evento.photosForSocialMedia || false,
-			});
-		} else if (!evento && open) {
-			// Reset form for new event (though this dialog is primarily for editing)
-			setFormData({
-				title: "",
-				description: "",
-				detailedDescription: "",
-				startDate: null,
-				endDate: null,
-				location: "",
-				minAge: "",
-				maxAge: "",
-				maxParticipants: "",
-				price: "",
-				status: "draft",
-				imageUrl: "",
-				imageFile: null,
-				willTakePhotos: false,
-				photosForSocialMedia: false,
-			});
-		}
-	}, [evento, open]);
+  useEffect(() => {
+    if (evento && open) {
+      // Debug: Log the event object to understand its structure
+      console.log("🔍 Event data received for editing:", evento);
+      console.log("🔍 Event locations field:", evento.locations);
+      console.log("🔍 Event location field:", evento.location);
 
-	const handleChange = (
-		e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
-	) => {
-		const { id, value } = e.target;
-		setFormData((prev) => ({ ...prev, [id]: value }));
-	};
+      // Populate form with existing event data
+      // Handle locations field - ensure it's always an array
+      let luoghi = [""];
 
-	const handleDescriptionChange = (content: string) => {
-		setFormData((prev) => ({ ...prev, description: content }));
-	};
+      // Check all possible location field variations
+      if (Array.isArray(evento.locations) && evento.locations.length > 0) {
+        luoghi = evento.locations;
+        console.log("🔍 Using evento.locations (array):", luoghi);
+      } else if (Array.isArray(evento.location) && evento.location.length > 0) {
+        luoghi = evento.location;
+        console.log("🔍 Using evento.location (array):", luoghi);
+      } else if (
+        typeof evento.locations === "string" &&
+        evento.locations.trim()
+      ) {
+        // Try to parse as JSON first (for serialized arrays)
+        try {
+          const parsedLocations = JSON.parse(evento.locations);
+          if (Array.isArray(parsedLocations) && parsedLocations.length > 0) {
+            luoghi = parsedLocations;
+            console.log("🔍 Using evento.locations (parsed JSON):", luoghi);
+          } else {
+            luoghi = [evento.locations];
+            console.log("🔍 Using evento.locations (string):", luoghi);
+          }
+        } catch {
+          // If JSON parsing fails, treat as regular string
+          luoghi = [evento.locations];
+          console.log("🔍 Using evento.locations (string):", luoghi);
+        }
+      } else if (
+        typeof evento.location === "string" &&
+        evento.location.trim()
+      ) {
+        luoghi = [evento.location];
+        console.log("🔍 Using evento.location (string):", luoghi);
+      } else {
+        console.log(
+          "🔍 No valid location data found, using default empty array",
+        );
+      }
 
-	const handleDetailedDescriptionChange = (content: string) => {
-		setFormData((prev) => ({ ...prev, detailedDescription: content }));
-	};
+      console.log("🔍 Final luoghi array:", luoghi);
 
-	const handleSelectChange = (value: string) => {
-		setFormData((prev) => ({ ...prev, status: value }));
-	};
+      setFormData({
+        titolo: evento.title || "",
+        descrizione: evento.description || "",
+        dataInizio: evento.startDate ? new Date(evento.startDate) : null,
+        dataFine: evento.endDate ? new Date(evento.endDate) : null,
+        luoghi: luoghi,
+        etaMin: evento.minAge?.toString() || "",
+        etaMax: evento.maxAge?.toString() || "",
+        postiDisponibili: evento.maxParticipants?.toString() || "",
+        prezzo: evento.price || "",
+        status: evento.status || "draft",
+        immagine: null,
+        imageUrl: evento.imageUrl || "",
+        dettagliCompleti: evento.detailedDescription || "",
+        verrannoScattateFoto: evento.willTakePhotos || false,
+      });
+    } else if (!evento && open) {
+      // Reset form for new event
+      setFormData({
+        titolo: "",
+        descrizione: "",
+        dataInizio: null,
+        dataFine: null,
+        luoghi: [""],
+        etaMin: "",
+        etaMax: "",
+        postiDisponibili: "",
+        prezzo: "",
+        status: "draft",
+        immagine: null,
+        imageUrl: "",
+        dettagliCompleti: "",
+        verrannoScattateFoto: false,
+      });
+    }
+  }, [evento, open]);
 
-	const handleFileSelect = (file: File) => {
-		setFormData((prev) => ({
-			...prev,
-			imageFile: file,
-			imageUrl: "", // Will be set after upload
-		}));
-	};
+  const handleChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
+  ) => {
+    const { id, value } = e.target;
+    setFormData((prev) => ({ ...prev, [id]: value }));
+  };
 
-	const handleFileRemove = () => {
-		setFormData((prev) => ({
-			...prev,
-			imageFile: null,
-			imageUrl: "",
-		}));
-		fileUpload.reset();
-	};
+  const handleFileSelect = (file: File) => {
+    setFormData((prev) => ({
+      ...prev,
+      immagine: file,
+      imageUrl: "",
+    }));
+  };
 
-	const handleDateChange = (field: string, date: Date | null) => {
-		setFormData((prev) => ({ ...prev, [field]: date }));
-	};
+  const handleFileRemove = () => {
+    setFormData((prev) => ({
+      ...prev,
+      immagine: null,
+      imageUrl: "",
+    }));
+    fileUpload.reset();
+  };
 
-	const handleSubmit = async (e: React.FormEvent) => {
-		e.preventDefault();
+  const handleDateChange = (
+    field: "dataInizio" | "dataFine",
+    date: Date | undefined,
+  ) => {
+    setFormData((prev) => ({ ...prev, [field]: date || null }));
+  };
 
-		if (!evento?.id) {
-			toast.error("ID evento mancante");
-			return;
-		}
+  const handleDescriptionChange = (content: string) => {
+    setFormData((prev) => ({ ...prev, descrizione: content }));
+  };
 
-		try {
-			const updateData = {
-				id: evento.id,
-				title: formData.title || undefined,
-				description: formData.description || undefined,
-				detailedDescription: formData.detailedDescription || undefined,
-				startDate: formData.startDate?.toISOString(),
-				endDate: formData.endDate ? formData.endDate.toISOString() : null,
-				location: formData.location || undefined,
-				minAge: formData.minAge ? Number(formData.minAge) : undefined,
-				maxAge: formData.maxAge ? Number(formData.maxAge) : undefined,
-				maxParticipants: formData.maxParticipants
-					? Number(formData.maxParticipants)
-					: undefined,
-				price: formData.price || undefined,
-				status: formData.status as any,
-				imageFile: formData.imageFile || undefined,
-				imageUrl: formData.imageFile
-					? undefined
-					: formData.imageUrl || undefined,
-				willTakePhotos: formData.willTakePhotos,
-				photosForSocialMedia: formData.photosForSocialMedia,
-			};
+  const handleDetailedDescriptionChange = (content: string) => {
+    setFormData((prev) => ({ ...prev, dettagliCompleti: content }));
+  };
 
-			await updateEventMutation.mutateAsync(updateData);
+  const handleSelectChange = (value: string) => {
+    setFormData((prev) => ({ ...prev, status: value as any }));
+  };
 
-			toast.success("Evento aggiornato con successo!");
-			onOpenChange(false);
-		} catch (error) {
-			console.error("Error updating event:", error);
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
 
-			if (error instanceof Error) {
-				// More specific error messages
-				if (error.message.includes("validation")) {
-					toast.error("Errore di validazione: verifica i dati inseriti");
-				} else if (error.message.includes("file")) {
-					toast.error("Errore nel caricamento del file");
-				} else {
-					toast.error(`Errore nell'aggiornamento: ${error.message}`);
-				}
-			} else {
-				toast.error("Errore nell'aggiornamento dell'evento");
-			}
-		}
-	};
+    if (!evento?.id) {
+      toast.error("ID evento mancante");
+      return;
+    }
 
-	return (
-		<Dialog open={open} onOpenChange={onOpenChange}>
-			<DialogContent className="max-h-[98vh] overflow-y-auto">
-				<DialogHeader>
-					<DialogTitle>
-						{evento ? "Modifica evento" : "Crea nuovo evento"}
-					</DialogTitle>
-					<DialogDescription>
-						{evento
-							? "Modifica i dettagli dell'evento esistente."
-							: "Inserisci i dettagli per creare un nuovo evento."}
-					</DialogDescription>
-				</DialogHeader>
+    // Validate required fields
+    if (!formData.titolo.trim()) {
+      toast.error("Il titolo è obbligatorio");
+      return;
+    }
+    if (!formData.descrizione.trim()) {
+      toast.error("La descrizione è obbligatoria");
+      return;
+    }
+    if (!formData.dataInizio) {
+      toast.error("La data di inizio è obbligatoria");
+      return;
+    }
+    if (!formData.luoghi.some((luogo) => luogo.trim())) {
+      toast.error("Almeno un luogo è obbligatorio");
+      return;
+    }
+    if (!formData.etaMin || !formData.etaMax) {
+      toast.error("Le età minima e massima sono obbligatorie");
+      return;
+    }
+    if (!formData.postiDisponibili) {
+      toast.error("Il numero di posti disponibili è obbligatorio");
+      return;
+    }
 
-				<form onSubmit={handleSubmit} className="space-y-4 mt-4">
-					<div className="space-y-2">
-						<Label htmlFor="title">Titolo evento *</Label>
-						<Input
-							id="title"
-							value={formData.title}
-							onChange={handleChange}
-							placeholder="Inserisci il titolo dell'evento"
-							required
-						/>
-					</div>
+    try {
+      const eventData = {
+        id: evento.id,
+        title: formData.titolo,
+        description: formData.descrizione,
+        startDate: formData.dataInizio.toISOString(),
+        endDate: formData.dataFine?.toISOString(),
+        locations: formData.luoghi.filter((luogo) => luogo.trim()),
+        minAge: parseInt(formData.etaMin),
+        maxAge: parseInt(formData.etaMax),
+        maxParticipants: parseInt(formData.postiDisponibili),
+        price: formData.prezzo || "0",
+        imageUrl: formData.imageUrl || undefined,
+        detailedDescription: formData.dettagliCompleti || undefined,
+        willTakePhotos: formData.verrannoScattateFoto,
+        status: formData.status,
+      };
 
-					<div className="space-y-2">
-						<Label htmlFor="description">Descrizione Breve *</Label>
-						<RichTextEditor
-							content={formData.description}
-							onChange={handleDescriptionChange}
-							placeholder="Descrizione breve che appare nelle anteprime..."
-							className="min-h-[100px]"
-						/>
-						<p className="text-xs text-muted-foreground">
-							Questa descrizione appare nelle card e nelle anteprime degli
-							eventi
-						</p>
-					</div>
+      // Upload image if selected
+      if (formData.immagine && !formData.imageUrl) {
+        const uploadResult = await fileUpload.uploadFile(formData.immagine);
+        eventData.imageUrl = uploadResult.url;
+      }
 
-					<div className="space-y-2">
-						<Label htmlFor="detailedDescription">Descrizione Dettagliata</Label>
-						<RichTextEditor
-							content={formData.detailedDescription}
-							onChange={handleDetailedDescriptionChange}
-							placeholder="Descrizione completa e dettagliata dell'evento..."
-							className="min-h-[200px]"
-						/>
-						<p className="text-xs text-muted-foreground">
-							Questa descrizione estesa appare solo quando si aprono i dettagli
-							completi dell'evento
-						</p>
-					</div>
+      await updateEventMutation.mutateAsync(eventData);
 
-					<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-						<div className="space-y-2">
-							<Label htmlFor="startDate">Data inizio *</Label>
-							<Popover>
-								<PopoverTrigger asChild>
-									<Button
-										id="startDate"
-										variant="outline"
-										className={cn(
-											"w-full justify-start text-left font-normal",
-											!formData.startDate && "text-muted-foreground",
-										)}
-									>
-										<CalendarIcon className="mr-2 h-4 w-4" />
-										{formData.startDate ? (
-											format(formData.startDate, "PPP", { locale: it })
-										) : (
-											<span>Seleziona data</span>
-										)}
-									</Button>
-								</PopoverTrigger>
-								<PopoverContent className="w-auto p-0">
-									<Calendar
-										mode="single"
-										selected={formData.startDate || undefined}
-										onSelect={(date) =>
-											handleDateChange("startDate", date || null)
-										}
-										initialFocus
-									/>
-								</PopoverContent>
-							</Popover>
-						</div>
+      toast.success("Evento aggiornato con successo!");
+      onOpenChange(false);
 
-						<div className="space-y-2">
-							<Label htmlFor="endDate">Data fine</Label>
-							<Popover>
-								<PopoverTrigger asChild>
-									<Button
-										id="endDate"
-										variant="outline"
-										className={cn(
-											"w-full justify-start text-left font-normal",
-											!formData.endDate && "text-muted-foreground",
-										)}
-									>
-										<CalendarIcon className="mr-2 h-4 w-4" />
-										{formData.endDate ? (
-											format(formData.endDate, "PPP", { locale: it })
-										) : (
-											<span>Seleziona data</span>
-										)}
-									</Button>
-								</PopoverTrigger>
-								<PopoverContent className="w-auto p-0">
-									<Calendar
-										mode="single"
-										selected={formData.endDate || undefined}
-										onSelect={(date) =>
-											handleDateChange("endDate", date || null)
-										}
-										initialFocus
-										disabled={(date) =>
-											formData.startDate ? date < formData.startDate : false
-										}
-									/>
-								</PopoverContent>
-							</Popover>
-						</div>
-					</div>
+      // Clean up preview URL
+      if (formData.imageUrl && formData.immagine) {
+        URL.revokeObjectURL(formData.imageUrl);
+      }
+    } catch (error) {
+      console.error("Error updating event:", error);
+      toast.error("Errore nell'aggiornamento dell'evento");
+    }
+  };
 
-					<div className="space-y-2">
-						<Label htmlFor="location">Luogo *</Label>
-						<Input
-							id="location"
-							value={formData.location}
-							onChange={handleChange}
-							placeholder="Inserisci il luogo dell'evento"
-							required
-						/>
-					</div>
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-h-[98vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>
+            {evento ? "Modifica evento" : "Crea nuovo evento"}
+          </DialogTitle>
+          <DialogDescription>
+            {evento
+              ? "Modifica i dettagli dell'evento esistente."
+              : "Inserisci i dettagli per creare un nuovo evento."}
+          </DialogDescription>
+        </DialogHeader>
 
-					<div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-						<div className="space-y-2">
-							<Label htmlFor="minAge">Età minima *</Label>
-							<Input
-								id="minAge"
-								type="number"
-								min="6"
-								max="100"
-								value={formData.minAge}
-								onChange={handleChange}
-								placeholder="Età"
-								required
-							/>
-						</div>
+        <form onSubmit={handleSubmit} className="space-y-4 mt-4">
+          <Tabs defaultValue="informazioni" className="w-full">
+            <TabsList className="grid w-full grid-cols-3">
+              <TabsTrigger value="informazioni">Informazioni Base</TabsTrigger>
+              <TabsTrigger value="dettagli">Dettagli Estesi</TabsTrigger>
+              <TabsTrigger value="media">Media</TabsTrigger>
+            </TabsList>
 
-						<div className="space-y-2">
-							<Label htmlFor="maxAge">Età massima *</Label>
-							<Input
-								id="maxAge"
-								type="number"
-								min="6"
-								max="100"
-								value={formData.maxAge}
-								onChange={handleChange}
-								placeholder="Età"
-								required
-							/>
-						</div>
+            <TabsContent value="informazioni" className="space-y-4 mt-4">
+              <div className="space-y-2">
+                <Label htmlFor="titolo">Titolo Evento *</Label>
+                <Input
+                  id="titolo"
+                  value={formData.titolo}
+                  onChange={handleChange}
+                  placeholder="Inserisci il titolo dell'evento"
+                  required
+                />
+              </div>
 
-						<div className="space-y-2">
-							<Label htmlFor="maxParticipants">Posti disponibili *</Label>
-							<Input
-								id="maxParticipants"
-								type="number"
-								min="1"
-								value={formData.maxParticipants}
-								onChange={handleChange}
-								placeholder="Numero posti"
-								required
-							/>
-						</div>
-					</div>
+              <div className="space-y-2">
+                <Label htmlFor="descrizione">Descrizione *</Label>
+                <RichTextEditor
+                  content={formData.descrizione}
+                  onChange={handleDescriptionChange}
+                  placeholder="Descrivi l'evento in dettaglio..."
+                  className="min-h-[200px]"
+                />
+              </div>
 
-					<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-						<div className="space-y-2">
-							<Label htmlFor="price">Prezzo (€)</Label>
-							<Input
-								id="price"
-								type="number"
-								min="0"
-								step="0.01"
-								value={formData.price}
-								onChange={handleChange}
-								placeholder="0.00"
-							/>
-						</div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="dataInizio">Data Inizio *</Label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        id="dataInizio"
+                        variant="outline"
+                        className={cn(
+                          "w-full justify-start text-left font-normal",
+                          !formData.dataInizio && "text-muted-foreground",
+                        )}
+                      >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {formData.dataInizio ? (
+                          format(formData.dataInizio, "PPP", { locale: it })
+                        ) : (
+                          <span>Seleziona data</span>
+                        )}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0">
+                      <Calendar
+                        mode="single"
+                        selected={formData.dataInizio || undefined}
+                        onSelect={(date: Date | undefined) =>
+                          handleDateChange("dataInizio", date)
+                        }
+                        initialFocus
+                      />
+                    </PopoverContent>
+                  </Popover>
+                </div>
 
-						<div className="space-y-2">
-							<Label htmlFor="status">Stato *</Label>
-							<Select
-								value={formData.status}
-								onValueChange={handleSelectChange}
-							>
-								<SelectTrigger id="status">
-									<SelectValue placeholder="Seleziona stato" />
-								</SelectTrigger>
-								<SelectContent>
-									<SelectItem value="draft">Bozza</SelectItem>
-									<SelectItem value="open">Aperto</SelectItem>
-									<SelectItem value="closed">Chiuso</SelectItem>
-									<SelectItem value="full">Completo</SelectItem>
-									<SelectItem value="cancelled">Cancellato</SelectItem>
-								</SelectContent>
-							</Select>
-						</div>
-					</div>
+                <div className="space-y-2">
+                  <Label htmlFor="dataFine">Data Fine *</Label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        id="dataFine"
+                        variant="outline"
+                        className={cn(
+                          "w-full justify-start text-left font-normal",
+                          !formData.dataFine && "text-muted-foreground",
+                        )}
+                      >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {formData.dataFine ? (
+                          format(formData.dataFine, "PPP", { locale: it })
+                        ) : (
+                          <span>Seleziona data</span>
+                        )}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0">
+                      <Calendar
+                        mode="single"
+                        selected={formData.dataFine || undefined}
+                        onSelect={(date: Date | undefined) =>
+                          handleDateChange("dataFine", date)
+                        }
+                        initialFocus
+                        disabled={(date: Date) =>
+                          formData.dataInizio
+                            ? date < formData.dataInizio
+                            : false
+                        }
+                      />
+                    </PopoverContent>
+                  </Popover>
+                </div>
+              </div>
 
-					<div className="space-y-2">
-						<Label>Immagine Evento</Label>
-						<FileUpload
-							onFileSelect={handleFileSelect}
-							onFileRemove={handleFileRemove}
-							accept="image/*"
-							maxSize={5 * 1024 * 1024} // 5MB
-							value={formData.imageFile || formData.imageUrl}
-							placeholder="Trascina qui un'immagine o clicca per caricarla"
-							showPreview={true}
-							disabled={updateEventMutation.isPending || fileUpload.isUploading}
-							uploadProgress={fileUpload.uploadProgress}
-							isUploading={fileUpload.isUploading}
-							onValidationError={(error) => toast.error(error)}
-						/>
-						{fileUpload.isError && (
-							<p className="text-sm text-destructive">
-								{fileUpload.error?.message || "Errore durante il caricamento"}
-							</p>
-						)}
-					</div>
+              <div className="space-y-2">
+                <Label>Luoghi dell'evento *</Label>
+                {formData.luoghi.map((luogo, index) => (
+                  <div key={`luogo-${index}`} className="flex gap-2">
+                    <Input
+                      value={luogo}
+                      onChange={(e) => {
+                        const newLuoghi = [...formData.luoghi];
+                        newLuoghi[index] = e.target.value;
+                        setFormData((prev) => ({ ...prev, luoghi: newLuoghi }));
+                      }}
+                      placeholder={`Luogo ${index + 1}`}
+                      required={index === 0}
+                    />
+                    {index > 0 && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          const newLuoghi = formData.luoghi.filter(
+                            (_, i) => i !== index,
+                          );
+                          setFormData((prev) => ({
+                            ...prev,
+                            luoghi: newLuoghi,
+                          }));
+                        }}
+                      >
+                        Rimuovi
+                      </Button>
+                    )}
+                  </div>
+                ))}
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setFormData((prev) => ({
+                      ...prev,
+                      luoghi: [...prev.luoghi, ""],
+                    }));
+                  }}
+                >
+                  Aggiungi luogo
+                </Button>
+              </div>
 
-					<div className="space-y-3 border-t pt-4">
-						<h4 className="text-sm font-medium">Gestione Foto</h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="etaMin">Età Minima *</Label>
+                  <Input
+                    id="etaMin"
+                    type="number"
+                    value={formData.etaMin}
+                    onChange={handleChange}
+                    placeholder="Es: 6"
+                    required
+                    min="0"
+                    max="18"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="etaMax">Età Massima *</Label>
+                  <Input
+                    id="etaMax"
+                    type="number"
+                    value={formData.etaMax}
+                    onChange={handleChange}
+                    placeholder="Es: 12"
+                    required
+                    min="0"
+                    max="18"
+                  />
+                </div>
+              </div>
 
-						<div>
-							<label className="flex items-center space-x-2">
-								<input
-									type="checkbox"
-									checked={formData.willTakePhotos}
-									onChange={(e) =>
-										setFormData((prev) => ({
-											...prev,
-											willTakePhotos: e.target.checked,
-											photosForSocialMedia: e.target.checked ? prev.photosForSocialMedia : false,
-										}))
-									}
-									className="rounded"
-								/>
-								<span className="text-sm">
-									Saranno scattate foto durante l'evento
-								</span>
-							</label>
-						</div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="postiDisponibili">Posti Disponibili *</Label>
+                  <Input
+                    id="postiDisponibili"
+                    type="number"
+                    value={formData.postiDisponibili}
+                    onChange={handleChange}
+                    placeholder="Es: 20"
+                    required
+                    min="1"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="prezzo">Prezzo (€)</Label>
+                  <Input
+                    id="prezzo"
+                    type="number"
+                    value={formData.prezzo}
+                    onChange={handleChange}
+                    placeholder="Es: 15.00"
+                    step="0.01"
+                    min="0"
+                  />
+                </div>
+              </div>
 
-						<div>
-							<label className="flex items-center space-x-2">
-								<input
-									type="checkbox"
-									checked={formData.photosForSocialMedia}
-									onChange={(e) =>
-										setFormData((prev) => ({
-											...prev,
-											photosForSocialMedia: e.target.checked,
-										}))
-									}
-									className="rounded"
-									disabled={!formData.willTakePhotos}
-								/>
-								<span className={`text-sm ${!formData.willTakePhotos ? "text-gray-400" : ""}`}>
-									Le foto verranno usate per i canali social della parrocchia
-								</span>
-							</label>
-						</div>
-					</div>
+              <div className="space-y-2">
+                <Label htmlFor="status">Stato *</Label>
+                <Select
+                  value={formData.status}
+                  onValueChange={handleSelectChange}
+                >
+                  <SelectTrigger id="status">
+                    <SelectValue placeholder="Seleziona stato" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="draft">Bozza</SelectItem>
+                    <SelectItem value="open">Aperto</SelectItem>
+                    <SelectItem value="closed">Chiuso</SelectItem>
+                    <SelectItem value="full">Completo</SelectItem>
+                    <SelectItem value="cancelled">Cancellato</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </TabsContent>
 
-					<DialogFooter className="mt-6">
-						<Button
-							type="button"
-							variant="outline"
-							onClick={() => onOpenChange(false)}
-							disabled={updateEventMutation.isPending || fileUpload.isUploading}
-						>
-							Annulla
-						</Button>
-						<Button
-							type="submit"
-							disabled={updateEventMutation.isPending || fileUpload.isUploading}
-						>
-							{updateEventMutation.isPending || fileUpload.isUploading ? (
-								<>
-									<Loader2 className="mr-2 h-4 w-4 animate-spin" />
-									{fileUpload.isUploading ? "Caricamento..." : "Salvando..."}
-								</>
-							) : (
-								"Salva Modifiche"
-							)}
-						</Button>
-					</DialogFooter>
-				</form>
-			</DialogContent>
-		</Dialog>
-	);
+            <TabsContent value="dettagli" className="space-y-4">
+              <div className="space-y-4">
+                <div>
+                  <Label htmlFor="dettagliCompleti">
+                    Descrizione Dettagliata
+                  </Label>
+                  <RichTextEditor
+                    content={formData.dettagliCompleti}
+                    onChange={handleDetailedDescriptionChange}
+                    placeholder="Descrizione completa e dettagliata dell'evento..."
+                    className="min-h-[120px]"
+                  />
+                </div>
+
+                <div className="space-y-3">
+                  <h4 className="font-medium">Gestione Foto</h4>
+                  <label className="flex items-center space-x-2">
+                    <input
+                      type="checkbox"
+                      checked={formData.verrannoScattateFoto}
+                      onChange={(e) =>
+                        setFormData((prev) => ({
+                          ...prev,
+                          verrannoScattateFoto: e.target.checked,
+                        }))
+                      }
+                      className="rounded"
+                    />
+                    <span>
+                      Verranno scattate foto durante l'evento (saranno usate sui
+                      social della parrocchia)
+                    </span>
+                  </label>
+                  <p className="text-sm text-muted-foreground">
+                    I genitori possono scegliere se accettare o meno la
+                    liberatoria foto durante l'iscrizione, ma l'accettazione non
+                    è obbligatoria per partecipare all'evento.
+                  </p>
+                </div>
+              </div>
+            </TabsContent>
+
+            <TabsContent value="media" className="space-y-4">
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label>Immagine Evento Principale</Label>
+                  <FileUpload
+                    onFileSelect={handleFileSelect}
+                    onFileRemove={handleFileRemove}
+                    accept="image/*"
+                    maxSize={5 * 1024 * 1024} // 5MB
+                    value={formData.immagine || formData.imageUrl}
+                    placeholder="Trascina qui un'immagine o clicca per caricarla"
+                    showPreview={true}
+                    disabled={
+                      updateEventMutation.isPending || fileUpload.isUploading
+                    }
+                    uploadProgress={fileUpload.uploadProgress}
+                    isUploading={fileUpload.isUploading}
+                    onValidationError={(error) => toast.error(error)}
+                  />
+                </div>
+                {fileUpload.isError && (
+                  <p className="text-sm text-destructive">
+                    {fileUpload.error?.message ||
+                      "Errore durante il caricamento"}
+                  </p>
+                )}
+              </div>
+            </TabsContent>
+          </Tabs>
+
+          <DialogFooter className="mt-6">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => onOpenChange(false)}
+              disabled={updateEventMutation.isPending}
+            >
+              Annulla
+            </Button>
+            <Button
+              type="submit"
+              disabled={updateEventMutation.isPending || fileUpload.isUploading}
+            >
+              {updateEventMutation.isPending || fileUpload.isUploading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  {fileUpload.isUploading ? "Caricamento..." : "Salvando..."}
+                </>
+              ) : (
+                "Salva Modifiche"
+              )}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
 }

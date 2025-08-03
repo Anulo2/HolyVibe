@@ -13,6 +13,7 @@ import { Route as ProfiloRouteImport } from './routes/profilo'
 import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as ParrocchieRouteImport } from './routes/parrocchie'
 import { Route as LoginRouteImport } from './routes/login'
+import { Route as IscrizioniRouteImport } from './routes/iscrizioni'
 import { Route as FamigliaRouteImport } from './routes/famiglia'
 import { Route as EventiRouteImport } from './routes/eventi'
 import { Route as DashboardRouteImport } from './routes/dashboard'
@@ -45,6 +46,11 @@ const ParrocchieRoute = ParrocchieRouteImport.update({
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const IscrizioniRoute = IscrizioniRouteImport.update({
+  id: '/iscrizioni',
+  path: '/iscrizioni',
   getParentRoute: () => rootRouteImport,
 } as any)
 const FamigliaRoute = FamigliaRouteImport.update({
@@ -119,6 +125,7 @@ export interface FileRoutesByFullPath {
   '/dashboard': typeof DashboardRoute
   '/eventi': typeof EventiRouteWithChildren
   '/famiglia': typeof FamigliaRoute
+  '/iscrizioni': typeof IscrizioniRoute
   '/login': typeof LoginRoute
   '/parrocchie': typeof ParrocchieRoute
   '/privacy': typeof PrivacyRoute
@@ -137,6 +144,7 @@ export interface FileRoutesByTo {
   '/dashboard': typeof DashboardRoute
   '/eventi': typeof EventiRouteWithChildren
   '/famiglia': typeof FamigliaRoute
+  '/iscrizioni': typeof IscrizioniRoute
   '/login': typeof LoginRoute
   '/parrocchie': typeof ParrocchieRoute
   '/privacy': typeof PrivacyRoute
@@ -157,6 +165,7 @@ export interface FileRoutesById {
   '/dashboard': typeof DashboardRoute
   '/eventi': typeof EventiRouteWithChildren
   '/famiglia': typeof FamigliaRoute
+  '/iscrizioni': typeof IscrizioniRoute
   '/login': typeof LoginRoute
   '/parrocchie': typeof ParrocchieRoute
   '/privacy': typeof PrivacyRoute
@@ -178,6 +187,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/eventi'
     | '/famiglia'
+    | '/iscrizioni'
     | '/login'
     | '/parrocchie'
     | '/privacy'
@@ -196,6 +206,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/eventi'
     | '/famiglia'
+    | '/iscrizioni'
     | '/login'
     | '/parrocchie'
     | '/privacy'
@@ -215,6 +226,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/eventi'
     | '/famiglia'
+    | '/iscrizioni'
     | '/login'
     | '/parrocchie'
     | '/privacy'
@@ -235,6 +247,7 @@ export interface RootRouteChildren {
   DashboardRoute: typeof DashboardRoute
   EventiRoute: typeof EventiRouteWithChildren
   FamigliaRoute: typeof FamigliaRoute
+  IscrizioniRoute: typeof IscrizioniRoute
   LoginRoute: typeof LoginRoute
   ParrocchieRoute: typeof ParrocchieRoute
   PrivacyRoute: typeof PrivacyRoute
@@ -270,6 +283,13 @@ declare module '@tanstack/react-router' {
       path: '/login'
       fullPath: '/login'
       preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/iscrizioni': {
+      id: '/iscrizioni'
+      path: '/iscrizioni'
+      fullPath: '/iscrizioni'
+      preLoaderRoute: typeof IscrizioniRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/famiglia': {
@@ -403,6 +423,7 @@ const rootRouteChildren: RootRouteChildren = {
   DashboardRoute: DashboardRoute,
   EventiRoute: EventiRouteWithChildren,
   FamigliaRoute: FamigliaRoute,
+  IscrizioniRoute: IscrizioniRoute,
   LoginRoute: LoginRoute,
   ParrocchieRoute: ParrocchieRoute,
   PrivacyRoute: PrivacyRoute,

@@ -4,10 +4,13 @@ import { orpc } from "@/lib/orpc-react";
 
 export function useAllAuthorizedPersons() {
   // Load family data
-  const { data: families = [], isLoading: familiesLoading } = useFamiliesQuery();
+  const { data: families = [], isLoading: familiesLoading } =
+    useFamiliesQuery();
 
   // Load authorized persons from ALL families with memoized keys
-  const familyIds = (families || []).map((family: any) => family.id).filter(Boolean);
+  const familyIds = (families || [])
+    .map((item: any) => item.family?.id)
+    .filter(Boolean);
 
   const personsQueries = useQueries({
     queries: familyIds.map((familyId: string) => ({
@@ -27,11 +30,11 @@ export function useAllAuthorizedPersons() {
     .filter((query) => query.isSuccess && query.data)
     .flatMap((query, index) => {
       const familyId = familyIds[index];
-      const family = families.find((f: any) => f.id === familyId);
+      const family = families.find((f: any) => f.family?.id === familyId);
       const persons = (query.data as any)?.data || [];
       return persons.map((person: any) => ({
         ...person,
-        familyName: family?.family?.name || family?.name || "Famiglia sconosciuta",
+        familyName: family?.family?.name || "Famiglia sconosciuta",
       }));
     });
 

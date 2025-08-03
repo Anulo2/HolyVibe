@@ -4,10 +4,13 @@ import { orpc } from "@/lib/orpc-react";
 
 export function useAllChildren() {
   // Load family data
-  const { data: families = [], isLoading: familiesLoading } = useFamiliesQuery();
+  const { data: families = [], isLoading: familiesLoading } =
+    useFamiliesQuery();
 
   // Load children from ALL families with memoized keys
-  const familyIds = (families || []).map((family: any) => family.id).filter(Boolean);
+  const familyIds = (families || [])
+    .map((item: any) => item.family?.id)
+    .filter(Boolean);
 
   const childrenQueries = useQueries({
     queries: familyIds.map((familyId: string) => ({
@@ -27,11 +30,11 @@ export function useAllChildren() {
     .filter((query) => query.isSuccess && query.data)
     .flatMap((query, index) => {
       const familyId = familyIds[index];
-      const family = families.find((f: any) => f.id === familyId);
+      const family = families.find((f: any) => f.family?.id === familyId);
       const children = (query.data as any)?.data || [];
       return children.map((child: any) => ({
         ...child,
-        familyName: family?.family?.name || family?.name || "Famiglia sconosciuta",
+        familyName: family?.family?.name || "Famiglia sconosciuta",
       }));
     });
 
@@ -58,7 +61,9 @@ export function useAllChildren() {
 
   // Get eligible children for a specific event
   const getEligibleChildren = (minAge = 0, maxAge = 100) => {
-    return allChildren.filter((child) => isChildEligible(child.birthDate, minAge, maxAge));
+    return allChildren.filter((child) =>
+      isChildEligible(child.birthDate, minAge, maxAge),
+    );
   };
 
   return {

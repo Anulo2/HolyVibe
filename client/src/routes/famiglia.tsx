@@ -13,10 +13,10 @@ import {
   useFamiliesQuery,
   useFamilyAuthorizedPersonsQuery,
   useFamilyChildrenQuery,
-  useSendInvitationMutation,
   useUpdateAuthorizedPersonMutation,
   useUpdateFamilyMutation,
-} from "../hooks/useFamily";
+} from "../hooks/useFamilyQuery";
+import { useSendInvitationMutation } from "../hooks/useFamily";
 
 export const Route = createFileRoute("/famiglia")({
   beforeLoad: ({ context }) => {
@@ -44,9 +44,10 @@ function FamigliaComponent() {
   const [editingPerson, setEditingPerson] = useState<any>(null);
   const [selectedFamilyId, setSelectedFamilyId] = useState<string>("");
 
-  // Use the new oRPC hooks
-  const { data: families = [], isLoading: familiesLoading } =
+  // Use the new oRPC hooks - filter out null families
+  const { data: familiesRaw = [], isLoading: familiesLoading } =
     useFamiliesQuery();
+  const families = familiesRaw.filter((familyData: any) => familyData.family);
   const { mutateAsync: createFamily } = useCreateFamilyMutation();
   const { mutateAsync: updateFamily } = useUpdateFamilyMutation();
   const { mutateAsync: sendInvitation } = useSendInvitationMutation();
@@ -73,13 +74,16 @@ function FamigliaComponent() {
 
     // Check if current selection is valid
     const currentFamilyExists =
-      selectedFamilyId && families.find((f) => f && f.id === selectedFamilyId);
+      selectedFamilyId &&
+      families.find((f) => f && f.family && f.family.id === selectedFamilyId);
 
     if (!selectedFamilyId || !currentFamilyExists) {
       // No selection or invalid selection, select first family
-      const firstValidFamily = families.find((f) => f && f.id);
+      const firstValidFamily = families.find(
+        (f) => f && f.family && f.family.id,
+      );
       if (firstValidFamily) {
-        setSelectedFamilyId(firstValidFamily.id);
+        setSelectedFamilyId(firstValidFamily.family.id);
       }
     }
   }, [families, selectedFamilyId]);
@@ -248,32 +252,37 @@ function FamigliaComponent() {
           {Array.isArray(families) && families.length > 0 ? (
             <div className="grid gap-2 md:grid-cols-3">
               {families
-                .filter((family: any) => family && family.id)
-                .map((family: any) => (
+                .filter(
+                  (familyData: any) =>
+                    familyData && familyData.family && familyData.family.id,
+                )
+                .map((familyData: any) => (
                   <div
-                    key={family.id}
+                    key={familyData.family.id}
                     onClick={() => {
-                      setSelectedFamilyId(family.id);
+                      setSelectedFamilyId(familyData.family.id);
                     }}
                     className={`rounded-md border p-3 text-left transition-colors hover:bg-accent cursor-pointer ${
-                      selectedFamilyId === family.id
+                      selectedFamilyId === familyData.family.id
                         ? "border-primary bg-accent"
                         : ""
                     }`}
                   >
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
-                        <h4 className="font-medium">{family.name}</h4>
-                        {family.description && (
+                        <h4 className="font-medium">
+                          {familyData.family.name}
+                        </h4>
+                        {familyData.family.description && (
                           <p className="text-sm text-muted-foreground">
-                            {family.description}
+                            {familyData.family.description}
                           </p>
                         )}
                       </div>
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
-                          handleEditFamily(family);
+                          setEditingFamily(familyData.family);
                         }}
                         className="ml-2 rounded-md p-1 text-muted-foreground hover:bg-accent"
                       >
@@ -455,7 +464,9 @@ function FamigliaComponent() {
         onOpenChange={setShowInviteParentDialog}
         famiglia={
           Array.isArray(families)
-            ? families.find((f: any) => f && f.id === selectedFamilyId)
+            ? families.find(
+                (f: any) => f && f.family && f.family.id === selectedFamilyId,
+              )?.family
             : undefined
         }
       />

@@ -29,7 +29,7 @@ export const app = new Elysia()
   .use(swagger())
   .use(
     staticPlugin({
-      assets: "./uploads",
+      assets: "uploads",
       prefix: "/uploads",
     }),
   )

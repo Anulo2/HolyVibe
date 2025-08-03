@@ -79,23 +79,26 @@ export default function Dashboard() {
   // Cancel registration mutation
   const cancelRegistrationMutation = useCancelRegistrationMutation();
 
-  const totalFamilies = families.length;
-  const totalChildren = families.reduce(
+  // Filter out any families where family data is null
+  const validFamilies = families.filter((familyData: any) => familyData.family);
+
+  const totalFamilies = validFamilies.length;
+  const totalChildren = validFamilies.reduce(
     (acc: number, familyData: any) =>
       acc + (familyData.family._count?.children || 0),
     0,
   );
-  const totalPersons = families.reduce(
+  const totalPersons = validFamilies.reduce(
     (acc: number, familyData: any) =>
       acc + (familyData.family._count?.authorizedPersons || 0),
     0,
   );
 
   useEffect(() => {
-    if (!selectedFamilyId && families.length > 0) {
-      setSelectedFamilyId(families[0].family.id);
+    if (!selectedFamilyId && validFamilies.length > 0) {
+      setSelectedFamilyId(validFamilies[0].family.id);
     }
-  }, [families, selectedFamilyId]);
+  }, [validFamilies, selectedFamilyId]);
 
   const handleCreateFamilySubmit = async (data: {
     name: string;
@@ -274,9 +277,9 @@ export default function Dashboard() {
             <div className="flex items-center justify-center p-8">
               <Loader2 className="h-8 w-8 animate-spin" />
             </div>
-          ) : families.length > 0 ? (
+          ) : validFamilies.length > 0 ? (
             <div className="grid gap-4 md:grid-cols-2">
-              {families.map((familyData: any) => (
+              {validFamilies.map((familyData: any) => (
                 <div
                   key={familyData.family.id}
                   className={cn(

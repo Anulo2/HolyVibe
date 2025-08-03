@@ -3,6 +3,7 @@
 import {
   AlertCircle,
   CalendarDays,
+  CheckCircle,
   Loader2,
   MapPin,
   Users,
@@ -62,7 +63,8 @@ function ChildRegistrationCard({
       !!evento?.id && !!child.id,
     );
 
-  const isAlreadyRegistered = !!existingRegistration;
+  const isAlreadyRegistered =
+    !!existingRegistration && existingRegistration.status !== "cancelled";
   const canSelect = eligible && !isAlreadyRegistered;
 
   const getStatusText = () => {
@@ -74,7 +76,7 @@ function ChildRegistrationCard({
           pending: "già iscritto (in attesa)",
           confirmed: "già iscritto (confermato)",
           waitlist: "già iscritto (lista d'attesa)",
-          cancelled: "iscrizione annullata",
+          cancelled: "può reiscriversi (precedente iscrizione annullata)",
         }[status] || "già iscritto";
       return statusText;
     }
@@ -91,7 +93,7 @@ function ChildRegistrationCard({
         isSelected
           ? "border-primary bg-primary/5"
           : "border-muted hover:border-primary/50"
-      } ${isAlreadyRegistered ? "bg-amber-50 border-amber-200" : ""}`}
+      } ${isAlreadyRegistered ? "bg-amber-50 border-amber-200" : ""} ${existingRegistration?.status === "cancelled" ? "bg-green-50 border-green-200" : ""}`}
       onClick={() => canSelect && onSelect()}
     >
       <Avatar>
@@ -104,6 +106,15 @@ function ChildRegistrationCard({
           {age} anni • {child.familyName}
           {statusText && ` - ${statusText}`}
         </p>
+        {existingRegistration &&
+          existingRegistration.status === "cancelled" && (
+            <div className="flex items-center gap-1 mt-1">
+              <CheckCircle className="h-3 w-3 text-green-600" />
+              <span className="text-xs text-green-700">
+                Può iscriversi nuovamente (precedente iscrizione annullata)
+              </span>
+            </div>
+          )}
         {isAlreadyRegistered && (
           <div className="flex items-center gap-1 mt-1">
             <AlertCircle className="h-3 w-3 text-amber-600" />

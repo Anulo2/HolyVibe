@@ -1,5 +1,5 @@
 import { ORPCError, os } from "@orpc/server";
-import { and, desc, eq, inArray, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, ne, sql } from "drizzle-orm";
 import { nanoid } from "nanoid";
 import { z } from "zod";
 import { db } from "../db";
@@ -455,6 +455,52 @@ export const registrationsRouter = os.router({
       const userId = context.user.id;
 
       try {
+        // Get event and its creator's organization
+        const eventWithCreator = await db
+          .select({
+            event: events,
+            organizationId: organizationMember.organizationId,
+          })
+          .from(events)
+          .innerJoin(
+            organizationMember,
+            eq(events.createdBy, organizationMember.userId),
+          )
+          .where(eq(events.id, input.eventId))
+          .limit(1);
+
+        if (eventWithCreator.length === 0) {
+          throw new ORPCError("NOT_FOUND", {
+            message: "Event not found or not associated with any organization",
+          });
+        }
+
+        const eventOrganizationId = eventWithCreator[0].organizationId;
+
+        // Check if parent is already in the organization
+        const parentMembership = await db
+          .select()
+          .from(organizationMember)
+          .where(
+            and(
+              eq(organizationMember.userId, userId),
+              eq(organizationMember.organizationId, eventOrganizationId),
+            ),
+          )
+          .limit(1);
+
+        // If parent is not in organization, add them with "genitore" role
+        if (parentMembership.length === 0) {
+          await db.insert(organizationMember).values({
+            id: nanoid(),
+            organizationId: eventOrganizationId,
+            userId: userId,
+            role: "genitore",
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          });
+        }
+
         // Verify child belongs to user's family
         const childFamily = await db
           .select()
@@ -477,7 +523,7 @@ export const registrationsRouter = os.router({
           });
         }
 
-        // Check if child is already registered for this event
+        // Check if child is already registered for this event (excluding cancelled registrations)
         const existingRegistration = await db
           .select()
           .from(eventRegistrations)
@@ -485,6 +531,7 @@ export const registrationsRouter = os.router({
             and(
               eq(eventRegistrations.eventId, input.eventId),
               eq(eventRegistrations.childId, input.childId),
+              ne(eventRegistrations.status, "cancelled"), // Exclude cancelled registrations
             ),
           )
           .limit(1);

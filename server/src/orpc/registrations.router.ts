@@ -271,7 +271,15 @@ export const registrationsRouter = os.router({
                   },
               authorizedPersons:
                 authorizedPersonsMap.get(item.registration.id) || [],
-              canExitAlone: item.registration.canExitAlone,
+              canExitAlone: (() => {
+                console.log(
+                  "🔍 List endpoint - Registration ID:",
+                  item.registration.id,
+                  "canExitAlone:",
+                  item.registration.canExitAlone,
+                );
+                return item.registration.canExitAlone;
+              })(),
               allowedExitLocations: item.registration.allowedExitLocations
                 ? JSON.parse(item.registration.allowedExitLocations)
                 : [],
@@ -294,7 +302,7 @@ export const registrationsRouter = os.router({
   // Get single registration
   get: withAuth
     .input(z.object({ id: z.string() }))
-    .output(SuccessResponse(RegistrationWithDetails))
+    .output(z.any())
     .handler(async ({ input }) => {
       try {
         // Get registration with related data
@@ -455,6 +463,116 @@ export const registrationsRouter = os.router({
             canExitAlone: item.registration.canExitAlone,
             allowedExitLocations: item.registration.allowedExitLocations
               ? JSON.parse(item.registration.allowedExitLocations)
+              : [],
+            locationAuthorizations: locationAuthorizationsData.map((auth) => ({
+              id: auth.id,
+              authorizedPersonId: auth.authorizedPersonId,
+              location: auth.location,
+              canPickup: auth.canPickup,
+            })),
+          },
+        };
+
+        console.log(
+          "🔍 Get endpoint - Registration ID:",
+          item.registration.id,
+          "canExitAlone:",
+          item.registration.canExitAlone,
+        );
+
+        return {
+          success: true,
+          data: {
+            id: item.registration.id,
+            eventId: item.registration.eventId,
+            status: item.registration.status,
+            paymentStatus: item.registration.paymentStatus,
+            registrationDate: new Date(
+              item.registration.registrationDate,
+            ).toISOString(),
+            notes: item.registration.notes,
+            photoPrivacyConsent: item.registration.photoPrivacyConsent,
+            dataPrivacyConsent: item.registration.dataPrivacyConsent,
+            createdAt: new Date(item.registration.createdAt).toISOString(),
+            updatedAt: new Date(item.registration.updatedAt).toISOString(),
+            child: item.child
+              ? {
+                  id: item.child!.id,
+                  firstName: item.child!.firstName,
+                  lastName: item.child!.lastName,
+                  birthDate: new Date(item.child!.birthDate).toISOString(),
+                  allergies: item.child!.allergies,
+                  medicalNotes: item.child!.medicalNotes,
+                }
+              : {
+                  id: "",
+                  firstName: "",
+                  lastName: "",
+                  birthDate: "",
+                  allergies: null,
+                  medicalNotes: null,
+                },
+            parent: item.parent
+              ? {
+                  id: item.parent!.id,
+                  name: item.parent!.name || "",
+                  email: item.parent!.email,
+                  phoneNumber: item.parent!.phoneNumber,
+                }
+              : {
+                  id: "",
+                  name: "",
+                  email: "",
+                  phoneNumber: null,
+                },
+            parents: familyParents
+              .filter((parent) => parent.user)
+              .map((parent) => ({
+                id: parent.user!.id,
+                name: parent.user!.name || "",
+                email: parent.user!.email,
+                phoneNumber: parent.user!.phoneNumber,
+              })),
+            event: item.event
+              ? {
+                  id: item.event!.id,
+                  title: item.event!.title,
+                  startDate: new Date(item.event!.startDate).toISOString(),
+                  endDate: item.event!.endDate
+                    ? new Date(item.event!.endDate!).toISOString()
+                    : null,
+                  price: item.event!.price,
+                  locations: item.event!.locations,
+                }
+              : {
+                  id: "",
+                  title: "",
+                  startDate: "",
+                  endDate: null,
+                  price: null,
+                  locations: "",
+                },
+            family: item.family
+              ? {
+                  id: item.family!.id,
+                  name: item.family!.name,
+                }
+              : {
+                  id: "",
+                  name: "",
+                },
+            authorizedPersons: authorizedPersonsData
+              .filter((item) => item.person)
+              .map((item) => ({
+                id: item.person!.id,
+                fullName: item.person!.fullName,
+                relationship: item.person!.relationship,
+                phone: item.person!.phone,
+                email: item.person!.email,
+              })),
+            canExitAlone: item.registration.canExitAlone,
+            allowedExitLocations: item.registration.allowedExitLocations
+              ? JSON.parse(item.registration.allowedExitLocations!)
               : [],
             locationAuthorizations: locationAuthorizationsData.map((auth) => ({
               id: auth.id,

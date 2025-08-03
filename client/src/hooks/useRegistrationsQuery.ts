@@ -38,13 +38,15 @@ export const useRegistrationsQuery = (
 // Hook for fetching single registration details
 export const useRegistrationQuery = (id: string) => {
   return useQuery<RegistrationWithDetails>({
-    queryKey: ["registrations", "details", id],
+    queryKey: ["registrations", "details", id, Date.now()], // Force refresh
     queryFn: async () => {
+      console.log("🔍 CLIENT DEBUG: Calling registrations.get for id:", id);
       const response = await orpc.registrations.get({ id });
+      console.log("🔍 CLIENT DEBUG: Registration response:", response.data);
       return response.data as RegistrationWithDetails;
     },
     enabled: !!id,
-    staleTime: 5 * 60 * 1000, // 5 minutes
+    staleTime: 0, // Disable cache temporarily
   });
 };
 

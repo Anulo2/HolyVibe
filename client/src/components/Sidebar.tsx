@@ -6,6 +6,7 @@ import {
 	Calendar,
 	LayoutDashboard,
 	Settings,
+	Shield,
 	UserCheck,
 	Users,
 } from "lucide-react";
@@ -171,6 +172,27 @@ export function Sidebar() {
 						})}
 					</>
 				)}
+
+				{/* Privacy and legal section */}
+				<hr className="my-4 border-border" />
+				<div className="px-3 py-2">
+					<span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+						Informazioni
+					</span>
+				</div>
+
+				<Link
+					to="/privacy"
+					className={cn(
+						"flex w-full items-center space-x-3 rounded-md px-3 py-2 text-left text-sm transition-colors",
+						currentPath === "/privacy"
+							? "bg-primary text-primary-foreground"
+							: "hover:bg-accent",
+					)}
+				>
+					<Shield size={16} />
+					<span>Privacy Policy</span>
+				</Link>
 			</nav>
 		</aside>
 	);

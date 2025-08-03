@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as ProfiloRouteImport } from './routes/profilo'
+import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as ParrocchieRouteImport } from './routes/parrocchie'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as FamigliaRouteImport } from './routes/famiglia'
@@ -29,6 +30,11 @@ import { Route as AdminEventiRouteImport } from './routes/admin/eventi'
 const ProfiloRoute = ProfiloRouteImport.update({
   id: '/profilo',
   path: '/profilo',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PrivacyRoute = PrivacyRouteImport.update({
+  id: '/privacy',
+  path: '/privacy',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ParrocchieRoute = ParrocchieRouteImport.update({
@@ -115,6 +121,7 @@ export interface FileRoutesByFullPath {
   '/famiglia': typeof FamigliaRoute
   '/login': typeof LoginRoute
   '/parrocchie': typeof ParrocchieRoute
+  '/privacy': typeof PrivacyRoute
   '/profilo': typeof ProfiloRoute
   '/admin/eventi': typeof AdminEventiRoute
   '/admin/impostazioni': typeof AdminImpostazioniRoute
@@ -132,6 +139,7 @@ export interface FileRoutesByTo {
   '/famiglia': typeof FamigliaRoute
   '/login': typeof LoginRoute
   '/parrocchie': typeof ParrocchieRoute
+  '/privacy': typeof PrivacyRoute
   '/profilo': typeof ProfiloRoute
   '/admin/eventi': typeof AdminEventiRoute
   '/admin/impostazioni': typeof AdminImpostazioniRoute
@@ -151,6 +159,7 @@ export interface FileRoutesById {
   '/famiglia': typeof FamigliaRoute
   '/login': typeof LoginRoute
   '/parrocchie': typeof ParrocchieRoute
+  '/privacy': typeof PrivacyRoute
   '/profilo': typeof ProfiloRoute
   '/admin/eventi': typeof AdminEventiRoute
   '/admin/impostazioni': typeof AdminImpostazioniRoute
@@ -171,6 +180,7 @@ export interface FileRouteTypes {
     | '/famiglia'
     | '/login'
     | '/parrocchie'
+    | '/privacy'
     | '/profilo'
     | '/admin/eventi'
     | '/admin/impostazioni'
@@ -188,6 +198,7 @@ export interface FileRouteTypes {
     | '/famiglia'
     | '/login'
     | '/parrocchie'
+    | '/privacy'
     | '/profilo'
     | '/admin/eventi'
     | '/admin/impostazioni'
@@ -206,6 +217,7 @@ export interface FileRouteTypes {
     | '/famiglia'
     | '/login'
     | '/parrocchie'
+    | '/privacy'
     | '/profilo'
     | '/admin/eventi'
     | '/admin/impostazioni'
@@ -225,6 +237,7 @@ export interface RootRouteChildren {
   FamigliaRoute: typeof FamigliaRoute
   LoginRoute: typeof LoginRoute
   ParrocchieRoute: typeof ParrocchieRoute
+  PrivacyRoute: typeof PrivacyRoute
   ProfiloRoute: typeof ProfiloRoute
   InvitiAccettaRoute: typeof InvitiAccettaRoute
 }
@@ -236,6 +249,13 @@ declare module '@tanstack/react-router' {
       path: '/profilo'
       fullPath: '/profilo'
       preLoaderRoute: typeof ProfiloRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/privacy': {
+      id: '/privacy'
+      path: '/privacy'
+      fullPath: '/privacy'
+      preLoaderRoute: typeof PrivacyRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/parrocchie': {
@@ -385,6 +405,7 @@ const rootRouteChildren: RootRouteChildren = {
   FamigliaRoute: FamigliaRoute,
   LoginRoute: LoginRoute,
   ParrocchieRoute: ParrocchieRoute,
+  PrivacyRoute: PrivacyRoute,
   ProfiloRoute: ProfiloRoute,
   InvitiAccettaRoute: InvitiAccettaRoute,
 }

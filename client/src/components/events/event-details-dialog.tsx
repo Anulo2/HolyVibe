@@ -102,7 +102,7 @@ export function EventDetailsDialog({
 								<img
 									src={event.imageUrl}
 									alt={event.title}
-									className="w-full h-64 lg:h-80 object-cover rounded-lg"
+									className="w-full h-full  object-cover rounded-lg"
 								/>
 							</div>
 						)}
@@ -305,6 +305,44 @@ export function EventDetailsDialog({
 							<p className="text-muted-foreground whitespace-pre-wrap bg-background p-4 rounded">
 								{event.parentNotes}
 							</p>
+						</div>
+					)}
+
+					{/* Dichiarazione Foto/Video dell'Organizzazione */}
+					{event.willTakePhotos && event.organization?.photoVideoMinorsDeclaration && (
+						<div className="bg-purple-50 dark:bg-purple-950/20 p-6 rounded-lg border border-purple-200 dark:border-purple-800">
+							<h4 className="font-semibold mb-3 text-lg flex items-center gap-2 text-purple-700 dark:text-purple-300">
+								<div className="text-2xl">📸</div>
+								Dichiarazione Autorizzazione Foto/Video Minorenni
+							</h4>
+							<div className="text-sm text-muted-foreground bg-background p-4 rounded whitespace-pre-wrap">
+								{event.organization.photoVideoMinorsDeclaration}
+							</div>
+							<div className="mt-3 text-xs text-purple-600 dark:text-purple-400">
+								Dichiarazione di: {event.organization.name}
+							</div>
+						</div>
+					)}
+
+					{/* Dichiarazione generica se l'organizzazione non ha una specifica */}
+					{event.willTakePhotos && (!event.organization?.photoVideoMinorsDeclaration) && (
+						<div className="bg-purple-50 dark:bg-purple-950/20 p-6 rounded-lg border border-purple-200 dark:border-purple-800">
+							<h4 className="font-semibold mb-3 text-lg flex items-center gap-2 text-purple-700 dark:text-purple-300">
+								<div className="text-2xl">📸</div>
+								Informativa Foto/Video
+							</h4>
+							<div className="text-sm text-muted-foreground bg-background p-4 rounded">
+								<p className="mb-2">
+									Durante questo evento verranno scattate foto e/o video che potrebbero includere i partecipanti minorenni.
+								</p>
+								<p className="mb-2">
+									Durante la registrazione, i genitori potranno autorizzare o negare il consenso per il trattamento
+									delle immagini del proprio figlio/figlia secondo le finalità specificate dall'organizzazione.
+								</p>
+								<p className="text-xs text-purple-600 dark:text-purple-400">
+									Per maggiori dettagli, contattare direttamente l'organizzazione.
+								</p>
+							</div>
 						</div>
 					)}
 

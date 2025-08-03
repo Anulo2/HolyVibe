@@ -24,6 +24,7 @@ import {
 	Mail,
 	MoreHorizontal,
 	Phone,
+	Plus,
 	RefreshCcw,
 	Trash2,
 	Users,
@@ -31,6 +32,7 @@ import {
 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
+import { AdminManualRegistrationDialog } from "@/components/admin/admin-manual-registration-dialog";
 import { DataTableColumnHeader } from "@/components/admin/data-table-column-header";
 import { DataTablePagination } from "@/components/admin/data-table-pagination";
 import { DataTableToolbar } from "@/components/admin/data-table-toolbar";
@@ -953,13 +955,22 @@ function IscrizioniPage() {
 
 				{/* Registrations Table */}
 				<Card>
-					<CardHeader>
-						<CardTitle>Iscrizioni</CardTitle>
-						<CardDescription>
-							{table.getRowModel().rows.length} di {filteredRowCount} iscrizioni
-							{filteredRowCount !== registrations.length &&
-								` (filtrate da ${registrations.length})`}
-						</CardDescription>
+					<CardHeader className="flex flex-row items-center justify-between space-y-0">
+						<div>
+							<CardTitle>Iscrizioni</CardTitle>
+							<CardDescription>
+								{table.getRowModel().rows.length} di {filteredRowCount}{" "}
+								iscrizioni
+								{filteredRowCount !== registrations.length &&
+									` (filtrate da ${registrations.length})`}
+							</CardDescription>
+						</div>
+						<AdminManualRegistrationDialog>
+							<Button>
+								<Plus className="h-4 w-4 mr-2" />
+								Aggiungi Iscrizione
+							</Button>
+						</AdminManualRegistrationDialog>
 					</CardHeader>
 					<CardContent>
 						{isLoading ? (

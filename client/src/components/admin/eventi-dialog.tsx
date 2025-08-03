@@ -61,6 +61,8 @@ export function EventiDialog({
 		status: "draft",
 		imageUrl: "",
 		imageFile: null as File | null,
+		willTakePhotos: false,
+		photosForSocialMedia: false,
 	});
 
 	const updateEventMutation = useUpdateEventMutation();
@@ -93,6 +95,8 @@ export function EventiDialog({
 				status: evento.status || "draft",
 				imageUrl: evento.imageUrl || "",
 				imageFile: null,
+				willTakePhotos: evento.willTakePhotos || false,
+				photosForSocialMedia: evento.photosForSocialMedia || false,
 			});
 		} else if (!evento && open) {
 			// Reset form for new event (though this dialog is primarily for editing)
@@ -110,6 +114,8 @@ export function EventiDialog({
 				status: "draft",
 				imageUrl: "",
 				imageFile: null,
+				willTakePhotos: false,
+				photosForSocialMedia: false,
 			});
 		}
 	}, [evento, open]);
@@ -182,6 +188,8 @@ export function EventiDialog({
 				imageUrl: formData.imageFile
 					? undefined
 					: formData.imageUrl || undefined,
+				willTakePhotos: formData.willTakePhotos,
+				photosForSocialMedia: formData.photosForSocialMedia,
 			};
 
 			await updateEventMutation.mutateAsync(updateData);
@@ -439,6 +447,50 @@ export function EventiDialog({
 								{fileUpload.error?.message || "Errore durante il caricamento"}
 							</p>
 						)}
+					</div>
+
+					<div className="space-y-3 border-t pt-4">
+						<h4 className="text-sm font-medium">Gestione Foto</h4>
+
+						<div>
+							<label className="flex items-center space-x-2">
+								<input
+									type="checkbox"
+									checked={formData.willTakePhotos}
+									onChange={(e) =>
+										setFormData((prev) => ({
+											...prev,
+											willTakePhotos: e.target.checked,
+											photosForSocialMedia: e.target.checked ? prev.photosForSocialMedia : false,
+										}))
+									}
+									className="rounded"
+								/>
+								<span className="text-sm">
+									Saranno scattate foto durante l'evento
+								</span>
+							</label>
+						</div>
+
+						<div>
+							<label className="flex items-center space-x-2">
+								<input
+									type="checkbox"
+									checked={formData.photosForSocialMedia}
+									onChange={(e) =>
+										setFormData((prev) => ({
+											...prev,
+											photosForSocialMedia: e.target.checked,
+										}))
+									}
+									className="rounded"
+									disabled={!formData.willTakePhotos}
+								/>
+								<span className={`text-sm ${!formData.willTakePhotos ? "text-gray-400" : ""}`}>
+									Le foto verranno usate per i canali social della parrocchia
+								</span>
+							</label>
+						</div>
 					</div>
 
 					<DialogFooter className="mt-6">

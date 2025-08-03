@@ -37,7 +37,7 @@ interface ExtendedEventDetails {
 	description: string;
 	startDate: string;
 	endDate?: string;
-	location: string;
+	locations: string[];
 	minAge: number;
 	maxAge: number;
 	maxParticipants: number;
@@ -63,6 +63,7 @@ interface ExtendedEventDetails {
 	cancellationPolicy?: string;
 	photographyConsent?: boolean;
 	additionalImages?: string;
+	createdBy: string;
 	createdAt: string;
 	updatedAt: string;
 }
@@ -169,7 +170,7 @@ export function EventDetailsExtended({
 											<MapPin className="h-5 w-5 flex-shrink-0" />
 											<div>
 												<div className="font-medium text-foreground">
-													{event.location}
+													{event.locations.join(", ")}
 												</div>
 											</div>
 										</div>
@@ -517,7 +518,7 @@ export function EventDetailsExtended({
 									)}
 									{additionalImages.map((imageUrl: string, index: number) => (
 										<div
-											key={index}
+											key={`image-${imageUrl}-${index}`}
 											className="relative rounded-lg overflow-hidden"
 										>
 											<img

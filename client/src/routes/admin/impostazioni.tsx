@@ -105,6 +105,7 @@ function ImpostazioniPage() {
 		website: "",
 		logo: "",
 		description: "",
+		photoVideoMinorsDeclaration: "",
 	});
 
 	// Event Settings
@@ -389,6 +390,28 @@ function ImpostazioniPage() {
 												placeholder="Breve descrizione della parrocchia..."
 												rows={3}
 											/>
+										</div>
+
+										<div className="space-y-2">
+											<Label htmlFor="photoVideoMinorsDeclaration">
+												Dichiarazione Autorizzazione Foto/Video Minorenni
+											</Label>
+											<Textarea
+												id="photoVideoMinorsDeclaration"
+												value={parishForm.photoVideoMinorsDeclaration || ""}
+												onChange={(e) =>
+													setParishForm({
+														...parishForm,
+														photoVideoMinorsDeclaration: e.target.value,
+													})
+												}
+												placeholder="Inserisci qui la dichiarazione specifica della tua parrocchia per l'autorizzazione al trattamento di foto e video dei minorenni..."
+												rows={6}
+											/>
+											<p className="text-xs text-muted-foreground">
+												Questa dichiarazione verrà mostrata nei dettagli degli eventi e durante la registrazione.
+												Se lasciata vuota, verrà utilizzata una dichiarazione generica.
+											</p>
 										</div>
 
 										<Button

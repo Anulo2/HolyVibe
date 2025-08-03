@@ -59,7 +59,7 @@ interface Child {
 	birthDate: string;
 	birthPlace?: string;
 	fiscalCode?: string;
-	gender?: "M" | "F" | "A";
+	gender?: "M" | "F";
 	allergies?: string;
 	medicalNotes?: string;
 	familyId: string;
@@ -86,7 +86,7 @@ export function AggiungiModificaFiglioDialog({
 		birthDate: null as Date | null,
 		birthPlace: "",
 		fiscalCode: "",
-		gender: "" as "" | "M" | "F" | "A",
+		gender: "" as "" | "M" | "F",
 		allergies: "",
 		medicalNotes: "",
 	});
@@ -172,7 +172,9 @@ export function AggiungiModificaFiglioDialog({
 			newErrors.gender = "Il genere è obbligatorio";
 		}
 
-		if (formData.fiscalCode && formData.fiscalCode.length !== 16) {
+		if (!formData.fiscalCode.trim()) {
+			newErrors.fiscalCode = "Il codice fiscale è obbligatorio";
+		} else if (formData.fiscalCode.length !== 16) {
 			newErrors.fiscalCode = "Il codice fiscale deve essere di 16 caratteri";
 		}
 
@@ -196,9 +198,8 @@ export function AggiungiModificaFiglioDialog({
 				lastName: formData.lastName.trim(),
 				birthDate: formatDateForSubmission(formData.birthDate!), // Format as YYYY-MM-DD
 				birthPlace: formData.birthPlace.trim() || undefined,
-				fiscalCode: formData.fiscalCode.trim() || undefined,
-				gender:
-					formData.gender === "A" ? "O" : (formData.gender as "M" | "F" | "O"),
+				fiscalCode: formData.fiscalCode.trim(),
+				gender: formData.gender as "M" | "F",
 				allergies: formData.allergies.trim() || undefined,
 				medicalNotes: formData.medicalNotes.trim() || undefined,
 			};
@@ -211,11 +212,8 @@ export function AggiungiModificaFiglioDialog({
 					lastName: formData.lastName.trim(),
 					birthDate: formatDateForSubmission(formData.birthDate!),
 					birthPlace: formData.birthPlace.trim() || undefined,
-					fiscalCode: formData.fiscalCode.trim() || undefined,
-					gender:
-						formData.gender === "A"
-							? "O"
-							: (formData.gender as "M" | "F" | "O"),
+					fiscalCode: formData.fiscalCode.trim(),
+					gender: formData.gender as "M" | "F",
 					allergies: formData.allergies.trim() || undefined,
 					medicalNotes: formData.medicalNotes.trim() || undefined,
 				};
@@ -381,7 +379,7 @@ export function AggiungiModificaFiglioDialog({
 																"Dicembre",
 															].map((month, index) => (
 																<SelectItem
-																	key={index}
+																	key={month}
 																	value={index.toString()}
 																>
 																	{month}
@@ -422,7 +420,6 @@ export function AggiungiModificaFiglioDialog({
 										<SelectContent>
 											<SelectItem value="M">Maschio</SelectItem>
 											<SelectItem value="F">Femmina</SelectItem>
-											<SelectItem value="A">Altro</SelectItem>
 										</SelectContent>
 									</Select>
 									{errors.gender && (
@@ -443,12 +440,12 @@ export function AggiungiModificaFiglioDialog({
 							</div>
 
 							<div className="space-y-2">
-								<Label htmlFor="fiscalCode">Codice Fiscale</Label>
+								<Label htmlFor="fiscalCode">Codice Fiscale *</Label>
 								<Input
 									id="fiscalCode"
 									value={formData.fiscalCode}
 									onChange={handleChange("fiscalCode")}
-									placeholder="Codice fiscale (opzionale)"
+									placeholder="Codice fiscale"
 									maxLength={16}
 									className={cn(
 										"uppercase",
@@ -460,7 +457,7 @@ export function AggiungiModificaFiglioDialog({
 									<p className="text-sm text-red-600">{errors.fiscalCode}</p>
 								)}
 								<p className="text-xs text-muted-foreground">
-									Inserisci il codice fiscale di 16 caratteri (opzionale)
+									Inserisci il codice fiscale di 16 caratteri
 								</p>
 							</div>
 						</TabsContent>

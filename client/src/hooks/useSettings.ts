@@ -12,6 +12,7 @@ export interface ParishSettings {
 	website?: string;
 	logo?: string;
 	description?: string;
+	photoVideoMinorsDeclaration?: string;
 }
 
 export interface Organization {

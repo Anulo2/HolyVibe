@@ -10,7 +10,9 @@ import {
 	events,
 	families,
 	familyMembers,
+	organizationMember,
 	registrationAuthorizedPersons,
+	registrationLocationAuthorizations,
 	user as userTable,
 } from "../db/schema";
 import { SuccessResponse } from "./helpers";
@@ -356,6 +358,20 @@ export const registrationsRouter = os.router({
 				eventId: z.string(),
 				childId: z.string(),
 				notes: z.string().optional(),
+				photoPrivacyConsent: z.boolean().default(true),
+				dataPrivacyConsent: z.boolean().default(true),
+				canExitAlone: z.boolean().default(false),
+				allowedExitLocations: z.array(z.string()).optional(),
+				authorizedPersonIds: z.array(z.string()).optional(),
+				locationAuthorizations: z
+					.array(
+						z.object({
+							authorizedPersonId: z.string(),
+							location: z.string(),
+							canPickup: z.boolean().default(true),
+						}),
+					)
+					.optional(),
 			}),
 		)
 		.output(
@@ -401,8 +417,45 @@ export const registrationsRouter = os.router({
 					parentId: userId,
 					status: "pending",
 					notes: input.notes || null,
+					photoPrivacyConsent: input.photoPrivacyConsent,
+					dataPrivacyConsent: input.dataPrivacyConsent,
+					canExitAlone: input.canExitAlone,
+					allowedExitLocations: input.allowedExitLocations
+						? JSON.stringify(input.allowedExitLocations)
+						: null,
 					registrationDate: new Date(),
 				});
+
+				// Handle authorized persons for pickup
+				if (input.authorizedPersonIds && input.authorizedPersonIds.length > 0) {
+					const authorizedPersonsData = input.authorizedPersonIds.map(
+						(personId) => ({
+							id: nanoid(),
+							registrationId,
+							authorizedPersonId: personId,
+						}),
+					);
+					await db
+						.insert(registrationAuthorizedPersons)
+						.values(authorizedPersonsData);
+				}
+
+				// Handle location-specific authorizations
+				if (
+					input.locationAuthorizations &&
+					input.locationAuthorizations.length > 0
+				) {
+					const locationAuthData = input.locationAuthorizations.map((auth) => ({
+						id: nanoid(),
+						registrationId,
+						authorizedPersonId: auth.authorizedPersonId,
+						location: auth.location,
+						canPickup: auth.canPickup,
+					}));
+					await db
+						.insert(registrationLocationAuthorizations)
+						.values(locationAuthData);
+				}
 
 				return {
 					success: true,
@@ -433,6 +486,8 @@ export const registrationsRouter = os.router({
 					.enum(["pending", "completed", "failed", "refunded"])
 					.optional(),
 				notes: z.string().optional(),
+				photoPrivacyConsent: z.boolean().optional(),
+				dataPrivacyConsent: z.boolean().optional(),
 			}),
 		)
 		.output(
@@ -462,6 +517,14 @@ export const registrationsRouter = os.router({
 					updateData.notes = input.notes;
 				}
 
+				if (input.photoPrivacyConsent !== undefined) {
+					updateData.photoPrivacyConsent = input.photoPrivacyConsent;
+				}
+
+				if (input.dataPrivacyConsent !== undefined) {
+					updateData.dataPrivacyConsent = input.dataPrivacyConsent;
+				}
+
 				const [updatedRegistration] = await db
 					.update(eventRegistrations)
 					.set(updateData)
@@ -480,6 +543,218 @@ export const registrationsRouter = os.router({
 				console.error("Error updating registration:", error);
 				throw new ORPCError("INTERNAL_SERVER_ERROR", {
 					message: "Failed to update registration",
+				});
+			}
+		}),
+
+	// Admin endpoint to manually create registration with optional family/child creation
+	adminCreate: withAuth
+		.input(
+			z.object({
+				eventId: z.string(),
+				// Parent/Family data
+				parentEmail: z.string().email(),
+				parentName: z.string().min(1),
+				parentPhone: z.string().optional(),
+				// Family data (if new family needs to be created)
+				familyName: z.string().optional(),
+				createNewFamily: z.boolean().default(false),
+				familyId: z.string().optional(), // If adding to existing family
+				// Child data
+				childFirstName: z.string().min(1),
+				childLastName: z.string().min(1),
+				childBirthDate: z.string(), // ISO date string
+				childBirthPlace: z.string().optional(),
+				childFiscalCode: z.string().min(1, "Codice fiscale è obbligatorio"),
+				childGender: z.enum(["M", "F"]).optional(),
+				childAllergies: z.string().optional(),
+				childMedicalNotes: z.string().optional(),
+				// Registration data
+				notes: z.string().optional(),
+				photoPrivacyConsent: z.boolean().default(true),
+				dataPrivacyConsent: z.boolean().default(true),
+				status: z
+					.enum(["pending", "confirmed", "cancelled", "waitlist"])
+					.default("confirmed"),
+				paymentStatus: z
+					.enum(["pending", "completed", "failed", "refunded"])
+					.default("pending"),
+			}),
+		)
+		.output(
+			SuccessResponse(
+				z.object({
+					registrationId: z.string(),
+					familyId: z.string(),
+					childId: z.string(),
+					parentId: z.string(),
+					created: z.object({
+						user: z.boolean(),
+						family: z.boolean(),
+						child: z.boolean(),
+					}),
+				}),
+			),
+		)
+		.handler(async ({ input, context }) => {
+			try {
+				// Check if user is admin
+				const membership = await db
+					.select()
+					.from(organizationMember)
+					.where(eq(organizationMember.userId, context.user.id))
+					.limit(1);
+
+				const isAdmin =
+					membership.length > 0 &&
+					["amministratore", "editor", "animatore"].includes(
+						membership[0].role,
+					);
+
+				if (!isAdmin) {
+					throw new ORPCError("FORBIDDEN", {
+						message: "Access denied. Admin privileges required.",
+					});
+				}
+
+				const registrationId = nanoid();
+				let parentId: string;
+				let familyId: string;
+				let childId: string;
+				const created = {
+					user: false,
+					family: false,
+					child: true, // Child is always created
+				};
+
+				// 1. Check if parent user exists, create if not
+				const existingUser = await db
+					.select()
+					.from(userTable)
+					.where(eq(userTable.email, input.parentEmail))
+					.limit(1);
+
+				if (existingUser.length > 0) {
+					parentId = existingUser[0].id;
+				} else {
+					// Create new user
+					parentId = nanoid();
+					await db.insert(userTable).values({
+						id: parentId,
+						name: input.parentName,
+						email: input.parentEmail,
+						phoneNumber: input.parentPhone || null,
+						emailVerified: false,
+					});
+					created.user = true;
+				}
+
+				// 2. Handle family creation/selection
+				if (input.createNewFamily || !input.familyId) {
+					// Create new family
+					familyId = nanoid();
+					const memberId = nanoid();
+
+					await db.insert(families).values({
+						id: familyId,
+						name: input.familyName || `Famiglia ${input.childLastName}`,
+						createdBy: context.user.id,
+					});
+
+					// Add parent to family
+					await db.insert(familyMembers).values({
+						id: memberId,
+						familyId,
+						userId: parentId,
+						role: "parent",
+						isAdmin: false,
+					});
+
+					created.family = true;
+				} else {
+					// Use existing family
+					familyId = input.familyId;
+
+					// Check if parent is already a member of this family
+					const existingMembership = await db
+						.select()
+						.from(familyMembers)
+						.where(
+							and(
+								eq(familyMembers.familyId, familyId),
+								eq(familyMembers.userId, parentId),
+							),
+						)
+						.limit(1);
+
+					if (existingMembership.length === 0) {
+						// Add parent to family
+						const memberId = nanoid();
+						await db.insert(familyMembers).values({
+							id: memberId,
+							familyId,
+							userId: parentId,
+							role: "parent",
+							isAdmin: false,
+						});
+					}
+				}
+
+				// 3. Create child
+				childId = nanoid();
+				await db.insert(children).values({
+					id: childId,
+					familyId,
+					firstName: input.childFirstName,
+					lastName: input.childLastName,
+					birthDate: input.childBirthDate,
+					birthPlace: input.childBirthPlace || null,
+					fiscalCode: input.childFiscalCode,
+					gender: input.childGender || null,
+					allergies: input.childAllergies || null,
+					medicalNotes: input.childMedicalNotes || null,
+				});
+
+				// 4. Create registration
+				await db.insert(eventRegistrations).values({
+					id: registrationId,
+					eventId: input.eventId,
+					childId,
+					parentId,
+					status: input.status,
+					paymentStatus: input.paymentStatus,
+					notes: input.notes || null,
+					photoPrivacyConsent: input.photoPrivacyConsent,
+					dataPrivacyConsent: input.dataPrivacyConsent,
+					registrationDate: new Date(),
+				});
+
+				// 5. Update event participant count if confirmed
+				if (input.status === "confirmed") {
+					await db
+						.update(events)
+						.set({
+							currentParticipants: sql`${events.currentParticipants} + 1`,
+							updatedAt: new Date(),
+						})
+						.where(eq(events.id, input.eventId));
+				}
+
+				return {
+					success: true,
+					data: {
+						registrationId,
+						familyId,
+						childId,
+						parentId,
+						created,
+					},
+				};
+			} catch (error) {
+				console.error("Error creating admin registration:", error);
+				if (error instanceof ORPCError) throw error;
+				throw new ORPCError("INTERNAL_SERVER_ERROR", {
+					message: "Failed to create registration",
 				});
 			}
 		}),

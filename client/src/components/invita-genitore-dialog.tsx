@@ -16,7 +16,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { orpcClient } from "@/lib/orpc-client";
+import { useSendInvitationMutation } from "@/hooks/useFamily";
 
 interface InvitaGenitoreDialogProps {
 	open: boolean;
@@ -33,7 +33,8 @@ export function InvitaGenitoreDialog({
 		phoneNumber: "",
 		messaggio: "",
 	});
-	const [isSubmitting, setIsSubmitting] = useState(false);
+
+	const { mutateAsync: sendInvitation, isPending: isSubmitting } = useSendInvitationMutation();
 
 	const handleChange = (
 		e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
@@ -50,20 +51,12 @@ export function InvitaGenitoreDialog({
 			return;
 		}
 
-		setIsSubmitting(true);
-
 		try {
-			const invitationData = {
+			await sendInvitation({
 				familyId: famiglia.id,
 				phoneNumber: formData.phoneNumber,
 				message: formData.messaggio || undefined,
-			};
-
-			const result = await orpcClient.family.sendInvitation(invitationData);
-
-			if (!result.success) {
-				throw new Error("Failed to send invitation");
-			}
+			});
 
 			toast.success(
 				`Un SMS di invito è stato inviato a ${formData.phoneNumber}`,
@@ -91,8 +84,6 @@ export function InvitaGenitoreDialog({
 			}
 
 			toast.error(errorMessage);
-		} finally {
-			setIsSubmitting(false);
 		}
 	};
 

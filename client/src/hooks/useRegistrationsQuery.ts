@@ -85,6 +85,13 @@ export const useCreateRegistrationMutation = () => {
 			childId: string;
 			authorizedPersonIds?: string[];
 			notes?: string;
+			canExitAlone?: boolean;
+			allowedExitLocations?: string[];
+			locationAuthorizations?: Array<{
+				authorizedPersonId: string;
+				location: string;
+				canPickup: boolean;
+			}>;
 		}) => {
 			const response = await orpc.registrations.create(data);
 			return response.data;
@@ -97,6 +104,55 @@ export const useCreateRegistrationMutation = () => {
 			// Invalidate events list to update participant counts
 			queryClient.invalidateQueries({
 				queryKey: ["events", "list"],
+			});
+		},
+	});
+};
+
+// Hook for admin creating registration with family/child
+export const useAdminCreateRegistrationMutation = () => {
+	const queryClient = useQueryClient();
+
+	return useMutation({
+		mutationFn: async (data: {
+			eventId: string;
+			// Parent/Family data
+			parentEmail: string;
+			parentName: string;
+			parentPhone?: string;
+			// Family data
+			familyName?: string;
+			createNewFamily?: boolean;
+			familyId?: string;
+			// Child data
+			childFirstName: string;
+			childLastName: string;
+			childBirthDate: string;
+			childBirthPlace?: string;
+			childFiscalCode: string;
+			childGender?: "M" | "F";
+			childAllergies?: string;
+			childMedicalNotes?: string;
+			// Registration data
+			notes?: string;
+			status?: "pending" | "confirmed" | "cancelled" | "waitlist";
+			paymentStatus?: "pending" | "completed" | "failed" | "refunded";
+		}) => {
+			const response = await orpc.registrations.adminCreate(data);
+			return response.data;
+		},
+		onSuccess: () => {
+			// Invalidate registrations list
+			queryClient.invalidateQueries({
+				queryKey: ["registrations", "list"],
+			});
+			// Invalidate events list to update participant counts
+			queryClient.invalidateQueries({
+				queryKey: ["events", "list"],
+			});
+			// Invalidate families list in case new family was created
+			queryClient.invalidateQueries({
+				queryKey: ["families", "list"],
 			});
 		},
 	});

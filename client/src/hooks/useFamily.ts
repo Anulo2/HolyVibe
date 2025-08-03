@@ -82,8 +82,8 @@ export function useAddChildMutation() {
 			lastName: string;
 			birthDate: string;
 			birthPlace?: string;
-			fiscalCode?: string;
-			gender?: "M" | "F" | "O";
+			fiscalCode: string;
+			gender?: "M" | "F";
 			allergies?: string;
 			medicalNotes?: string;
 		}) => {
@@ -113,7 +113,7 @@ export function useUpdateChildMutation() {
 			birthDate: string;
 			birthPlace?: string;
 			fiscalCode?: string;
-			gender?: "M" | "F" | "O";
+			gender?: "M" | "F";
 			allergies?: string;
 			medicalNotes?: string;
 		}) => {

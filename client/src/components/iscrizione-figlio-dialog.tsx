@@ -1,6 +1,5 @@
 "use client";
 
-import { useQueries } from "@tanstack/react-query";
 import {
 	AlertCircle,
 	CalendarDays,
@@ -24,9 +23,9 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useFamiliesQuery } from "@/hooks/useFamilyQuery";
+import { useAllChildren } from "@/hooks/useAllChildren";
+import { useAllAuthorizedPersons } from "@/hooks/useAllAuthorizedPersons";
 import { useCreateRegistrationMutation } from "@/hooks/useRegistrationsQuery";
-import { orpc } from "@/lib/orpc-react";
 
 interface IscrizioneFiglioDialogProps {
 	open: boolean;
@@ -44,59 +43,33 @@ export function IscrizioneFiglioDialog({
 	);
 	const [personeAutorizzate, setPersoneAutorizzate] = useState<string[]>([]);
 	const [accettaTermini, setAccettaTermini] = useState(false);
+	const [consensoFoto, setConsensoFoto] = useState(true);
+	const [consensoDati, setConsensoDati] = useState(true);
+	const [canExitAlone, setCanExitAlone] = useState(false);
+	const [allowedExitLocations, setAllowedExitLocations] = useState<string[]>(
+		[],
+	);
+	const [locationAuthorizations, setLocationAuthorizations] = useState<{
+		[key: string]: { [key: string]: boolean };
+	}>({});
 
-	// Load real family data
-	const { data: families = [], isLoading: familiesLoading } =
-		useFamiliesQuery();
+	// Use custom hooks for data fetching
+	const {
+		allChildren,
+		isLoading: childrenLoading,
+		families,
+		calculateAge,
+		isChildEligible: isEligible,
+		getEligibleChildren,
+	} = useAllChildren();
+
+	const {
+		allAuthorizedPersons,
+		isLoading: personsLoading,
+	} = useAllAuthorizedPersons();
 
 	// Mutation for creating registration
 	const createRegistrationMutation = useCreateRegistrationMutation();
-
-	// Load children from ALL families
-	const childrenQueries = useQueries({
-		queries: (families || []).map((family: any) => ({
-			queryKey: ["family", family.id, "children"],
-			queryFn: () => orpc.family.getChildren({ familyId: family.id }),
-			enabled: !!family.id,
-		})),
-	});
-
-	// Load authorized persons from ALL families
-	const personsQueries = useQueries({
-		queries: (families || []).map((family: any) => ({
-			queryKey: ["family", family.id, "authorizedPersons"],
-			queryFn: () => orpc.family.getAuthorizedPersons({ familyId: family.id }),
-			enabled: !!family.id,
-		})),
-	});
-
-	// Combine all children from all families with family info
-	const allChildren = childrenQueries
-		.filter((query) => query.isSuccess && query.data)
-		.flatMap((query, index) => {
-			const family = families[index];
-			const children = (query.data as any)?.data || [];
-			return children.map((child: any) => ({
-				...child,
-				familyName: family?.family.name || "Famiglia sconosciuta",
-			}));
-		});
-
-	// Combine all authorized persons from all families with family info
-	const allAuthorizedPersons = personsQueries
-		.filter((query) => query.isSuccess && query.data)
-		.flatMap((query, index) => {
-			const family = families[index];
-			const persons = (query.data as any)?.data || [];
-			return persons.map((person: any) => ({
-				...person,
-				familyName: family?.family.name || "Famiglia sconosciuta",
-			}));
-		});
-
-	// Check if any query is loading
-	const childrenLoading = childrenQueries.some((query) => query.isLoading);
-	const personsLoading = personsQueries.some((query) => query.isLoading);
 
 	// Reset del form quando si apre il dialog
 	useEffect(() => {
@@ -104,29 +77,21 @@ export function IscrizioneFiglioDialog({
 			setFiglioSelezionato(null);
 			setPersoneAutorizzate([]);
 			setAccettaTermini(false);
+			setConsensoFoto(true);
+			setConsensoDati(true);
+			setCanExitAlone(false);
+			setAllowedExitLocations([]);
+			setLocationAuthorizations({});
 		}
 	}, [open]);
 
-	// Calculate age for children
-	const calculateAge = (birthDate: string) => {
-		const today = new Date();
-		const birth = new Date(birthDate);
-		let age = today.getFullYear() - birth.getFullYear();
-		const monthDiff = today.getMonth() - birth.getMonth();
-		if (
-			monthDiff < 0 ||
-			(monthDiff === 0 && today.getDate() < birth.getDate())
-		) {
-			age--;
-		}
-		return age;
-	};
-
 	// Check if child is eligible for the event
 	const isChildEligible = (birthDate: string) => {
-		const age = calculateAge(birthDate);
-		return age >= (evento?.minAge || 0) && age <= (evento?.maxAge || 100);
+		return isEligible(birthDate, evento?.minAge || 0, evento?.maxAge || 100);
 	};
+
+	// Filter eligible children
+	const eligibleChildren = getEligibleChildren(evento?.minAge || 0, evento?.maxAge || 100);
 
 	const handlePersonaChange = (personaId: string) => {
 		setPersoneAutorizzate((current) =>
@@ -135,6 +100,35 @@ export function IscrizioneFiglioDialog({
 				: [...current, personaId],
 		);
 	};
+
+	const handleLocationAuthorizationChange = (
+		personId: string,
+		location: string,
+		canPickup: boolean,
+	) => {
+		setLocationAuthorizations((current) => ({
+			...current,
+			[personId]: {
+				...current[personId],
+				[location]: canPickup,
+			},
+		}));
+	};
+
+	const handleExitLocationChange = (location: string, allowed: boolean) => {
+		setAllowedExitLocations((current) =>
+			allowed
+				? [...current.filter((loc) => loc !== location), location]
+				: current.filter((loc) => loc !== location),
+		);
+	};
+
+	// Parse locations from event
+	const eventLocations = evento?.locations
+		? typeof evento.locations === "string"
+			? JSON.parse(evento.locations)
+			: evento.locations
+		: [evento?.location].filter(Boolean);
 
 	const handleSubmit = async (e: React.FormEvent) => {
 		e.preventDefault();
@@ -149,12 +143,40 @@ export function IscrizioneFiglioDialog({
 			return;
 		}
 
+		if (!consensoDati) {
+			toast.error("Devi accettare la privacy policy per il trattamento dei dati");
+			return;
+		}
+
 		try {
+			// Prepare location authorizations data
+			const locationAuthData = [];
+			for (const personId of personeAutorizzate) {
+				for (const location of eventLocations) {
+					if (locationAuthorizations[personId]?.[location]) {
+						locationAuthData.push({
+							authorizedPersonId: personId,
+							location: location,
+							canPickup: true,
+						});
+					}
+				}
+			}
+
 			await createRegistrationMutation.mutateAsync({
 				eventId: evento.id,
 				childId: figlioSelezionato,
+				photoPrivacyConsent: consensoFoto,
+				dataPrivacyConsent: consensoDati,
 				authorizedPersonIds:
 					personeAutorizzate.length > 0 ? personeAutorizzate : undefined,
+				canExitAlone: canExitAlone,
+				allowedExitLocations:
+					canExitAlone && allowedExitLocations.length > 0
+						? allowedExitLocations
+						: undefined,
+				locationAuthorizations:
+					locationAuthData.length > 0 ? locationAuthData : undefined,
 			});
 
 			toast.success("Iscrizione completata con successo!");
@@ -191,7 +213,11 @@ export function IscrizioneFiglioDialog({
 							</div>
 							<div className="flex items-center gap-2">
 								<MapPin className="h-4 w-4 text-muted-foreground" />
-								<span>{evento.location}</span>
+								<span>
+									{eventLocations.length > 1
+										? `${eventLocations.length} luoghi: ${eventLocations.join(", ")}`
+										: eventLocations[0]}
+								</span>
 							</div>
 							<div className="flex items-center gap-2">
 								<Users className="h-4 w-4 text-muted-foreground" />
@@ -203,9 +229,10 @@ export function IscrizioneFiglioDialog({
 					</div>
 
 					<Tabs defaultValue="figlio" className="w-full">
-						<TabsList className="grid w-full grid-cols-2">
+						<TabsList className="grid w-full grid-cols-3">
 							<TabsTrigger value="figlio">Seleziona Figlio</TabsTrigger>
 							<TabsTrigger value="autorizzati">Persone Autorizzate</TabsTrigger>
+							<TabsTrigger value="uscite">Autorizzazioni Uscita</TabsTrigger>
 						</TabsList>
 
 						<TabsContent value="figlio" className="space-y-4 mt-4">
@@ -214,7 +241,10 @@ export function IscrizioneFiglioDialog({
 									<Label>Seleziona il figlio da iscrivere *</Label>
 									{families.length > 1 && (
 										<span className="text-xs text-muted-foreground">
-											{allChildren.length} figli da {families.length} famiglie
+											{eligibleChildren.length} figli idonei da {families.length} famiglie
+											{allChildren.length > eligibleChildren.length &&
+												` (${allChildren.length - eligibleChildren.length} non idonei)`
+											}
 										</span>
 									)}
 								</div>
@@ -238,7 +268,7 @@ export function IscrizioneFiglioDialog({
 													} ${
 														figlioSelezionato === figlio.id
 															? "border-primary bg-primary/5"
-															: ""
+															: "border-muted hover:border-primary/50"
 													}`}
 													onClick={() =>
 														eligible && setFiglioSelezionato(figlio.id)
@@ -282,6 +312,23 @@ export function IscrizioneFiglioDialog({
 										<Button variant="link" className="mt-2">
 											Aggiungi un figlio
 										</Button>
+									</div>
+								)}
+								{allChildren.length > 0 && eligibleChildren.length === 0 && !childrenLoading && (
+									<div className="text-center p-4 space-y-2">
+										<p>Nessuno dei tuoi figli rientra nella fascia di età per questo evento</p>
+										<p className="text-sm text-muted-foreground">
+											Età richiesta: {evento?.minAge || 0}-{evento?.maxAge || 100} anni
+										</p>
+										<div className="text-xs text-muted-foreground mt-2">
+											I tuoi figli:
+											{allChildren.map((child, index) => (
+												<div key={child.id}>
+													{child.firstName} {child.lastName} ({calculateAge(child.birthDate)} anni)
+													{index < allChildren.length - 1 && ", "}
+												</div>
+											))}
+										</div>
 									</div>
 								)}
 							</div>
@@ -361,22 +408,236 @@ export function IscrizioneFiglioDialog({
 								</div>
 							</div>
 						</TabsContent>
+
+						<TabsContent value="uscite" className="space-y-4 mt-4">
+							<div className="space-y-4">
+								<div className="space-y-2">
+									<div className="flex items-center space-x-2">
+										<Checkbox
+											id="exit-alone"
+											checked={canExitAlone}
+											onCheckedChange={(checked) =>
+												setCanExitAlone(checked === true)
+											}
+										/>
+										<Label htmlFor="exit-alone" className="text-sm font-medium">
+											Il bambino può uscire in autonomia (senza accompagnatore)
+										</Label>
+									</div>
+									{canExitAlone && (
+										<div className="ml-6 space-y-2">
+											<Label className="text-sm text-muted-foreground">
+												Seleziona i luoghi da cui può uscire autonomamente:
+											</Label>
+											{eventLocations.map((location: string) => (
+												<div
+													key={location}
+													className="flex items-center space-x-2"
+												>
+													<Checkbox
+														id={`exit-location-${location}`}
+														checked={allowedExitLocations.includes(location)}
+														onCheckedChange={(checked) =>
+															handleExitLocationChange(
+																location,
+																checked === true,
+															)
+														}
+													/>
+													<Label
+														htmlFor={`exit-location-${location}`}
+														className="text-sm"
+													>
+														{location}
+													</Label>
+												</div>
+											))}
+										</div>
+									)}
+								</div>
+
+								{personeAutorizzate.length > 0 && eventLocations.length > 1 && (
+									<div className="space-y-3 border-t pt-4">
+										<Label className="text-sm font-medium">
+											Autorizzazioni specifiche per luogo
+										</Label>
+										<div className="space-y-3">
+											{allAuthorizedPersons
+												.filter((person) =>
+													personeAutorizzate.includes(person.id),
+												)
+												.map((person) => (
+													<div
+														key={person.id}
+														className="border rounded-lg p-3 space-y-2"
+													>
+														<div className="flex items-center gap-2">
+															<Avatar className="h-6 w-6">
+																<AvatarImage
+																	src={person.avatarUrl}
+																	alt={person.fullName}
+																/>
+																<AvatarFallback className="text-xs">
+																	{person.fullName.charAt(0)}
+																</AvatarFallback>
+															</Avatar>
+															<span className="text-sm font-medium">
+																{person.fullName}
+															</span>
+														</div>
+														<div className="space-y-1 ml-8">
+															{eventLocations.map((location: string) => (
+																<div
+																	key={location}
+																	className="flex items-center space-x-2"
+																>
+																	<Checkbox
+																		id={`auth-${person.id}-${location}`}
+																		checked={
+																			locationAuthorizations[person.id]?.[
+																				location
+																			] || false
+																		}
+																		onCheckedChange={(checked) =>
+																			handleLocationAuthorizationChange(
+																				person.id,
+																				location,
+																				checked === true,
+																			)
+																		}
+																	/>
+																	<Label
+																		htmlFor={`auth-${person.id}-${location}`}
+																		className="text-xs"
+																	>
+																		Può ritirare da: {location}
+																	</Label>
+																</div>
+															))}
+														</div>
+													</div>
+												))}
+										</div>
+									</div>
+								)}
+
+								<div className="rounded-md bg-blue-50 p-3 text-sm flex gap-2">
+									<AlertCircle className="h-5 w-5 text-blue-500 flex-shrink-0" />
+									<div className="text-blue-800">
+										<p className="font-medium mb-1">Importante:</p>
+										<ul className="text-xs space-y-1 list-disc list-inside">
+											<li>
+												Se il bambino può uscire autonomamente, specificare da
+												quali luoghi
+											</li>
+											<li>
+												Per eventi con più luoghi, puoi autorizzare persone
+												specifiche per luoghi specifici
+											</li>
+											<li>
+												Se non specifichi autorizzazioni per luogo, le persone
+												autorizzate potranno ritirare da qualsiasi luogo
+											</li>
+										</ul>
+									</div>
+								</div>
+							</div>
+						</TabsContent>
 					</Tabs>
 
-					<div className="space-y-2 border-t pt-4">
-						<div className="flex items-center space-x-2">
-							<Checkbox
-								id="termini"
-								checked={accettaTermini}
-								onCheckedChange={(checked) =>
-									setAccettaTermini(checked === true)
-								}
-								required
-							/>
-							<Label htmlFor="termini" className="text-sm">
-								Accetto i termini e le condizioni dell'evento, incluse le
-								politiche di cancellazione e rimborso *
-							</Label>
+					<div className="space-y-4 border-t pt-4">
+						<div className="space-y-3">
+							<div className="flex items-center space-x-2">
+								<Checkbox
+									id="consenso-dati"
+									checked={consensoDati}
+									onCheckedChange={(checked) =>
+										setConsensoDati(checked === true)
+									}
+									required
+								/>
+								<Label htmlFor="consenso-dati" className="text-sm">
+									Accetto la{" "}
+									<a
+										href="/privacy"
+										target="_blank"
+										rel="noopener noreferrer"
+										className="text-blue-600 hover:underline"
+									>
+										privacy policy
+									</a>{" "}
+									per il trattamento dei dati personali *
+								</Label>
+							</div>
+
+							{evento?.willTakePhotos && (
+								<div className="space-y-3">
+									{/* Dichiarazione specifica dell'organizzazione */}
+									{evento?.organization?.photoVideoMinorsDeclaration && (
+										<div className="bg-purple-50 dark:bg-purple-950/20 p-4 rounded-lg border border-purple-200 dark:border-purple-800">
+											<h5 className="font-semibold mb-2 text-purple-700 dark:text-purple-300">
+												Dichiarazione Autorizzazione Foto/Video Minorenni
+											</h5>
+											<div className="text-xs text-muted-foreground whitespace-pre-wrap bg-background p-3 rounded">
+												{evento.organization.photoVideoMinorsDeclaration}
+											</div>
+											<div className="mt-2 text-xs text-purple-600 dark:text-purple-400">
+												Dichiarazione di: {evento.organization.name}
+											</div>
+										</div>
+									)}
+
+									{/* Checkbox per il consenso */}
+									<div className="flex items-start space-x-2">
+										<Checkbox
+											id="consenso-foto"
+											checked={consensoFoto}
+											onCheckedChange={(checked) =>
+												setConsensoFoto(checked === true)
+											}
+											className="mt-1"
+										/>
+										<Label htmlFor="consenso-foto" className="text-sm">
+											Autorizzo il trattamento di foto e video del mio figlio/a per{" "}
+											{evento?.photosForSocialMedia
+												? "documentazione dell'attività e pubblicazione sui canali social dell'organizzazione"
+												: "documentazione dell'attività"}
+											{evento?.organization?.photoVideoMinorsDeclaration
+												? " secondo le finalità e nei limiti indicati nella dichiarazione sopra riportata"
+												: ""}.
+											{!evento?.organization?.photoVideoMinorsDeclaration && (
+												<span>
+													{" "}(
+													<a
+														href="/privacy"
+														target="_blank"
+														rel="noopener noreferrer"
+														className="text-blue-600 hover:underline"
+													>
+														vedi informativa privacy generale
+													</a>
+													)
+												</span>
+											)}
+										</Label>
+									</div>
+								</div>
+							)}
+
+							<div className="flex items-center space-x-2">
+								<Checkbox
+									id="termini"
+									checked={accettaTermini}
+									onCheckedChange={(checked) =>
+										setAccettaTermini(checked === true)
+									}
+									required
+								/>
+								<Label htmlFor="termini" className="text-sm">
+									Accetto i termini e le condizioni dell'evento, incluse le
+									politiche di cancellazione e rimborso *
+								</Label>
+							</div>
 						</div>
 					</div>
 
@@ -393,8 +654,9 @@ export function IscrizioneFiglioDialog({
 							type="submit"
 							disabled={
 								!figlioSelezionato ||
-								!accettaTermini ||
-								createRegistrationMutation.isPending
+				!accettaTermini ||
+				!consensoDati ||
+				createRegistrationMutation.isPending
 							}
 						>
 							{createRegistrationMutation.isPending ? (

@@ -190,7 +190,7 @@ export function IscrizioneDetailsDialog({
 									{iscrizione.personeAutorizzate.map(
 										(persona: any, index: number) => (
 											<div
-												key={index}
+												key={persona.id || `persona-${index}`}
 												className="flex items-center gap-3 p-2 rounded-md border"
 											>
 												<div>

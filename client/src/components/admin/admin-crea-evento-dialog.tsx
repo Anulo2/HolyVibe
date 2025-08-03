@@ -42,7 +42,7 @@ export function AdminCreaEventoDialog({
 		descrizione: "",
 		dataInizio: null as Date | null,
 		dataFine: null as Date | null,
-		luogo: "",
+		luoghi: [""],
 		etaMin: "",
 		etaMax: "",
 		postiDisponibili: "",
@@ -67,6 +67,8 @@ export function AdminCreaEventoDialog({
 		noteSpeciali: "",
 		politicaCancellazione: "",
 		consensoFoto: true,
+		sarannoScattateFoto: false,
+		fotoPerSocial: false,
 		immaginiAggiuntive: "",
 	});
 
@@ -134,8 +136,8 @@ export function AdminCreaEventoDialog({
 			toast.error("La data di inizio è obbligatoria");
 			return;
 		}
-		if (!formData.luogo.trim()) {
-			toast.error("Il luogo è obbligatorio");
+		if (!formData.luoghi.some(luogo => luogo.trim())) {
+			toast.error("Almeno un luogo è obbligatorio");
 			return;
 		}
 		if (!formData.etaMin || !formData.etaMax) {
@@ -153,7 +155,7 @@ export function AdminCreaEventoDialog({
 				description: formData.descrizione,
 				startDate: formData.dataInizio.toISOString(),
 				endDate: formData.dataFine?.toISOString(),
-				location: formData.luogo,
+				locations: formData.luoghi.filter(luogo => luogo.trim()),
 				minAge: parseInt(formData.etaMin),
 				maxAge: parseInt(formData.etaMax),
 				maxParticipants: parseInt(formData.postiDisponibili),
@@ -176,6 +178,8 @@ export function AdminCreaEventoDialog({
 				specialNotes: formData.noteSpeciali || undefined,
 				cancellationPolicy: formData.politicaCancellazione || undefined,
 				photographyConsent: formData.consensoFoto,
+				willTakePhotos: formData.sarannoScattateFoto,
+				photosForSocialMedia: formData.fotoPerSocial,
 				additionalImages: formData.immaginiAggiuntive || undefined,
 			};
 
@@ -201,7 +205,7 @@ export function AdminCreaEventoDialog({
 				descrizione: "",
 				dataInizio: null,
 				dataFine: null,
-				luogo: "",
+				luoghi: [""],
 				etaMin: "",
 				etaMax: "",
 				postiDisponibili: "",
@@ -226,6 +230,8 @@ export function AdminCreaEventoDialog({
 				noteSpeciali: "",
 				politicaCancellazione: "",
 				consensoFoto: true,
+				sarannoScattateFoto: false,
+				fotoPerSocial: false,
 				immaginiAggiuntive: "",
 			});
 		} catch (error) {
@@ -350,14 +356,44 @@ export function AdminCreaEventoDialog({
 							</div>
 
 							<div className="space-y-2">
-								<Label htmlFor="luogo">Luogo *</Label>
-								<Input
-									id="luogo"
-									value={formData.luogo}
-									onChange={handleChange}
-									placeholder="Inserisci il luogo dell'evento"
-									required
-								/>
+								<Label>Luoghi dell'evento *</Label>
+								{formData.luoghi.map((luogo, index) => (
+									<div key={`luogo-${index}-${luogo}`} className="flex gap-2">
+										<Input
+											value={luogo}
+											onChange={(e) => {
+												const newLuoghi = [...formData.luoghi];
+												newLuoghi[index] = e.target.value;
+												setFormData(prev => ({ ...prev, luoghi: newLuoghi }));
+											}}
+											placeholder={`Luogo ${index + 1}`}
+											required={index === 0}
+										/>
+										{index > 0 && (
+											<Button
+												type="button"
+												variant="outline"
+												size="sm"
+												onClick={() => {
+													const newLuoghi = formData.luoghi.filter((_, i) => i !== index);
+													setFormData(prev => ({ ...prev, luoghi: newLuoghi }));
+												}}
+											>
+												Rimuovi
+											</Button>
+										)}
+									</div>
+								))}
+								<Button
+									type="button"
+									variant="outline"
+									size="sm"
+									onClick={() => {
+										setFormData(prev => ({ ...prev, luoghi: [...prev.luoghi, ""] }));
+									}}
+								>
+									Aggiungi luogo
+								</Button>
 							</div>
 						</TabsContent>
 
@@ -558,7 +594,42 @@ export function AdminCreaEventoDialog({
 									</div>
 								</div>
 
-								<div>
+								<div className="space-y-3">
+									<label className="flex items-center space-x-2">
+										<input
+											type="checkbox"
+											checked={formData.sarannoScattateFoto}
+											onChange={(e) =>
+												setFormData((prev) => ({
+													...prev,
+													sarannoScattateFoto: e.target.checked,
+												}))
+											}
+											className="rounded"
+										/>
+										<span>
+											Saranno scattate foto durante l'evento
+										</span>
+									</label>
+
+									<label className="flex items-center space-x-2">
+										<input
+											type="checkbox"
+											checked={formData.fotoPerSocial}
+											onChange={(e) =>
+												setFormData((prev) => ({
+													...prev,
+													fotoPerSocial: e.target.checked,
+												}))
+											}
+											className="rounded"
+											disabled={!formData.sarannoScattateFoto}
+										/>
+										<span className={!formData.sarannoScattateFoto ? "text-gray-400" : ""}>
+											Le foto verranno usate per i canali social della parrocchia
+										</span>
+									</label>
+
 									<label className="flex items-center space-x-2">
 										<input
 											type="checkbox"

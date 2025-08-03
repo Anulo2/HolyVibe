@@ -44,7 +44,7 @@ export const useCreateEventMutation = () => {
 			description: string;
 			startDate: string;
 			endDate?: string;
-			location: string;
+			locations: string[];
 			minAge: number;
 			maxAge: number;
 			maxParticipants: number;

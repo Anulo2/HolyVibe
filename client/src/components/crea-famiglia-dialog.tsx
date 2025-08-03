@@ -1,6 +1,6 @@
 import { Heart, UserPlus, Users } from "lucide-react";
 import type React from "react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -52,6 +52,21 @@ export function CreaFamigliaDialog({
 
 	const isEditing = !!family;
 
+	// Aggiorna il form quando il prop family cambia
+	useEffect(() => {
+		if (family) {
+			setFormData({
+				name: family.name || "",
+				description: family.description || "",
+			});
+		} else {
+			setFormData({
+				name: "",
+				description: "",
+			});
+		}
+	}, [family]);
+
 	const handleChange = (
 		e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
 	) => {
@@ -87,8 +102,7 @@ export function CreaFamigliaDialog({
 				toast.success(`Famiglia "${formData.name}" creata con successo! 🎉`);
 			}
 
-			// Reset del form e chiusura del dialog
-			setFormData({ name: "", description: "" });
+			// Chiusura del dialog (il reset viene gestito dall'useEffect quando family cambia)
 			onOpenChange(false);
 		} catch (error) {
 			console.error("Error with family:", error);
@@ -101,7 +115,15 @@ export function CreaFamigliaDialog({
 	};
 
 	const handleCancel = () => {
-		setFormData({ name: "", description: "" });
+		// Ripristina i dati originali se si sta editando
+		if (family) {
+			setFormData({
+				name: family.name || "",
+				description: family.description || "",
+			});
+		} else {
+			setFormData({ name: "", description: "" });
+		}
 		onOpenChange(false);
 	};
 

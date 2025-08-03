@@ -21,6 +21,7 @@ const ParishSettingsSchema = z.object({
 	website: z.string().optional(),
 	logo: z.string().optional(),
 	description: z.string().max(1000).optional(),
+	photoVideoMinorsDeclaration: z.string().max(5000).optional(),
 });
 
 // Schema for event settings
@@ -438,7 +439,7 @@ export const settingsRouter = os.router({
 						description: events.description,
 						startDate: events.startDate,
 						endDate: events.endDate,
-						location: events.location,
+						locations: events.locations,
 						maxParticipants: events.maxParticipants,
 						currentParticipants: sql`COALESCE((
               SELECT COUNT(*)
@@ -486,7 +487,9 @@ export const settingsRouter = os.router({
 						description: event.description,
 						startDate: event.startDate.toISOString(),
 						endDate: event.endDate ? event.endDate.toISOString() : null,
-						location: event.location,
+						location: event.locations
+							? JSON.parse(event.locations).join(", ")
+							: "",
 						maxParticipants: event.maxParticipants,
 						currentParticipants: currentParticipants,
 						isRegistered: Boolean(Number(event.isRegistered)),
@@ -577,6 +580,7 @@ export const settingsRouter = os.router({
 						website: "",
 						logo: "",
 						description: "",
+						photoVideoMinorsDeclaration: "",
 					};
 
 					return {
@@ -593,6 +597,7 @@ export const settingsRouter = os.router({
 					website: org[0].website || "",
 					logo: org[0].image || "",
 					description: org[0].description || "",
+					photoVideoMinorsDeclaration: org[0].photoVideoMinorsDeclaration || "",
 				};
 
 				return {
@@ -683,6 +688,7 @@ export const settingsRouter = os.router({
 							website: input.website,
 							image: input.logo,
 							description: input.description,
+							photoVideoMinorsDeclaration: input.photoVideoMinorsDeclaration,
 						})
 						.where(eq(organization.id, targetOrgId));
 				} else {
@@ -696,6 +702,7 @@ export const settingsRouter = os.router({
 						website: input.website,
 						image: input.logo,
 						description: input.description,
+						photoVideoMinorsDeclaration: input.photoVideoMinorsDeclaration,
 						ownerId: context.user.id,
 					});
 				}

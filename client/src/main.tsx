@@ -33,19 +33,25 @@ function InnerApp() {
 	// Use Better Auth's built-in useSession hook and destructure properly
 	const session = authClient.useSession();
 
-	// Debug: Log session data to understand the structure
-	console.log("Session from useSession hook:", session);
-	console.log("Session.data:", session.data);
-	console.log("Session.isPending:", session.isPending);
-	console.log("Session.error:", session.error);
+	// Only log session data in development
+	if (import.meta.env.DEV) {
+		console.log("Session from useSession hook:", session);
+		console.log("Session.data:", session.data);
+		console.log("Session.isPending:", session.isPending);
+		console.log("Session.error:", session.error);
+	}
 
-	if (session.isPending) {
+	// Handle initial loading state or network errors gracefully
+	if (session.isPending || (session.error && session.error.status === 0)) {
 		return (
 			<div className="flex h-screen w-full items-center justify-center">
 				<div className="text-center">
 					<h1 className="text-2xl font-bold">Loading...</h1>
 					<p className="text-muted-foreground">
-						Please wait while we load your session.
+						{session.error && session.error.status === 0
+							? "Connecting to server..."
+							: "Please wait while we load your session."
+						}
 					</p>
 				</div>
 			</div>

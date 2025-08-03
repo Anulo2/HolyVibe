@@ -83,6 +83,7 @@ export const organization = sqliteTable("organization", {
 	email: text("email"),
 	website: text("website"),
 	description: text("description"),
+	photoVideoMinorsDeclaration: text("photo_video_minors_declaration"), // Dichiarazione per foto/video minorenni specifica dell'organizzazione
 	ownerId: text("owner_id").notNull(),
 	createdAt: integer("created_at", { mode: "timestamp" })
 		.default(sql`(strftime('%s', 'now'))`)
@@ -176,8 +177,8 @@ export const children = sqliteTable("children", {
 	lastName: text("last_name").notNull(),
 	birthDate: text("birth_date").notNull(), // ISO date string
 	birthPlace: text("birth_place"),
-	fiscalCode: text("fiscal_code"),
-	gender: text("gender", { enum: ["M", "F", "O"] }),
+	fiscalCode: text("fiscal_code").notNull(),
+	gender: text("gender", { enum: ["M", "F"] }),
 	allergies: text("allergies"),
 	medicalNotes: text("medical_notes"),
 	avatarUrl: text("avatar_url"),
@@ -214,7 +215,7 @@ export const events = sqliteTable("events", {
 	description: text("description").notNull(),
 	startDate: integer("start_date", { mode: "timestamp" }).notNull(),
 	endDate: integer("end_date", { mode: "timestamp" }),
-	location: text("location").notNull(),
+	locations: text("locations").notNull(), // JSON array di luoghi: ["Luogo 1", "Luogo 2"]
 	minAge: integer("min_age").notNull(),
 	maxAge: integer("max_age").notNull(),
 	maxParticipants: integer("max_participants").notNull(),
@@ -249,6 +250,12 @@ export const events = sqliteTable("events", {
 	photographyConsent: integer("photography_consent", {
 		mode: "boolean",
 	}).default(true), // Consenso foto
+	willTakePhotos: integer("will_take_photos", { mode: "boolean" })
+		.notNull()
+		.default(false), // Saranno scattate foto durante l'evento
+	photosForSocialMedia: integer("photos_for_social_media", { mode: "boolean" })
+		.notNull()
+		.default(false), // Le foto verranno usate per i canali social
 	additionalImages: text("additional_images"), // JSON array di immagini aggiuntive
 	createdBy: text("created_by")
 		.notNull()
@@ -286,6 +293,18 @@ export const eventRegistrations = sqliteTable("event_registrations", {
 		.default(sql`(strftime('%s', 'now'))`)
 		.notNull(),
 	notes: text("notes"),
+	// Consensi privacy
+	photoPrivacyConsent: integer("photo_privacy_consent", { mode: "boolean" })
+		.notNull()
+		.default(true), // Consenso per foto/video (default attivo)
+	dataPrivacyConsent: integer("data_privacy_consent", { mode: "boolean" })
+		.notNull()
+		.default(true), // Consenso per trattamento dati (obbligatorio)
+	// Autorizzazioni per uscita autonoma per luogo
+	canExitAlone: integer("can_exit_alone", { mode: "boolean" })
+		.notNull()
+		.default(false),
+	allowedExitLocations: text("allowed_exit_locations"), // JSON array di luoghi da cui può uscire autonomamente
 	createdAt: integer("created_at", { mode: "timestamp" })
 		.default(sql`(strftime('%s', 'now'))`)
 		.notNull(),
@@ -336,3 +355,24 @@ export const invitations = sqliteTable("invitations", {
 		.default(sql`(strftime('%s', 'now'))`)
 		.notNull(),
 });
+
+// Tabella per gestire le autorizzazioni di ritiro per ogni persona autorizzata e luogo
+export const registrationLocationAuthorizations = sqliteTable(
+	"registration_location_authorizations",
+	{
+		id: text("id").primaryKey(),
+		registrationId: text("registration_id")
+			.notNull()
+			.references(() => eventRegistrations.id, { onDelete: "cascade" }),
+		authorizedPersonId: text("authorized_person_id")
+			.notNull()
+			.references(() => authorizedPersons.id, { onDelete: "cascade" }),
+		location: text("location").notNull(), // Luogo specifico per cui vale l'autorizzazione
+		canPickup: integer("can_pickup", { mode: "boolean" })
+			.notNull()
+			.default(true),
+		createdAt: integer("created_at", { mode: "timestamp" })
+			.default(sql`(strftime('%s', 'now'))`)
+			.notNull(),
+	},
+);

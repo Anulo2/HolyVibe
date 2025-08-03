@@ -102,7 +102,13 @@ export const eventsRouter = os.router({
 				id: z.string(),
 			}),
 		)
-		.output(SuccessResponse(Event))
+		.output(SuccessResponse(Event.extend({
+			organization: z.object({
+				id: z.string(),
+				name: z.string(),
+				photoVideoMinorsDeclaration: z.string().optional(),
+			}).optional(),
+		})))
 		.handler(async ({ input }) => {
 			try {
 				const event = await db
@@ -117,6 +123,18 @@ export const eventsRouter = os.router({
 					});
 				}
 
+				// Get organization data from event creator
+				const creatorOrg = await db
+					.select({
+						id: organization.id,
+						name: organization.name,
+						photoVideoMinorsDeclaration: organization.photoVideoMinorsDeclaration,
+					})
+					.from(organizationMember)
+					.leftJoin(organization, eq(organizationMember.organizationId, organization.id))
+					.where(eq(organizationMember.userId, event[0].createdBy))
+					.limit(1);
+
 				return {
 					success: true,
 					data: {
@@ -127,6 +145,11 @@ export const eventsRouter = os.router({
 						endDate: event[0].endDate
 							? new Date(event[0].endDate).toISOString()
 							: null,
+						organization: creatorOrg.length > 0 ? {
+							id: creatorOrg[0].id!,
+							name: creatorOrg[0].name!,
+							photoVideoMinorsDeclaration: creatorOrg[0].photoVideoMinorsDeclaration || "",
+						} : undefined,
 					},
 				};
 			} catch (error) {
@@ -745,7 +768,7 @@ export const eventsRouter = os.router({
 								description: events.description,
 								startDate: events.startDate,
 								endDate: events.endDate,
-								location: events.location,
+								locations: events.locations,
 								minAge: events.minAge,
 								maxAge: events.maxAge,
 								maxParticipants: events.maxParticipants,
@@ -923,7 +946,7 @@ export const eventsRouter = os.router({
 				description: z.string().max(1000),
 				startDate: z.string(), // ISO date string
 				endDate: z.string().optional(), // ISO date string
-				location: z.string().min(1).max(200),
+				locations: z.array(z.string().min(1).max(200)).min(1),
 				minAge: z.number().min(0).max(100),
 				maxAge: z.number().min(0).max(100),
 				maxParticipants: z.number().min(1),
@@ -947,6 +970,8 @@ export const eventsRouter = os.router({
 				specialNotes: z.string().max(2000).optional(),
 				cancellationPolicy: z.string().max(1000).optional(),
 				photographyConsent: z.boolean().optional(),
+				willTakePhotos: z.boolean().optional(),
+				photosForSocialMedia: z.boolean().optional(),
 				additionalImages: z.string().optional(), // JSON array
 			}),
 		)
@@ -1023,7 +1048,7 @@ export const eventsRouter = os.router({
 					description: input.description,
 					startDate: new Date(input.startDate),
 					endDate: input.endDate ? new Date(input.endDate) : null,
-					location: input.location,
+					locations: JSON.stringify(input.locations),
 					minAge: input.minAge,
 					maxAge: input.maxAge,
 					maxParticipants: input.maxParticipants,
@@ -1048,6 +1073,8 @@ export const eventsRouter = os.router({
 					specialNotes: input.specialNotes || null,
 					cancellationPolicy: input.cancellationPolicy || null,
 					photographyConsent: input.photographyConsent ?? true,
+					willTakePhotos: input.willTakePhotos ?? false,
+					photosForSocialMedia: input.photosForSocialMedia ?? false,
 					additionalImages: input.additionalImages || null,
 					createdBy: context.user.id,
 				};
@@ -1089,7 +1116,7 @@ export const eventsRouter = os.router({
 				description: z.string().max(1000).optional(),
 				startDate: z.string().optional(),
 				endDate: z.string().nullable().optional(),
-				location: z.string().min(1).max(200).optional(),
+				locations: z.array(z.string().min(1).max(200)).min(1).optional(),
 				minAge: z.number().min(0).max(100).optional(),
 				maxAge: z.number().min(0).max(100).optional(),
 				maxParticipants: z.number().min(1).optional(),
@@ -1116,6 +1143,8 @@ export const eventsRouter = os.router({
 				specialNotes: z.string().max(2000).nullable().optional(),
 				cancellationPolicy: z.string().max(1000).nullable().optional(),
 				photographyConsent: z.boolean().nullable().optional(),
+				willTakePhotos: z.boolean().nullable().optional(),
+				photosForSocialMedia: z.boolean().nullable().optional(),
 				additionalImages: z.string().nullable().optional(),
 			}),
 		)
@@ -1155,8 +1184,8 @@ export const eventsRouter = os.router({
 				if (input.endDate !== undefined) {
 					updateData.endDate = input.endDate ? new Date(input.endDate) : null;
 				}
-				if (input.location !== undefined) {
-					updateData.location = input.location;
+				if (input.locations !== undefined) {
+					updateData.locations = JSON.stringify(input.locations);
 				}
 				if (input.minAge !== undefined) {
 					updateData.minAge = input.minAge;
@@ -1267,6 +1296,12 @@ export const eventsRouter = os.router({
 				}
 				if (input.photographyConsent !== undefined) {
 					updateData.photographyConsent = input.photographyConsent;
+				}
+				if (input.willTakePhotos !== undefined) {
+					updateData.willTakePhotos = input.willTakePhotos;
+				}
+				if (input.photosForSocialMedia !== undefined) {
+					updateData.photosForSocialMedia = input.photosForSocialMedia;
 				}
 				if (input.additionalImages !== undefined) {
 					updateData.additionalImages = input.additionalImages;

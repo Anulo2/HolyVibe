@@ -51,8 +51,8 @@ export const childrenRouter = os.router({
 				lastName: z.string().min(1).max(50),
 				birthDate: z.string(), // ISO date string
 				birthPlace: z.string().max(100).optional(),
-				fiscalCode: z.string().max(16).optional(),
-				gender: z.enum(["M", "F", "O"]).optional(),
+				fiscalCode: z.string().min(16).max(16),
+				gender: z.enum(["M", "F"]).optional(),
 				allergies: z.string().max(1000).optional(),
 				medicalNotes: z.string().max(1000).optional(),
 			}),
@@ -71,7 +71,7 @@ export const childrenRouter = os.router({
 					lastName: input.lastName,
 					birthDate: input.birthDate,
 					birthPlace: input.birthPlace || null,
-					fiscalCode: input.fiscalCode || null,
+					fiscalCode: input.fiscalCode,
 					gender: input.gender || null,
 					allergies: input.allergies || null,
 					medicalNotes: input.medicalNotes || null,
@@ -109,8 +109,8 @@ export const childrenRouter = os.router({
 				lastName: z.string().min(1).max(50).optional(),
 				birthDate: z.string().optional(), // ISO date string
 				birthPlace: z.string().max(100).optional(),
-				fiscalCode: z.string().max(16).optional(),
-				gender: z.enum(["M", "F", "O"]).optional(),
+				fiscalCode: z.string().min(16).max(16).optional(),
+				gender: z.enum(["M", "F"]).optional(),
 				allergies: z.string().max(1000).optional(),
 				medicalNotes: z.string().max(1000).optional(),
 			}),
@@ -149,7 +149,7 @@ export const childrenRouter = os.router({
 					updateData.birthPlace = input.birthPlace || null;
 				}
 				if (input.fiscalCode !== undefined) {
-					updateData.fiscalCode = input.fiscalCode || null;
+					updateData.fiscalCode = input.fiscalCode;
 				}
 				if (input.gender !== undefined) {
 					updateData.gender = input.gender || null;

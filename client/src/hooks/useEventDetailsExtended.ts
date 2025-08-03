@@ -7,7 +7,7 @@ export interface ExtendedEventDetails {
 	description: string;
 	startDate: string;
 	endDate?: string;
-	location: string;
+	locations: string[];
 	minAge: number;
 	maxAge: number;
 	maxParticipants: number;
@@ -36,6 +36,12 @@ export interface ExtendedEventDetails {
 	createdBy: string;
 	createdAt: string;
 	updatedAt: string;
+	// Organization data
+	organization?: {
+		id: string;
+		name: string;
+		photoVideoMinorsDeclaration?: string;
+	};
 }
 
 // Hook for fetching extended event details
@@ -44,7 +50,13 @@ export const useEventDetailsExtended = (eventId: string) => {
 		queryKey: ["events", "extended", eventId],
 		queryFn: async () => {
 			const response = await orpc.events.get({ id: eventId });
-			return response.data as ExtendedEventDetails;
+			const data = response.data;
+			// Parse locations from JSON string to array
+			const parsedData = {
+				...data,
+				locations: data.locations ? JSON.parse(data.locations) : [],
+			};
+			return parsedData as ExtendedEventDetails;
 		},
 		enabled: !!eventId,
 		staleTime: 5 * 60 * 1000, // 5 minutes

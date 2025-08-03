@@ -225,7 +225,7 @@ export function FileUploadDemo() {
 									<div className="space-y-1">
 										{selectedFiles.map((file, index) => (
 											<div
-												key={index}
+												key={`${file.name}-${file.size}-${index}`}
 												className="flex items-center justify-between p-2 bg-muted rounded"
 											>
 												<div>

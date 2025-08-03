@@ -1,4 +1,4 @@
-import { parsePhoneNumber, isValidPhoneNumber } from "libphonenumber-js";
+import { isValidPhoneNumber, parsePhoneNumber } from "libphonenumber-js";
 
 /**
  * Normalizes a phone number to E.164 format, with special handling for Italian numbers
@@ -7,55 +7,62 @@ import { parsePhoneNumber, isValidPhoneNumber } from "libphonenumber-js";
  * @returns Normalized phone number in E.164 format or null if invalid
  */
 export function normalizePhoneNumber(
-  phoneNumber: string,
-  defaultCountry: string = "IT"
+	phoneNumber: string,
+	defaultCountry: string = "IT",
 ): string | null {
-  if (!phoneNumber) {
-    return null;
-  }
+	if (!phoneNumber) {
+		return null;
+	}
 
-  // Remove all whitespace and special characters except + and digits
-  let cleaned = phoneNumber.replace(/[^\d+]/g, "");
+	// Remove all whitespace and special characters except + and digits
+	let cleaned = phoneNumber.replace(/[^\d+]/g, "");
 
-  if (!cleaned) {
-    return null;
-  }
+	if (!cleaned) {
+		return null;
+	}
 
-  try {
-    // Handle different Italian number formats
-    if (!cleaned.startsWith("+")) {
-      // Remove leading zeros
-      cleaned = cleaned.replace(/^0+/, "");
+	try {
+		// Handle different Italian number formats
+		if (!cleaned.startsWith("+")) {
+			// Remove leading zeros
+			cleaned = cleaned.replace(/^0+/, "");
 
-      // If it starts with 39, it's likely an Italian number without +
-      if (cleaned.startsWith("39")) {
-        cleaned = "+" + cleaned;
-      }
-      // If it's 9-11 digits and default country is Italy, assume it's Italian
-      else if (cleaned.length >= 9 && cleaned.length <= 11 && defaultCountry === "IT") {
-        cleaned = "+39" + cleaned;
-      }
-      // For other cases, try parsing with default country
-      else {
-        const withCountryCode = parsePhoneNumber(cleaned, defaultCountry as any);
-        if (withCountryCode && withCountryCode.isValid()) {
-          return withCountryCode.format("E.164");
-        }
-      }
-    }
+			// If it starts with 39, it's likely an Italian number without +
+			if (cleaned.startsWith("39")) {
+				cleaned = "+" + cleaned;
+			}
+			// If it's 9-11 digits and default country is Italy, assume it's Italian
+			else if (
+				cleaned.length >= 9 &&
+				cleaned.length <= 11 &&
+				defaultCountry === "IT"
+			) {
+				cleaned = "+39" + cleaned;
+			}
+			// For other cases, try parsing with default country
+			else {
+				const withCountryCode = parsePhoneNumber(
+					cleaned,
+					defaultCountry as any,
+				);
+				if (withCountryCode && withCountryCode.isValid()) {
+					return withCountryCode.format("E.164");
+				}
+			}
+		}
 
-    // Parse the phone number
-    const parsed = parsePhoneNumber(cleaned);
+		// Parse the phone number
+		const parsed = parsePhoneNumber(cleaned);
 
-    if (parsed && parsed.isValid()) {
-      return parsed.format("E.164");
-    }
+		if (parsed && parsed.isValid()) {
+			return parsed.format("E.164");
+		}
 
-    return null;
-  } catch (error) {
-    console.error("Error normalizing phone number:", error);
-    return null;
-  }
+		return null;
+	} catch (error) {
+		console.error("Error normalizing phone number:", error);
+		return null;
+	}
 }
 
 /**
@@ -65,11 +72,11 @@ export function normalizePhoneNumber(
  * @returns True if the phone number is valid
  */
 export function isValidPhone(
-  phoneNumber: string,
-  defaultCountry: string = "IT"
+	phoneNumber: string,
+	defaultCountry: string = "IT",
 ): boolean {
-  const normalized = normalizePhoneNumber(phoneNumber, defaultCountry);
-  return normalized !== null && isValidPhoneNumber(normalized);
+	const normalized = normalizePhoneNumber(phoneNumber, defaultCountry);
+	return normalized !== null && isValidPhoneNumber(normalized);
 }
 
 /**
@@ -79,30 +86,30 @@ export function isValidPhone(
  * @returns Formatted phone number or the original if formatting fails
  */
 export function formatPhoneNumber(
-  phoneNumber: string,
-  format: "national" | "international" | "e164" = "international"
+	phoneNumber: string,
+	format: "national" | "international" | "e164" = "international",
 ): string {
-  try {
-    const parsed = parsePhoneNumber(phoneNumber);
+	try {
+		const parsed = parsePhoneNumber(phoneNumber);
 
-    if (parsed && parsed.isValid()) {
-      switch (format) {
-        case "national":
-          return parsed.formatNational();
-        case "international":
-          return parsed.formatInternational();
-        case "e164":
-          return parsed.format("E.164");
-        default:
-          return parsed.formatInternational();
-      }
-    }
+		if (parsed && parsed.isValid()) {
+			switch (format) {
+				case "national":
+					return parsed.formatNational();
+				case "international":
+					return parsed.formatInternational();
+				case "e164":
+					return parsed.format("E.164");
+				default:
+					return parsed.formatInternational();
+			}
+		}
 
-    return phoneNumber;
-  } catch (error) {
-    console.error("Error formatting phone number:", error);
-    return phoneNumber;
-  }
+		return phoneNumber;
+	} catch (error) {
+		console.error("Error formatting phone number:", error);
+		return phoneNumber;
+	}
 }
 
 /**
@@ -111,11 +118,16 @@ export function formatPhoneNumber(
  * @param phone2 - Second phone number
  * @returns True if the phone numbers are equivalent
  */
-export function arePhoneNumbersEquivalent(phone1: string, phone2: string): boolean {
-  const normalized1 = normalizePhoneNumber(phone1);
-  const normalized2 = normalizePhoneNumber(phone2);
+export function arePhoneNumbersEquivalent(
+	phone1: string,
+	phone2: string,
+): boolean {
+	const normalized1 = normalizePhoneNumber(phone1);
+	const normalized2 = normalizePhoneNumber(phone2);
 
-  return normalized1 !== null && normalized2 !== null && normalized1 === normalized2;
+	return (
+		normalized1 !== null && normalized2 !== null && normalized1 === normalized2
+	);
 }
 
 /**
@@ -124,14 +136,14 @@ export function arePhoneNumbersEquivalent(phone1: string, phone2: string): boole
  * @returns The country code or null if not determinable
  */
 export function getPhoneNumberCountry(phoneNumber: string): string | null {
-  try {
-    const normalized = normalizePhoneNumber(phoneNumber);
-    if (!normalized) return null;
+	try {
+		const normalized = normalizePhoneNumber(phoneNumber);
+		if (!normalized) return null;
 
-    const parsed = parsePhoneNumber(normalized);
-    return parsed?.country || null;
-  } catch (error) {
-    console.error("Error getting phone number country:", error);
-    return null;
-  }
+		const parsed = parsePhoneNumber(normalized);
+		return parsed?.country || null;
+	} catch (error) {
+		console.error("Error getting phone number country:", error);
+		return null;
+	}
 }

@@ -24,6 +24,7 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Textarea } from "@/components/ui/textarea";
 import { useAllChildren } from "@/hooks/useAllChildren";
 import { useAllAuthorizedPersons } from "@/hooks/useAllAuthorizedPersons";
 import {
@@ -161,6 +162,7 @@ export function IscrizioneFiglioDialog({
   const [locationAuthorizations, setLocationAuthorizations] = useState<{
     [key: string]: { [key: string]: boolean };
   }>({});
+  const [notes, setNotes] = useState("");
 
   // Use custom hooks for data fetching
   const {
@@ -189,6 +191,7 @@ export function IscrizioneFiglioDialog({
       setCanExitAlone(false);
       setAllowedExitLocations([]);
       setLocationAuthorizations({});
+      setNotes("");
     }
   }, [open]);
 
@@ -289,6 +292,7 @@ export function IscrizioneFiglioDialog({
             : undefined,
         locationAuthorizations:
           locationAuthData.length > 0 ? locationAuthData : undefined,
+        notes: notes.trim() || undefined,
       });
 
       toast.success("Iscrizione completata con successo!");
@@ -341,10 +345,11 @@ export function IscrizioneFiglioDialog({
           </div>
 
           <Tabs defaultValue="figlio" className="w-full">
-            <TabsList className="grid w-full grid-cols-3">
+            <TabsList className="grid w-full grid-cols-4">
               <TabsTrigger value="figlio">Seleziona Figlio</TabsTrigger>
               <TabsTrigger value="autorizzati">Persone Autorizzate</TabsTrigger>
               <TabsTrigger value="uscite">Autorizzazioni Uscita</TabsTrigger>
+              <TabsTrigger value="note">Note</TabsTrigger>
             </TabsList>
 
             <TabsContent value="figlio" className="space-y-4 mt-4">
@@ -626,6 +631,39 @@ export function IscrizioneFiglioDialog({
                         Se non specifichi autorizzazioni per luogo, le persone
                         autorizzate potranno ritirare da qualsiasi luogo
                       </li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            </TabsContent>
+
+            <TabsContent value="note" className="space-y-4 mt-4">
+              <div className="space-y-2">
+                <Label htmlFor="notes">Note aggiuntive (opzionale)</Label>
+                <Textarea
+                  id="notes"
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  placeholder="Aggiungi qui eventuali note, richieste speciali o informazioni che potrebbero essere utili per l'organizzazione dell'evento..."
+                  rows={4}
+                  className="resize-none"
+                />
+                <div className="rounded-md bg-blue-50 p-3 text-sm flex gap-2">
+                  <AlertCircle className="h-5 w-5 text-blue-500 flex-shrink-0" />
+                  <div className="text-blue-800">
+                    <p className="font-medium mb-1">
+                      Suggerimenti per le note:
+                    </p>
+                    <ul className="text-xs space-y-1 list-disc list-inside">
+                      <li>
+                        Richieste particolari per il trasporto o
+                        l'accompagnamento
+                      </li>
+                      <li>
+                        Informazioni aggiuntive su allergie o esigenze mediche
+                      </li>
+                      <li>Preferenze per attività o gruppi</li>
+                      <li>Contatti di emergenza aggiuntivi</li>
                     </ul>
                   </div>
                 </div>

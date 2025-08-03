@@ -136,17 +136,7 @@ export function RegistrationDetailsDialog({
     registrationId || "",
   );
 
-  // Type assertion for extended registration with authorization fields
-  const extendedRegistration = registration as typeof registration & {
-    canExitAlone: boolean;
-    allowedExitLocations: string[] | null;
-    locationAuthorizations: Array<{
-      id: string;
-      authorizedPersonId: string;
-      location: string;
-      canPickup: boolean;
-    }>;
-  };
+  // registration is now properly typed through useRegistrationQuery
   const updateRegistrationMutation = useUpdateRegistrationMutation();
 
   // Get authorized persons and event locations
@@ -175,16 +165,19 @@ export function RegistrationDetailsDialog({
   // Initialize state when registration data changes
   useEffect(() => {
     if (registration) {
-      console.log("🔍 Registration data received:", registration);
-      console.log("🔍 Extended registration data:", extendedRegistration);
-      console.log("🔍 canExitAlone:", extendedRegistration?.canExitAlone);
+      console.log("🔍 DEBUG: Registration data received:", registration);
+      console.log("🔍 DEBUG: canExitAlone:", registration.canExitAlone);
       console.log(
-        "🔍 allowedExitLocations:",
-        extendedRegistration?.allowedExitLocations,
+        "🔍 DEBUG: allowedExitLocations:",
+        registration.allowedExitLocations,
       );
       console.log(
-        "🔍 locationAuthorizations:",
-        extendedRegistration?.locationAuthorizations,
+        "🔍 DEBUG: locationAuthorizations:",
+        registration.locationAuthorizations,
+      );
+      console.log(
+        "🔍 DEBUG: authorizedPersons:",
+        registration.authorizedPersons,
       );
 
       setStatus(registration.status);
@@ -192,8 +185,8 @@ export function RegistrationDetailsDialog({
       setNotes(registration.notes || "");
 
       // Initialize exit permissions
-      setCanExitAlone(extendedRegistration?.canExitAlone || false);
-      setAllowedExitLocations(extendedRegistration?.allowedExitLocations || []);
+      setCanExitAlone(registration?.canExitAlone || false);
+      setAllowedExitLocations(registration?.allowedExitLocations || []);
 
       // Initialize authorized persons
       const authorizedPersonIds =
@@ -202,17 +195,15 @@ export function RegistrationDetailsDialog({
 
       // Initialize location authorizations
       const locationAuth: Record<string, Record<string, boolean>> = {};
-      extendedRegistration?.locationAuthorizations?.forEach((auth) => {
+      registration?.locationAuthorizations?.forEach((auth) => {
         if (!locationAuth[auth.authorizedPersonId]) {
           locationAuth[auth.authorizedPersonId] = {};
         }
         locationAuth[auth.authorizedPersonId][auth.location] = auth.canPickup;
       });
       setLocationAuthorizations(locationAuth);
-
-      console.log("🔍 Initialized location auth:", locationAuth);
     }
-  }, [registration, extendedRegistration]);
+  }, [registration]);
 
   const handleSave = async () => {
     if (!registrationId) return;
@@ -253,17 +244,17 @@ export function RegistrationDetailsDialog({
       setNotes(registration.notes || "");
 
       // Reset exit permissions
-      setCanExitAlone(extendedRegistration?.canExitAlone || false);
-      setAllowedExitLocations(extendedRegistration?.allowedExitLocations || []);
+      setCanExitAlone(registration?.canExitAlone || false);
+      setAllowedExitLocations(registration?.allowedExitLocations || []);
 
       // Reset authorized persons
       const authorizedPersonIds =
-        extendedRegistration?.authorizedPersons?.map((p) => p.id) || [];
+        registration?.authorizedPersons?.map((p) => p.id) || [];
       setSelectedAuthorizedPersons(authorizedPersonIds);
 
       // Reset location authorizations
       const locationAuth: Record<string, Record<string, boolean>> = {};
-      extendedRegistration?.locationAuthorizations?.forEach((auth) => {
+      registration?.locationAuthorizations?.forEach((auth) => {
         if (!locationAuth[auth.authorizedPersonId]) {
           locationAuth[auth.authorizedPersonId] = {};
         }
@@ -974,7 +965,7 @@ export function RegistrationDetailsDialog({
                             </Label>
                           </div>
                           <p className="text-sm">
-                            {extendedRegistration.canExitAlone ? (
+                            {registration.canExitAlone ? (
                               <span className="text-green-600 font-medium">
                                 ✓ Il bambino può uscire in autonomia
                               </span>
@@ -985,16 +976,15 @@ export function RegistrationDetailsDialog({
                             )}
                           </p>
 
-                          {extendedRegistration.canExitAlone &&
-                            extendedRegistration.allowedExitLocations &&
-                            extendedRegistration.allowedExitLocations.length >
-                              0 && (
+                          {registration.canExitAlone &&
+                            registration.allowedExitLocations &&
+                            registration.allowedExitLocations.length > 0 && (
                               <div className="mt-3">
                                 <Label className="text-sm font-medium">
                                   Luoghi consentiti per uscita autonoma:
                                 </Label>
                                 <div className="mt-2 flex flex-wrap gap-2">
-                                  {extendedRegistration.allowedExitLocations.map(
+                                  {registration.allowedExitLocations.map(
                                     (location: string, index: number) => (
                                       <Badge
                                         key={index}
@@ -1012,9 +1002,8 @@ export function RegistrationDetailsDialog({
                         </div>
 
                         {/* Autorizzazioni specifiche per luogo */}
-                        {extendedRegistration.locationAuthorizations &&
-                          extendedRegistration.locationAuthorizations.length >
-                            0 && (
+                        {registration.locationAuthorizations &&
+                          registration.locationAuthorizations.length > 0 && (
                             <div className="border rounded-lg p-4">
                               <div className="flex items-center gap-2 mb-3">
                                 <Users className="h-4 w-4" />
@@ -1023,7 +1012,7 @@ export function RegistrationDetailsDialog({
                                 </Label>
                               </div>
                               <div className="space-y-3">
-                                {extendedRegistration.locationAuthorizations.map(
+                                {registration.locationAuthorizations.map(
                                   (auth: any) => {
                                     const person =
                                       registration.authorizedPersons.find(
@@ -1075,10 +1064,9 @@ export function RegistrationDetailsDialog({
                           )}
 
                         {/* Messaggio se non ci sono autorizzazioni specifiche */}
-                        {(!extendedRegistration.locationAuthorizations ||
-                          extendedRegistration.locationAuthorizations.length ===
-                            0) &&
-                          !extendedRegistration.canExitAlone && (
+                        {(!registration.locationAuthorizations ||
+                          registration.locationAuthorizations.length === 0) &&
+                          !registration.canExitAlone && (
                             <div className="text-center py-6">
                               <p className="text-sm text-muted-foreground">
                                 Nessuna autorizzazione specifica per luoghi

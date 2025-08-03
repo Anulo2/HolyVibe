@@ -378,8 +378,7 @@ export function createFileUploadService(): FileUploadService {
       provider === "local"
         ? {
             uploadDir: process.env.LOCAL_UPLOAD_DIR || "./uploads",
-            baseUrl:
-              process.env.LOCAL_BASE_URL || "http://localhost:3000/uploads",
+            baseUrl: process.env.LOCAL_BASE_URL || "/uploads",
           }
         : undefined,
   };

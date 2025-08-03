@@ -174,6 +174,11 @@ export function EventiDialog({
   };
 
   const handleFileSelect = (file: File) => {
+    // Clean up previous preview URL if it exists
+    if (formData.imageUrl && formData.imageUrl.startsWith("blob:")) {
+      URL.revokeObjectURL(formData.imageUrl);
+    }
+
     setFormData((prev) => ({
       ...prev,
       immagine: file,
@@ -182,6 +187,11 @@ export function EventiDialog({
   };
 
   const handleFileRemove = () => {
+    // Clean up preview URL if it exists
+    if (formData.imageUrl && formData.imageUrl.startsWith("blob:")) {
+      URL.revokeObjectURL(formData.imageUrl);
+    }
+
     setFormData((prev) => ({
       ...prev,
       immagine: null,
@@ -261,10 +271,13 @@ export function EventiDialog({
         status: formData.status,
       };
 
-      // Upload image if selected
-      if (formData.immagine && !formData.imageUrl) {
+      // Upload image if a new file is selected
+      if (formData.immagine) {
         const uploadResult = await fileUpload.uploadFile(formData.immagine);
         eventData.imageUrl = uploadResult.url;
+      } else if (!formData.imageUrl) {
+        // If no file selected and no existing URL, explicitly set to undefined to remove image
+        eventData.imageUrl = undefined;
       }
 
       await updateEventMutation.mutateAsync(eventData);
@@ -272,8 +285,8 @@ export function EventiDialog({
       toast.success("Evento aggiornato con successo!");
       onOpenChange(false);
 
-      // Clean up preview URL
-      if (formData.imageUrl && formData.immagine) {
+      // Clean up preview URL if it's a blob URL
+      if (formData.imageUrl && formData.imageUrl.startsWith("blob:")) {
         URL.revokeObjectURL(formData.imageUrl);
       }
     } catch (error) {

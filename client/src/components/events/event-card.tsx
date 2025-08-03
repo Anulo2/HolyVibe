@@ -180,10 +180,14 @@ export function EventCard({
                 {mode === "user" && onRegister && (
                   <Button
                     onClick={onRegister}
-                    disabled={event.status !== "open"}
+                    disabled={!canRegister || isRegistered}
                     className="flex-1"
                   >
-                    Iscriviti
+                    {isRegistered
+                      ? "Già Iscritto"
+                      : canRegister
+                        ? "Iscriviti"
+                        : "Iscrizioni Chiuse"}
                   </Button>
                 )}
                 {mode === "admin" && (
@@ -311,10 +315,14 @@ export function EventCard({
               {onRegister && (
                 <Button
                   onClick={onRegister}
-                  disabled={event.status !== "open"}
+                  disabled={!canRegister || isRegistered}
                   className="flex-1"
                 >
-                  Iscriviti
+                  {isRegistered
+                    ? "Già Iscritto"
+                    : canRegister
+                      ? "Iscriviti"
+                      : "Iscrizioni Chiuse"}
                 </Button>
               )}
             </>

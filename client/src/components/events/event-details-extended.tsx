@@ -63,10 +63,17 @@ interface ExtendedEventDetails {
   specialNotes?: string;
   cancellationPolicy?: string;
   photographyConsent?: boolean;
+  willTakePhotos?: boolean;
   additionalImages?: string;
   createdBy: string;
   createdAt: string;
   updatedAt: string;
+  // Organization data
+  organization?: {
+    id: string;
+    name: string;
+    photoVideoMinorsDeclaration?: string;
+  };
 }
 
 interface EventDetailsExtendedProps {
@@ -466,15 +473,61 @@ export function EventDetailsExtended({
                     <Badge variant="outline">Non fornito</Badge>
                   )}
                 </div>
-                <div className="flex items-center gap-3">
-                  <Camera className="h-5 w-5" />
-                  <span>Consenso Foto</span>
-                  {event.photographyConsent ? (
-                    <Badge variant="default">Richiesto</Badge>
-                  ) : (
-                    <Badge variant="outline">Non richiesto</Badge>
+                {event.photographyConsent && (
+                  <div className="flex items-center gap-3">
+                    <Camera className="h-5 w-5" />
+                    <span>Consenso Foto</span>
+                    {event.photographyConsent ? (
+                      <Badge variant="default">Richiesto</Badge>
+                    ) : (
+                      <Badge variant="outline">Non richiesto</Badge>
+                    )}
+                  </div>
+                )}
+
+                {/* Dichiarazione Foto/Video dell'Organizzazione */}
+                {event.willTakePhotos &&
+                  event.organization?.photoVideoMinorsDeclaration && (
+                    <div className="bg-purple-50 dark:bg-purple-950/20 p-6 rounded-lg border border-purple-200 dark:border-purple-800 col-span-full">
+                      <h4 className="font-semibold mb-3 text-lg flex items-center gap-2 text-purple-700 dark:text-purple-300">
+                        <div className="text-2xl">📸</div>
+                        Dichiarazione Autorizzazione Foto/Video Minorenni
+                      </h4>
+                      <div className="text-sm text-muted-foreground bg-background p-4 rounded whitespace-pre-wrap">
+                        {event.organization.photoVideoMinorsDeclaration}
+                      </div>
+                      <div className="mt-3 text-xs text-purple-600 dark:text-purple-400">
+                        Dichiarazione di: {event.organization.name}
+                      </div>
+                    </div>
                   )}
-                </div>
+
+                {/* Dichiarazione generica se l'organizzazione non ha una specifica */}
+                {event.willTakePhotos &&
+                  !event.organization?.photoVideoMinorsDeclaration && (
+                    <div className="bg-purple-50 dark:bg-purple-950/20 p-6 rounded-lg border border-purple-200 dark:border-purple-800 col-span-full">
+                      <h4 className="font-semibold mb-3 text-lg flex items-center gap-2 text-purple-700 dark:text-purple-300">
+                        <div className="text-2xl">📸</div>
+                        Informativa Foto/Video
+                      </h4>
+                      <div className="text-sm text-muted-foreground bg-background p-4 rounded">
+                        <p className="mb-2">
+                          Durante questo evento verranno scattate foto e/o video
+                          che potrebbero includere i partecipanti minorenni.
+                        </p>
+                        <p className="mb-2">
+                          Durante la registrazione, i genitori potranno
+                          autorizzare o negare il consenso per il trattamento
+                          delle immagini del proprio figlio/figlia secondo le
+                          finalità specificate dall'organizzazione.
+                        </p>
+                        <p className="text-xs text-purple-600 dark:text-purple-400">
+                          Per maggiori dettagli, contattare direttamente
+                          l'organizzazione.
+                        </p>
+                      </div>
+                    </div>
+                  )}
               </div>
 
               {event.weatherDependent && (

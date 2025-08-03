@@ -22,7 +22,11 @@
 	},
 	"dependencies": {
 		"@tanstack/react-table": "^8.21.3",
-		"@typescript/native-preview": "^7.0.0-dev.20250802.1"
+		"@types/node": "^24.1.0",
+		"@typescript/native-preview": "^7.0.0-dev.20250802.1",
+		"client": "^0.0.1",
+		"libphonenumber-js": "^1.12.10",
+		"server": "^1.0.42"
 	},
 	"packageManager": "bun@1.2.19",
 	"lint-staged": {

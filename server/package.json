@@ -29,6 +29,7 @@
 	},
 	"devDependencies": {
 		"@types/bun": "^1.2.19",
+		"@types/node": "^24.1.0",
 		"@typescript/native-preview": "^7.0.0-dev.20250802.1",
 		"drizzle-kit": "^0.31.4",
 		"typescript": "^5.9.2"

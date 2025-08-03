@@ -12,8 +12,11 @@ import {
   CheckCircle,
   AlertCircle,
   Euro,
+  X,
 } from "lucide-react";
 import { useState } from "react";
+import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -27,7 +30,11 @@ import {
 } from "@/components/ui/select";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useAllChildren } from "@/hooks/useAllChildren";
-import { useMyRegistrationsQuery } from "@/hooks/useRegistrationsQuery";
+import {
+  useMyRegistrationsQuery,
+  useCancelRegistrationMutation,
+} from "@/hooks/useRegistrationsQuery";
+import { CancelRegistrationDialog } from "@/components/cancel-registration-dialog";
 
 export const Route = createFileRoute("/iscrizioni")({
   beforeLoad: ({ context }) => {
@@ -50,6 +57,13 @@ function IscrizioniPage() {
   const [childFilter, setChildFilter] = useState("all");
   const [searchTerm, setSearchTerm] = useState("");
   const [page, setPage] = useState(1);
+  const [cancellingIds, setCancellingIds] = useState<string[]>([]);
+  const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
+  const [registrationToCancel, setRegistrationToCancel] = useState<{
+    id: string;
+    childName: string;
+    eventName: string;
+  } | null>(null);
 
   // Get children for filtering
   const { allChildren } = useAllChildren();
@@ -68,6 +82,9 @@ function IscrizioniPage() {
 
   const registrations = registrationsResponse?.registrations || [];
   const total = registrationsResponse?.total || 0;
+
+  // Cancel registration mutation
+  const cancelRegistrationMutation = useCancelRegistrationMutation();
 
   // Filter by search term locally
   const filteredRegistrations = registrations.filter(
@@ -137,6 +154,41 @@ function IscrizioniPage() {
     return new Date(eventDate) < new Date();
   };
 
+  const handleCancelRegistration = (
+    registrationId: string,
+    childName: string,
+    eventName: string,
+  ) => {
+    setRegistrationToCancel({
+      id: registrationId,
+      childName,
+      eventName,
+    });
+    setCancelDialogOpen(true);
+  };
+
+  const handleConfirmCancel = async () => {
+    if (!registrationToCancel) return;
+
+    setCancellingIds((prev) => [...prev, registrationToCancel.id]);
+
+    try {
+      await cancelRegistrationMutation.mutateAsync({
+        id: registrationToCancel.id,
+      });
+      toast.success("Iscrizione annullata con successo");
+      setCancelDialogOpen(false);
+      setRegistrationToCancel(null);
+    } catch (error) {
+      console.error("Error cancelling registration:", error);
+      toast.error("Errore durante l'annullamento dell'iscrizione");
+    } finally {
+      setCancellingIds((prev) =>
+        prev.filter((id) => id !== registrationToCancel.id),
+      );
+    }
+  };
+
   if (registrationsLoading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -165,13 +217,23 @@ function IscrizioniPage() {
             Storico completo delle iscrizioni di tutti i figli delle tue
             famiglie agli eventi
           </p>
-          <div className="mt-2 rounded-md bg-blue-50 p-3 text-sm border border-blue-200">
-            <p className="text-blue-800">
-              <strong>Nota:</strong> Qui vengono mostrate tutte le iscrizioni
-              dei figli delle famiglie di cui fai parte, indipendentemente da
-              chi ha effettuato l'iscrizione. Il nome del genitore che ha
-              iscritto il bambino è indicato sotto al nome della famiglia.
-            </p>
+          <div className="space-y-2">
+            <div className="rounded-md bg-blue-50 p-3 text-sm border border-blue-200">
+              <p className="text-blue-800">
+                <strong>Nota:</strong> Qui vengono mostrate tutte le iscrizioni
+                dei figli delle famiglie di cui fai parte, indipendentemente da
+                chi ha effettuato l'iscrizione. Il nome del genitore che ha
+                iscritto il bambino è indicato sotto al nome della famiglia.
+              </p>
+            </div>
+            <div className="rounded-md bg-amber-50 p-3 text-sm border border-amber-200">
+              <p className="text-amber-800">
+                <strong>Annullamento:</strong> Puoi annullare le iscrizioni che
+                sono ancora "In Attesa" e per eventi futuri. Le iscrizioni già
+                confermate o per eventi passati non possono essere annullate
+                autonomamente.
+              </p>
+            </div>
           </div>
         </div>
 
@@ -297,8 +359,18 @@ function IscrizioniPage() {
         ) : (
           filteredRegistrations.map((registration) => {
             const eventPast = isEventPast(registration.event.startDate);
+            const isCancelling = cancellingIds.includes(registration.id);
+
             return (
-              <Card key={registration.id} className="overflow-hidden">
+              <Card
+                key={registration.id}
+                className={cn(
+                  "overflow-hidden transition-all duration-300",
+                  isCancelling && "opacity-50 scale-[0.98]",
+                  registration.status === "cancelled" &&
+                    "opacity-75 border-red-200",
+                )}
+              >
                 <CardContent className="p-6">
                   <div className="flex flex-col md:flex-row md:items-center gap-4">
                     {/* Child Info */}
@@ -369,6 +441,11 @@ function IscrizioniPage() {
                               {getStatusText(registration.status)}
                             </div>
                           </Badge>
+                          {registration.status === "cancelled" && (
+                            <span className="text-xs text-red-600 ml-2">
+                              Annullata
+                            </span>
+                          )}
                         </div>
                       </div>
 
@@ -412,6 +489,53 @@ function IscrizioniPage() {
                           <strong>Note:</strong> {registration.notes}
                         </div>
                       )}
+
+                      {/* Cancel Button or Cancelled Message */}
+                      {registration.status === "pending" &&
+                        !isEventPast(registration.event.startDate) && (
+                          <div className="mt-3 pt-3 border-t">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() =>
+                                handleCancelRegistration(
+                                  registration.id,
+                                  `${registration.child.firstName} ${registration.child.lastName}`,
+                                  registration.event.title,
+                                )
+                              }
+                              disabled={
+                                cancelRegistrationMutation.isPending ||
+                                isCancelling
+                              }
+                              className="text-red-600 hover:text-red-700 border-red-200 hover:border-red-300"
+                            >
+                              {cancelRegistrationMutation.isPending ||
+                              isCancelling ? (
+                                <>
+                                  <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                                  Annullando...
+                                </>
+                              ) : (
+                                <>
+                                  <X className="h-3 w-3 mr-1" />
+                                  Annulla Iscrizione
+                                </>
+                              )}
+                            </Button>
+                          </div>
+                        )}
+
+                      {registration.status === "cancelled" && (
+                        <div className="mt-3 pt-3 border-t border-red-200">
+                          <div className="flex items-center gap-2 text-red-600 bg-red-50 p-2 rounded">
+                            <X className="h-4 w-4" />
+                            <span className="text-sm font-medium">
+                              Iscrizione annullata
+                            </span>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </CardContent>
@@ -444,6 +568,18 @@ function IscrizioniPage() {
             Successiva
           </Button>
         </div>
+      )}
+
+      {/* Cancel Registration Dialog */}
+      {registrationToCancel && (
+        <CancelRegistrationDialog
+          open={cancelDialogOpen}
+          onOpenChange={setCancelDialogOpen}
+          onConfirm={handleConfirmCancel}
+          childName={registrationToCancel.childName}
+          eventName={registrationToCancel.eventName}
+          isLoading={cancelRegistrationMutation.isPending}
+        />
       )}
     </div>
   );

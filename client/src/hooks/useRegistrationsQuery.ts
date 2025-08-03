@@ -266,3 +266,21 @@ export const useCheckChildRegistrationQuery = (
     staleTime: 1000 * 60 * 2, // 2 minutes
   });
 };
+
+// Hook for cancelling a registration
+export const useCancelRegistrationMutation = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (data: { id: string }) => {
+      const response = await orpc.registrations.cancel(data);
+      return response.data;
+    },
+    onSuccess: () => {
+      // Invalidate all registration-related queries
+      queryClient.invalidateQueries({
+        queryKey: ["registrations"],
+      });
+    },
+  });
+};

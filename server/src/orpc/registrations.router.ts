@@ -1128,4 +1128,91 @@ export const registrationsRouter = os.router({
         });
       }
     }),
+
+  // Cancel registration (for parents)
+  cancel: withAuth
+    .input(z.object({ id: z.string() }))
+    .output(
+      SuccessResponse(
+        z.object({
+          id: z.string(),
+          status: z.string(),
+        }),
+      ),
+    )
+    .handler(async ({ input, context }) => {
+      const userId = context.user.id;
+
+      try {
+        // First, verify that this registration belongs to a child from user's families
+        const userFamilies = await db
+          .select({ familyId: familyMembers.familyId })
+          .from(familyMembers)
+          .where(eq(familyMembers.userId, userId));
+
+        const userFamilyIds = userFamilies.map((f) => f.familyId);
+
+        if (userFamilyIds.length === 0) {
+          throw new ORPCError("FORBIDDEN", {
+            message: "Access denied",
+          });
+        }
+
+        // Get the registration and verify access
+        const registration = await db
+          .select({
+            registration: eventRegistrations,
+            child: children,
+          })
+          .from(eventRegistrations)
+          .leftJoin(children, eq(eventRegistrations.childId, children.id))
+          .where(eq(eventRegistrations.id, input.id))
+          .limit(1);
+
+        if (!registration[0]) {
+          throw new ORPCError("NOT_FOUND", {
+            message: "Registration not found",
+          });
+        }
+
+        const reg = registration[0];
+
+        // Verify the child belongs to one of user's families
+        if (!reg.child || !userFamilyIds.includes(reg.child.familyId)) {
+          throw new ORPCError("FORBIDDEN", {
+            message: "You don't have permission to cancel this registration",
+          });
+        }
+
+        // Check if registration can be cancelled (only pending registrations)
+        if (reg.registration.status !== "pending") {
+          throw new ORPCError("BAD_REQUEST", {
+            message: "Only pending registrations can be cancelled",
+          });
+        }
+
+        // Update registration status to cancelled
+        await db
+          .update(eventRegistrations)
+          .set({
+            status: "cancelled",
+            updatedAt: new Date(),
+          })
+          .where(eq(eventRegistrations.id, input.id));
+
+        return {
+          success: true,
+          data: {
+            id: input.id,
+            status: "cancelled",
+          },
+        };
+      } catch (error) {
+        console.error("Error cancelling registration:", error);
+        if (error instanceof ORPCError) throw error;
+        throw new ORPCError("INTERNAL_SERVER_ERROR", {
+          message: "Failed to cancel registration",
+        });
+      }
+    }),
 });

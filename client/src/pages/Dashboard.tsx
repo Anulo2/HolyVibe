@@ -12,6 +12,7 @@ import {
   XCircle,
   AlertCircle,
   ArrowRight,
+  X,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -19,6 +20,7 @@ import { AggiungiModificaFiglioDialog } from "@/components/aggiungi-modifica-fig
 import { AggiungiModificaPersonaDialog } from "@/components/aggiungi-modifica-persona-dialog";
 import { CreaFamigliaDialog } from "@/components/crea-famiglia-dialog";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
 import { Route as dashboardRoute } from "@/routes/dashboard";
@@ -31,7 +33,11 @@ import {
   useFamilyChildrenQuery,
   useUpdateFamilyMutation,
 } from "../hooks/useFamilyQuery";
-import { useMyRegistrationsQuery } from "@/hooks/useRegistrationsQuery";
+import {
+  useMyRegistrationsQuery,
+  useCancelRegistrationMutation,
+} from "@/hooks/useRegistrationsQuery";
+import { CancelRegistrationDialog } from "@/components/cancel-registration-dialog";
 
 export default function Dashboard() {
   const navigate = useNavigate();
@@ -42,6 +48,12 @@ export default function Dashboard() {
   const [editingFamily, setEditingFamily] = useState<any>(null);
   const [editingChild, setEditingChild] = useState<any>(null);
   const [editingPerson, setEditingPerson] = useState<any>(null);
+  const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
+  const [registrationToCancel, setRegistrationToCancel] = useState<{
+    id: string;
+    childName: string;
+    eventName: string;
+  } | null>(null);
 
   const { data: families = [], isLoading: familiesLoading } =
     useFamiliesQuery();
@@ -63,6 +75,9 @@ export default function Dashboard() {
     limit: 5,
   });
   const recentRegistrations = registrationsResponse?.registrations || [];
+
+  // Cancel registration mutation
+  const cancelRegistrationMutation = useCancelRegistrationMutation();
 
   const totalFamilies = families.length;
   const totalChildren = families.reduce(
@@ -135,6 +150,35 @@ export default function Dashboard() {
   const handleEditPerson = (person: any) => {
     setEditingPerson(person);
     setShowAddPersonDialog(true);
+  };
+
+  const handleCancelRegistration = (
+    registrationId: string,
+    childName: string,
+    eventName: string,
+  ) => {
+    setRegistrationToCancel({
+      id: registrationId,
+      childName,
+      eventName,
+    });
+    setCancelDialogOpen(true);
+  };
+
+  const handleConfirmCancel = async () => {
+    if (!registrationToCancel) return;
+
+    try {
+      await cancelRegistrationMutation.mutateAsync({
+        id: registrationToCancel.id,
+      });
+      toast.success("Iscrizione annullata con successo");
+      setCancelDialogOpen(false);
+      setRegistrationToCancel(null);
+    } catch (error) {
+      console.error("Error cancelling registration:", error);
+      toast.error("Errore durante l'annullamento dell'iscrizione");
+    }
   };
 
   const handleAddPersonSubmit = async (data: any) => {
@@ -370,6 +414,28 @@ export default function Dashboard() {
                           {getStatusText(registration.status)}
                         </div>
                       </Badge>
+                      {registration.status === "pending" && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() =>
+                            handleCancelRegistration(
+                              registration.id,
+                              `${registration.child.firstName} ${registration.child.lastName}`,
+                              registration.event.title,
+                            )
+                          }
+                          disabled={cancelRegistrationMutation.isPending}
+                          className="h-6 w-6 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+                          title="Annulla iscrizione"
+                        >
+                          {cancelRegistrationMutation.isPending ? (
+                            <Loader2 className="h-3 w-3 animate-spin" />
+                          ) : (
+                            <X className="h-3 w-3" />
+                          )}
+                        </Button>
+                      )}
                     </div>
                   </div>
                 );
@@ -423,6 +489,18 @@ export default function Dashboard() {
           onAddPerson={handleAddPersonSubmit}
           onUpdatePerson={handleAddPersonSubmit}
           person={editingPerson}
+        />
+      )}
+
+      {/* Cancel Registration Dialog */}
+      {registrationToCancel && (
+        <CancelRegistrationDialog
+          open={cancelDialogOpen}
+          onOpenChange={setCancelDialogOpen}
+          onConfirm={handleConfirmCancel}
+          childName={registrationToCancel.childName}
+          eventName={registrationToCancel.eventName}
+          isLoading={cancelRegistrationMutation.isPending}
         />
       )}
     </>

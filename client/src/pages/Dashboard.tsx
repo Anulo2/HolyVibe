@@ -7,12 +7,19 @@ import {
   Plus,
   UserPlus,
   Users,
+  CheckCircle,
+  Clock,
+  XCircle,
+  AlertCircle,
+  ArrowRight,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { AggiungiModificaFiglioDialog } from "@/components/aggiungi-modifica-figlio-dialog";
 import { AggiungiModificaPersonaDialog } from "@/components/aggiungi-modifica-persona-dialog";
 import { CreaFamigliaDialog } from "@/components/crea-famiglia-dialog";
+import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
 import { Route as dashboardRoute } from "@/routes/dashboard";
 import {
@@ -24,6 +31,7 @@ import {
   useFamilyChildrenQuery,
   useUpdateFamilyMutation,
 } from "../hooks/useFamilyQuery";
+import { useMyRegistrationsQuery } from "@/hooks/useRegistrationsQuery";
 
 export default function Dashboard() {
   const navigate = useNavigate();
@@ -48,6 +56,13 @@ export default function Dashboard() {
   const updateFamilyMutation = useUpdateFamilyMutation();
   const addChildMutation = useAddChildMutation();
   const addAuthorizedPersonMutation = useAddAuthorizedPersonMutation();
+
+  // Get recent registrations
+  const { data: registrationsResponse } = useMyRegistrationsQuery({
+    page: 1,
+    limit: 5,
+  });
+  const recentRegistrations = registrationsResponse?.registrations || [];
 
   const totalFamilies = families.length;
   const totalChildren = families.reduce(
@@ -183,9 +198,15 @@ export default function Dashboard() {
               <CalendarDays className="h-8 w-8 text-primary" />
               <div>
                 <p className="text-sm font-medium text-muted-foreground">
-                  Eventi Attivi
+                  Iscrizioni Attive
                 </p>
-                <p className="text-2xl font-bold">0</p>
+                <p className="text-2xl font-bold">
+                  {
+                    recentRegistrations.filter(
+                      (r) => r.status === "confirmed" || r.status === "pending",
+                    ).length
+                  }
+                </p>
               </div>
             </div>
           </div>
@@ -249,6 +270,119 @@ export default function Dashboard() {
             <p className="text-center text-muted-foreground">
               Nessuna famiglia trovata. Creane una per iniziare!
             </p>
+          )}
+        </div>
+
+        {/* Recent Registrations Section */}
+        <div className="rounded-lg border bg-card p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold">Iscrizioni Recenti</h3>
+            <button
+              onClick={() => navigate({ to: "/iscrizioni" })}
+              className="text-sm text-primary hover:underline flex items-center gap-1"
+            >
+              Vedi tutte
+              <ArrowRight className="h-3 w-3" />
+            </button>
+          </div>
+
+          {recentRegistrations.length > 0 ? (
+            <div className="space-y-3">
+              {recentRegistrations.map((registration) => {
+                const getStatusIcon = (status: string) => {
+                  switch (status) {
+                    case "confirmed":
+                      return <CheckCircle className="h-4 w-4 text-green-600" />;
+                    case "pending":
+                      return <Clock className="h-4 w-4 text-yellow-600" />;
+                    case "cancelled":
+                      return <XCircle className="h-4 w-4 text-red-600" />;
+                    case "waitlist":
+                      return <AlertCircle className="h-4 w-4 text-blue-600" />;
+                    default:
+                      return <Clock className="h-4 w-4 text-gray-600" />;
+                  }
+                };
+
+                const getStatusText = (status: string) => {
+                  switch (status) {
+                    case "confirmed":
+                      return "Confermata";
+                    case "pending":
+                      return "In Attesa";
+                    case "cancelled":
+                      return "Annullata";
+                    case "waitlist":
+                      return "Lista d'Attesa";
+                    default:
+                      return status;
+                  }
+                };
+
+                const getStatusVariant = (status: string) => {
+                  switch (status) {
+                    case "confirmed":
+                      return "success" as const;
+                    case "pending":
+                      return "warning" as const;
+                    case "cancelled":
+                      return "destructive" as const;
+                    case "waitlist":
+                      return "secondary" as const;
+                    default:
+                      return "default" as const;
+                  }
+                };
+
+                return (
+                  <div
+                    key={registration.id}
+                    className="flex items-center justify-between p-3 rounded-lg border bg-muted/20"
+                  >
+                    <div className="flex items-center gap-3">
+                      <Avatar className="h-8 w-8">
+                        <AvatarFallback className="text-xs">
+                          {registration.child.firstName.charAt(0)}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div>
+                        <p className="font-medium text-sm">
+                          {registration.child.firstName}{" "}
+                          {registration.child.lastName}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {registration.event.title}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Badge
+                        variant={getStatusVariant(registration.status)}
+                        className="text-xs"
+                      >
+                        <div className="flex items-center gap-1">
+                          {getStatusIcon(registration.status)}
+                          {getStatusText(registration.status)}
+                        </div>
+                      </Badge>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="text-center py-6">
+              <CalendarDays className="mx-auto h-8 w-8 text-muted-foreground mb-2" />
+              <p className="text-sm text-muted-foreground">
+                Nessuna iscrizione per i figli delle tue famiglie
+              </p>
+              <button
+                onClick={() => navigate({ to: "/eventi" })}
+                className="text-sm text-primary hover:underline mt-1"
+              >
+                Esplora gli eventi disponibili
+              </button>
+            </div>
           )}
         </div>
       </div>

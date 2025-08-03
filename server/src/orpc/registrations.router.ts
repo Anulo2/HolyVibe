@@ -113,6 +113,44 @@ export const registrationsRouter = os.router({
                 )
             : [];
 
+        // Get all family parents for all registrations
+        const familyIds = registrations
+          .map((r) => r.family?.id)
+          .filter(Boolean) as string[];
+
+        const allFamilyParents =
+          familyIds.length > 0
+            ? await db
+                .select({
+                  familyId: familyMembers.familyId,
+                  user: userTable,
+                })
+                .from(familyMembers)
+                .leftJoin(userTable, eq(familyMembers.userId, userTable.id))
+                .where(
+                  and(
+                    inArray(familyMembers.familyId, familyIds),
+                    eq(familyMembers.role, "parent"),
+                  ),
+                )
+            : [];
+
+        // Group family parents by family ID
+        const parentsMap = new Map<string, any[]>();
+        allFamilyParents.forEach((item) => {
+          if (!parentsMap.has(item.familyId)) {
+            parentsMap.set(item.familyId, []);
+          }
+          if (item.user) {
+            parentsMap.get(item.familyId)!.push({
+              id: item.user.id,
+              name: item.user.name || "",
+              email: item.user.email,
+              phoneNumber: item.user.phoneNumber,
+            });
+          }
+        });
+
         const authorizedPersonsMap = new Map<string, any[]>();
         authorizedPersonsData.forEach((item) => {
           if (!authorizedPersonsMap.has(item.registrationId)) {
@@ -175,6 +213,7 @@ export const registrationsRouter = os.router({
                     email: "",
                     phoneNumber: null,
                   },
+              parents: item.family ? parentsMap.get(item.family.id) || [] : [],
               event: item.event
                 ? {
                     id: item.event.id,
@@ -249,6 +288,22 @@ export const registrationsRouter = os.router({
 
         const item = registration[0];
 
+        // Get all family parents
+        const familyParents = item.family
+          ? await db
+              .select({
+                user: userTable,
+              })
+              .from(familyMembers)
+              .leftJoin(userTable, eq(familyMembers.userId, userTable.id))
+              .where(
+                and(
+                  eq(familyMembers.familyId, item.family.id),
+                  eq(familyMembers.role, "parent"),
+                ),
+              )
+          : [];
+
         // Get authorized persons for this registration
         const authorizedPersonsData = await db
           .select({
@@ -309,6 +364,14 @@ export const registrationsRouter = os.router({
                   email: "",
                   phoneNumber: null,
                 },
+            parents: familyParents
+              .filter((parent) => parent.user)
+              .map((parent) => ({
+                id: parent.user!.id,
+                name: parent.user!.name || "",
+                email: parent.user!.email,
+                phoneNumber: parent.user!.phoneNumber,
+              })),
             event: item.event
               ? {
                   id: item.event.id,
@@ -817,8 +880,50 @@ export const registrationsRouter = os.router({
         const userId = context.user.id;
         const offset = (input.page - 1) * input.limit;
 
-        // Build where conditions
-        const whereConditions = [eq(eventRegistrations.parentId, userId)];
+        // First, get all families where the current user is a member
+        const userFamilies = await db
+          .select({ familyId: familyMembers.familyId })
+          .from(familyMembers)
+          .where(eq(familyMembers.userId, userId));
+
+        const userFamilyIds = userFamilies.map((f) => f.familyId);
+
+        if (userFamilyIds.length === 0) {
+          return {
+            success: true,
+            data: {
+              registrations: [],
+              total: 0,
+              page: input.page,
+              limit: input.limit,
+            },
+          };
+        }
+
+        // Build where conditions - now include all children from user's families
+        const whereConditions = [];
+
+        // Get all children from user's families
+        const familyChildren = await db
+          .select({ childId: children.id })
+          .from(children)
+          .where(inArray(children.familyId, userFamilyIds));
+
+        const childIds = familyChildren.map((c) => c.childId);
+
+        if (childIds.length === 0) {
+          return {
+            success: true,
+            data: {
+              registrations: [],
+              total: 0,
+              page: input.page,
+              limit: input.limit,
+            },
+          };
+        }
+
+        whereConditions.push(inArray(eventRegistrations.childId, childIds));
 
         if (input.status) {
           whereConditions.push(eq(eventRegistrations.status, input.status));
@@ -880,7 +985,45 @@ export const registrationsRouter = os.router({
                 )
             : [];
 
-        // Group authorized persons by registration
+        // Get all family parents for all registrations
+        const familyIds = registrations
+          .map((r) => r.family?.id)
+          .filter(Boolean) as string[];
+
+        const allFamilyParents =
+          familyIds.length > 0
+            ? await db
+                .select({
+                  familyId: familyMembers.familyId,
+                  user: userTable,
+                })
+                .from(familyMembers)
+                .leftJoin(userTable, eq(familyMembers.userId, userTable.id))
+                .where(
+                  and(
+                    inArray(familyMembers.familyId, familyIds),
+                    eq(familyMembers.role, "parent"),
+                  ),
+                )
+            : [];
+
+        // Group family parents by family ID
+        const parentsMap = new Map<string, any[]>();
+        allFamilyParents.forEach((item) => {
+          if (!parentsMap.has(item.familyId)) {
+            parentsMap.set(item.familyId, []);
+          }
+          if (item.user) {
+            parentsMap.get(item.familyId)!.push({
+              id: item.user.id,
+              name: item.user.name || "",
+              email: item.user.email,
+              phoneNumber: item.user.phoneNumber,
+            });
+          }
+        });
+
+        // Get authorized persons for each registration
         const authorizedPersonsMap = new Map<string, any[]>();
         authorizedPersonsData.forEach((item) => {
           if (!authorizedPersonsMap.has(item.registrationId)) {
@@ -888,11 +1031,11 @@ export const registrationsRouter = os.router({
           }
           if (item.person) {
             authorizedPersonsMap.get(item.registrationId)!.push({
-              id: item.person.id,
-              fullName: item.person.fullName,
-              relationship: item.person.relationship,
-              phone: item.person.phone,
-              email: item.person.email,
+              id: item.person!.id,
+              fullName: item.person!.fullName,
+              relationship: item.person!.relationship,
+              phone: item.person!.phone,
+              email: item.person!.email,
             });
           }
         });
@@ -943,6 +1086,7 @@ export const registrationsRouter = os.router({
                     email: "",
                     phoneNumber: null,
                   },
+              parents: item.family ? parentsMap.get(item.family.id) || [] : [],
               event: item.event
                 ? {
                     id: item.event.id,

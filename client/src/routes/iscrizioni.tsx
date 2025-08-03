@@ -62,7 +62,7 @@ function IscrizioniPage() {
   } = useMyRegistrationsQuery({
     page,
     limit: 20,
-    status: statusFilter !== "all" ? statusFilter as any : undefined,
+    status: statusFilter !== "all" ? (statusFilter as any) : undefined,
     childId: childFilter !== "all" ? childFilter : undefined,
   });
 
@@ -70,11 +70,14 @@ function IscrizioniPage() {
   const total = registrationsResponse?.total || 0;
 
   // Filter by search term locally
-  const filteredRegistrations = registrations.filter((registration) =>
-    registration.event.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    `${registration.child.firstName} ${registration.child.lastName}`
-      .toLowerCase()
-      .includes(searchTerm.toLowerCase())
+  const filteredRegistrations = registrations.filter(
+    (registration) =>
+      registration.event.title
+        .toLowerCase()
+        .includes(searchTerm.toLowerCase()) ||
+      `${registration.child.firstName} ${registration.child.lastName}`
+        .toLowerCase()
+        .includes(searchTerm.toLowerCase()),
   );
 
   const getStatusIcon = (status: string) => {
@@ -159,7 +162,8 @@ function IscrizioniPage() {
         <div>
           <h1 className="text-3xl font-bold">Le Mie Iscrizioni</h1>
           <p className="text-muted-foreground">
-            Storico completo delle iscrizioni dei tuoi figli agli eventi
+            Storico completo delle iscrizioni di tutti i figli delle tue
+            famiglie agli eventi
           </p>
         </div>
 
@@ -167,46 +171,36 @@ function IscrizioniPage() {
         <div className="grid gap-4 md:grid-cols-4">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">
-                Totali
-              </CardTitle>
+              <CardTitle className="text-sm font-medium">Totali</CardTitle>
               <Calendar className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{total}</div>
-              <p className="text-xs text-muted-foreground">
-                Iscrizioni totali
-              </p>
+              <p className="text-xs text-muted-foreground">Iscrizioni totali</p>
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">
-                Confermate
-              </CardTitle>
+              <CardTitle className="text-sm font-medium">Confermate</CardTitle>
               <CheckCircle className="h-4 w-4 text-green-600" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
-                {registrations.filter(r => r.status === "confirmed").length}
+                {registrations.filter((r) => r.status === "confirmed").length}
               </div>
-              <p className="text-xs text-muted-foreground">
-                Eventi confermati
-              </p>
+              <p className="text-xs text-muted-foreground">Eventi confermati</p>
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">
-                In Attesa
-              </CardTitle>
+              <CardTitle className="text-sm font-medium">In Attesa</CardTitle>
               <Clock className="h-4 w-4 text-yellow-600" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
-                {registrations.filter(r => r.status === "pending").length}
+                {registrations.filter((r) => r.status === "pending").length}
               </div>
               <p className="text-xs text-muted-foreground">
                 In attesa di conferma
@@ -223,14 +217,15 @@ function IscrizioniPage() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
-                {registrations.filter(r =>
-                  !isEventPast(r.event.startDate) &&
-                  (r.status === "confirmed" || r.status === "pending")
-                ).length}
+                {
+                  registrations.filter(
+                    (r) =>
+                      !isEventPast(r.event.startDate) &&
+                      (r.status === "confirmed" || r.status === "pending"),
+                  ).length
+                }
               </div>
-              <p className="text-xs text-muted-foreground">
-                Eventi futuri
-              </p>
+              <p className="text-xs text-muted-foreground">Eventi futuri</p>
             </CardContent>
           </Card>
         </div>
@@ -282,11 +277,13 @@ function IscrizioniPage() {
         {filteredRegistrations.length === 0 ? (
           <div className="text-center py-12">
             <Calendar className="mx-auto h-12 w-12 text-muted-foreground" />
-            <h3 className="mt-4 text-lg font-semibold">Nessuna iscrizione trovata</h3>
+            <h3 className="mt-4 text-lg font-semibold">
+              Nessuna iscrizione trovata
+            </h3>
             <p className="text-muted-foreground">
               {searchTerm || statusFilter !== "all" || childFilter !== "all"
                 ? "Prova a modificare i filtri di ricerca"
-                : "Non hai ancora iscritto nessun figlio agli eventi"}
+                : "Non ci sono ancora iscrizioni per i figli delle tue famiglie"}
             </p>
           </div>
         ) : (
@@ -299,20 +296,22 @@ function IscrizioniPage() {
                     {/* Child Info */}
                     <div className="flex items-center gap-3">
                       <Avatar>
-                        <AvatarImage
-                          src={registration.child.avatarUrl}
-                          alt={`${registration.child.firstName} ${registration.child.lastName}`}
-                        />
                         <AvatarFallback>
                           {registration.child.firstName.charAt(0)}
                         </AvatarFallback>
                       </Avatar>
                       <div>
                         <h3 className="font-semibold">
-                          {registration.child.firstName} {registration.child.lastName}
+                          {registration.child.firstName}{" "}
+                          {registration.child.lastName}
                         </h3>
                         <p className="text-sm text-muted-foreground">
                           {registration.family.name}
+                          {registration.parent.name && (
+                            <span className="ml-2 text-xs">
+                              • Iscritto da {registration.parent.name}
+                            </span>
+                          )}
                         </p>
                       </div>
                     </div>
@@ -330,11 +329,15 @@ function IscrizioniPage() {
                               <span>
                                 {formatDate(registration.event.startDate)}
                                 {registration.event.endDate &&
-                                  registration.event.endDate !== registration.event.startDate &&
+                                  registration.event.endDate !==
+                                    registration.event.startDate &&
                                   ` - ${formatDate(registration.event.endDate)}`}
                               </span>
                               {eventPast && (
-                                <Badge variant="secondary" className="ml-2 text-xs">
+                                <Badge
+                                  variant="secondary"
+                                  className="ml-2 text-xs"
+                                >
                                   Passato
                                 </Badge>
                               )}
@@ -343,13 +346,16 @@ function IscrizioniPage() {
                         </div>
 
                         <div className="flex items-center gap-2">
-                          {registration.event.price && registration.event.price !== "0.00" && (
-                            <div className="flex items-center gap-1 text-sm">
-                              <Euro className="h-3 w-3 text-muted-foreground" />
-                              <span>€{registration.event.price}</span>
-                            </div>
-                          )}
-                          <Badge variant={getStatusVariant(registration.status)}>
+                          {registration.event.price &&
+                            registration.event.price !== "0.00" && (
+                              <div className="flex items-center gap-1 text-sm">
+                                <Euro className="h-3 w-3 text-muted-foreground" />
+                                <span>€{registration.event.price}</span>
+                              </div>
+                            )}
+                          <Badge
+                            variant={getStatusVariant(registration.status)}
+                          >
                             <div className="flex items-center gap-1">
                               {getStatusIcon(registration.status)}
                               {getStatusText(registration.status)}
@@ -363,7 +369,8 @@ function IscrizioniPage() {
                         <div className="flex items-center gap-1">
                           <Clock className="h-3 w-3" />
                           <span>
-                            Iscritto il {formatDate(registration.registrationDate)}
+                            Iscritto il{" "}
+                            {formatDate(registration.registrationDate)}
                           </span>
                         </div>
                         {registration.notes && (
@@ -378,12 +385,16 @@ function IscrizioniPage() {
                       {registration.authorizedPersons.length > 0 && (
                         <div className="text-xs text-muted-foreground">
                           <span>Persone autorizzate: </span>
-                          {registration.authorizedPersons.map((person, index) => (
-                            <span key={person.id}>
-                              {person.fullName}
-                              {index < registration.authorizedPersons.length - 1 && ", "}
-                            </span>
-                          ))}
+                          {registration.authorizedPersons.map(
+                            (person, index) => (
+                              <span key={person.id}>
+                                {person.fullName}
+                                {index <
+                                  registration.authorizedPersons.length - 1 &&
+                                  ", "}
+                              </span>
+                            ),
+                          )}
                         </div>
                       )}
 
@@ -408,7 +419,7 @@ function IscrizioniPage() {
           <Button
             variant="outline"
             size="sm"
-            onClick={() => setPage(p => Math.max(1, p - 1))}
+            onClick={() => setPage((p) => Math.max(1, p - 1))}
             disabled={page === 1}
           >
             Precedente
@@ -419,7 +430,7 @@ function IscrizioniPage() {
           <Button
             variant="outline"
             size="sm"
-            onClick={() => setPage(p => p + 1)}
+            onClick={() => setPage((p) => p + 1)}
             disabled={page >= Math.ceil(total / 20)}
           >
             Successiva

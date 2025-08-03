@@ -186,6 +186,12 @@ export type RegistrationWithDetails = {
     email: string;
     phoneNumber: string | null;
   };
+  parents: Array<{
+    id: string;
+    name: string;
+    email: string;
+    phoneNumber: string | null;
+  }>;
   event: {
     id: string;
     title: string;

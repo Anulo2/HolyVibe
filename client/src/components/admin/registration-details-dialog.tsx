@@ -1,5 +1,6 @@
 import { format } from "date-fns";
 import { it } from "date-fns/locale";
+import React, { useState } from "react";
 import {
   AlertCircle,
   CalendarDays,
@@ -9,13 +10,14 @@ import {
   Phone,
   User,
   Users,
+  Loader2,
 } from "lucide-react";
-import React, { useState } from "react";
 import { toast } from "sonner";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
@@ -33,10 +35,12 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
+import { cn } from "@/lib/utils";
 import {
   useRegistrationQuery,
   useUpdateRegistrationMutation,
 } from "@/hooks/useRegistrationsQuery";
+import { useAllAuthorizedPersons } from "@/hooks/useAllAuthorizedPersons";
 
 interface RegistrationDetailsDialogProps {
   registrationId: string | null;
@@ -114,6 +118,20 @@ export function RegistrationDetailsDialog({
   const [notes, setNotes] = useState("");
   const [isEditing, setIsEditing] = useState(false);
 
+  // Exit permissions state
+  const [canExitAlone, setCanExitAlone] = useState(false);
+  const [allowedExitLocations, setAllowedExitLocations] = useState<string[]>(
+    [],
+  );
+
+  // Authorized persons state
+  const [selectedAuthorizedPersons, setSelectedAuthorizedPersons] = useState<
+    string[]
+  >([]);
+  const [locationAuthorizations, setLocationAuthorizations] = useState<
+    Record<string, Record<string, boolean>>
+  >({});
+
   const { data: registration, isLoading } = useRegistrationQuery(
     registrationId || "",
   );
@@ -131,24 +149,80 @@ export function RegistrationDetailsDialog({
   };
   const updateRegistrationMutation = useUpdateRegistrationMutation();
 
+  // Get authorized persons and event locations
+  const { allAuthorizedPersons = [], isLoading: personsLoading } =
+    useAllAuthorizedPersons();
+  // Extract event locations from event data
+  const eventLocations = React.useMemo(() => {
+    if (!registration?.event) return [];
+
+    try {
+      if (!registration.event.locations) return [];
+
+      // Parse locations from JSON string
+      const locations =
+        typeof registration.event.locations === "string"
+          ? JSON.parse(registration.event.locations)
+          : registration.event.locations;
+
+      return Array.isArray(locations) ? locations : [];
+    } catch (error) {
+      console.error("Error parsing event locations:", error);
+      return [];
+    }
+  }, [registration?.event]);
+
   // Initialize form when registration data loads
   React.useEffect(() => {
     if (registration) {
       setStatus(registration.status);
       setPaymentStatus(registration.paymentStatus);
       setNotes(registration.notes || "");
+
+      // Initialize exit permissions
+      setCanExitAlone(extendedRegistration?.canExitAlone || false);
+      setAllowedExitLocations(extendedRegistration?.allowedExitLocations || []);
+
+      // Initialize authorized persons
+      const authorizedPersonIds =
+        extendedRegistration?.authorizedPersons?.map((p) => p.id) || [];
+      setSelectedAuthorizedPersons(authorizedPersonIds);
+
+      // Initialize location authorizations
+      const locationAuth: Record<string, Record<string, boolean>> = {};
+      extendedRegistration?.locationAuthorizations?.forEach((auth) => {
+        if (!locationAuth[auth.authorizedPersonId]) {
+          locationAuth[auth.authorizedPersonId] = {};
+        }
+        locationAuth[auth.authorizedPersonId][auth.location] = auth.canPickup;
+      });
+      setLocationAuthorizations(locationAuth);
     }
-  }, [registration]);
+  }, [registration, extendedRegistration]);
 
   const handleSave = async () => {
     if (!registrationId) return;
 
     try {
+      // Prepare location authorizations array
+      const locationAuthArray = Object.entries(locationAuthorizations).flatMap(
+        ([personId, locations]) =>
+          Object.entries(locations).map(([location, canPickup]) => ({
+            authorizedPersonId: personId,
+            location,
+            canPickup,
+          })),
+      );
+
       await updateRegistrationMutation.mutateAsync({
         id: registrationId,
         status: status as any,
         paymentStatus: paymentStatus as any,
         notes: notes || undefined,
+        canExitAlone,
+        allowedExitLocations,
+        authorizedPersonIds: selectedAuthorizedPersons,
+        locationAuthorizations: locationAuthArray,
       });
 
       setIsEditing(false);
@@ -163,8 +237,56 @@ export function RegistrationDetailsDialog({
       setStatus(registration.status);
       setPaymentStatus(registration.paymentStatus);
       setNotes(registration.notes || "");
+
+      // Reset exit permissions
+      setCanExitAlone(extendedRegistration?.canExitAlone || false);
+      setAllowedExitLocations(extendedRegistration?.allowedExitLocations || []);
+
+      // Reset authorized persons
+      const authorizedPersonIds =
+        extendedRegistration?.authorizedPersons?.map((p) => p.id) || [];
+      setSelectedAuthorizedPersons(authorizedPersonIds);
+
+      // Reset location authorizations
+      const locationAuth: Record<string, Record<string, boolean>> = {};
+      extendedRegistration?.locationAuthorizations?.forEach((auth) => {
+        if (!locationAuth[auth.authorizedPersonId]) {
+          locationAuth[auth.authorizedPersonId] = {};
+        }
+        locationAuth[auth.authorizedPersonId][auth.location] = auth.canPickup;
+      });
+      setLocationAuthorizations(locationAuth);
     }
     setIsEditing(false);
+  };
+
+  // Handler functions for authorized persons and exit permissions
+  const handleAuthorizedPersonChange = (personId: string) => {
+    setSelectedAuthorizedPersons((prev) =>
+      prev.includes(personId)
+        ? prev.filter((id) => id !== personId)
+        : [...prev, personId],
+    );
+  };
+
+  const handleExitLocationChange = (location: string, checked: boolean) => {
+    setAllowedExitLocations((prev) =>
+      checked ? [...prev, location] : prev.filter((loc) => loc !== location),
+    );
+  };
+
+  const handleLocationAuthorizationChange = (
+    personId: string,
+    location: string,
+    checked: boolean,
+  ) => {
+    setLocationAuthorizations((prev) => ({
+      ...prev,
+      [personId]: {
+        ...prev[personId],
+        [location]: checked,
+      },
+    }));
   };
 
   if (!registrationId) return null;
@@ -553,63 +675,195 @@ export function RegistrationDetailsDialog({
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
-                    {registration.authorizedPersons.length > 0 ? (
+                    {isEditing ? (
                       <div className="space-y-4">
-                        {registration.authorizedPersons.map(
-                          (person: {
-                            id: string;
-                            fullName: string;
-                            relationship: string;
-                            phone?: string | null;
-                            email?: string | null;
-                          }) => (
-                            <div
-                              key={person.id}
-                              className="border rounded-lg p-3"
-                            >
-                              <div className="flex items-center gap-3 mb-2">
-                                <Avatar>
-                                  <AvatarFallback>
-                                    {person.fullName
-                                      .split(" ")
-                                      .map((n: string) => n[0])
-                                      .join("")}
-                                  </AvatarFallback>
-                                </Avatar>
-                                <div>
-                                  <p className="font-medium">
-                                    {person.fullName}
-                                  </p>
-                                  <p className="text-sm text-muted-foreground">
-                                    {person.relationship}
-                                  </p>
-                                </div>
+                        <Label className="text-sm font-medium">
+                          Persone autorizzate a ritirare il bambino
+                        </Label>
+                        {personsLoading ? (
+                          <div className="flex items-center justify-center p-4">
+                            <Loader2 className="h-6 w-6 animate-spin" />
+                          </div>
+                        ) : allAuthorizedPersons.length > 0 ? (
+                          <div className="space-y-2 max-h-48 overflow-y-auto">
+                            {allAuthorizedPersons.map((person: any) => (
+                              <div
+                                key={person.id}
+                                className="flex items-center gap-3 p-3 rounded-lg border"
+                              >
+                                <Checkbox
+                                  id={`edit-person-${person.id}`}
+                                  checked={selectedAuthorizedPersons.includes(
+                                    person.id,
+                                  )}
+                                  onCheckedChange={() =>
+                                    handleAuthorizedPersonChange(person.id)
+                                  }
+                                />
+                                <Label
+                                  htmlFor={`edit-person-${person.id}`}
+                                  className="flex items-center gap-3 cursor-pointer flex-1"
+                                >
+                                  <Avatar className="h-8 w-8">
+                                    <AvatarImage
+                                      src={person.avatarUrl}
+                                      alt={person.fullName}
+                                    />
+                                    <AvatarFallback>
+                                      {person.fullName.charAt(0)}
+                                    </AvatarFallback>
+                                  </Avatar>
+                                  <div>
+                                    <p className="font-medium">
+                                      {person.fullName}
+                                    </p>
+                                    <p className="text-sm text-muted-foreground">
+                                      {person.relationship} •{" "}
+                                      {person.familyName}
+                                    </p>
+                                  </div>
+                                </Label>
                               </div>
-                              {(person.phone || person.email) && (
-                                <div className="space-y-1 text-sm text-muted-foreground">
-                                  {person.phone && (
-                                    <p className="flex items-center gap-1">
-                                      <Phone className="h-3 w-3" />
-                                      {person.phone}
-                                    </p>
-                                  )}
-                                  {person.email && (
-                                    <p className="flex items-center gap-1">
-                                      <Mail className="h-3 w-3" />
-                                      {person.email}
-                                    </p>
-                                  )}
-                                </div>
-                              )}
-                            </div>
-                          ),
+                            ))}
+                          </div>
+                        ) : (
+                          <p className="text-sm text-muted-foreground">
+                            Nessuna persona autorizzata disponibile
+                          </p>
                         )}
+
+                        {/* Location-specific authorizations */}
+                        {selectedAuthorizedPersons.length > 0 &&
+                          eventLocations.length > 1 && (
+                            <div className="space-y-3 border-t pt-4">
+                              <Label className="text-sm font-medium">
+                                Autorizzazioni specifiche per luogo
+                              </Label>
+                              <div className="space-y-3 max-h-48 overflow-y-auto">
+                                {allAuthorizedPersons
+                                  .filter((person: any) =>
+                                    selectedAuthorizedPersons.includes(
+                                      person.id,
+                                    ),
+                                  )
+                                  .map((person: any) => (
+                                    <div
+                                      key={person.id}
+                                      className="border rounded-lg p-3 space-y-2"
+                                    >
+                                      <div className="flex items-center gap-2">
+                                        <Avatar className="h-6 w-6">
+                                          <AvatarImage
+                                            src={person.avatarUrl}
+                                            alt={person.fullName}
+                                          />
+                                          <AvatarFallback className="text-xs">
+                                            {person.fullName.charAt(0)}
+                                          </AvatarFallback>
+                                        </Avatar>
+                                        <span className="text-sm font-medium">
+                                          {person.fullName}
+                                        </span>
+                                      </div>
+                                      <div className="space-y-1 ml-8">
+                                        {eventLocations.map(
+                                          (location: string) => (
+                                            <div
+                                              key={location}
+                                              className="flex items-center space-x-2"
+                                            >
+                                              <Checkbox
+                                                id={`edit-auth-${person.id}-${location}`}
+                                                checked={
+                                                  locationAuthorizations[
+                                                    person.id
+                                                  ]?.[location] || false
+                                                }
+                                                onCheckedChange={(checked) =>
+                                                  handleLocationAuthorizationChange(
+                                                    person.id,
+                                                    location,
+                                                    checked === true,
+                                                  )
+                                                }
+                                              />
+                                              <Label
+                                                htmlFor={`edit-auth-${person.id}-${location}`}
+                                                className="text-xs"
+                                              >
+                                                Può ritirare da: {location}
+                                              </Label>
+                                            </div>
+                                          ),
+                                        )}
+                                      </div>
+                                    </div>
+                                  ))}
+                              </div>
+                            </div>
+                          )}
                       </div>
                     ) : (
-                      <p className="text-sm text-muted-foreground text-center py-4">
-                        Nessuna persona autorizzata aggiunta per questa
-                        iscrizione
-                      </p>
+                      <>
+                        {registration.authorizedPersons.length > 0 ? (
+                          <div className="space-y-4">
+                            {registration.authorizedPersons.map(
+                              (person: {
+                                id: string;
+                                fullName: string;
+                                relationship: string;
+                                phone?: string | null;
+                                email?: string | null;
+                              }) => (
+                                <div
+                                  key={person.id}
+                                  className="border rounded-lg p-3"
+                                >
+                                  <div className="flex items-center gap-3 mb-2">
+                                    <Avatar>
+                                      <AvatarFallback>
+                                        {person.fullName
+                                          .split(" ")
+                                          .map((n: string) => n[0])
+                                          .join("")}
+                                      </AvatarFallback>
+                                    </Avatar>
+                                    <div>
+                                      <p className="font-medium">
+                                        {person.fullName}
+                                      </p>
+                                      <p className="text-sm text-muted-foreground">
+                                        {person.relationship}
+                                      </p>
+                                    </div>
+                                  </div>
+                                  {(person.phone || person.email) && (
+                                    <div className="space-y-1 text-sm text-muted-foreground">
+                                      {person.phone && (
+                                        <p className="flex items-center gap-1">
+                                          <Phone className="h-3 w-3" />
+                                          {person.phone}
+                                        </p>
+                                      )}
+                                      {person.email && (
+                                        <p className="flex items-center gap-1">
+                                          <Mail className="h-3 w-3" />
+                                          {person.email}
+                                        </p>
+                                      )}
+                                    </div>
+                                  )}
+                                </div>
+                              ),
+                            )}
+                          </div>
+                        ) : (
+                          <p className="text-sm text-muted-foreground text-center py-4">
+                            Nessuna persona autorizzata aggiunta per questa
+                            iscrizione
+                          </p>
+                        )}
+                      </>
                     )}
                   </CardContent>
                 </Card>
@@ -624,129 +878,206 @@ export function RegistrationDetailsDialog({
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-4">
-                    {/* Uscita Autonoma */}
-                    <div className="border rounded-lg p-4">
-                      <div className="flex items-center gap-2 mb-2">
-                        <User className="h-4 w-4" />
-                        <Label className="font-medium">Uscita Autonoma</Label>
+                    {isEditing ? (
+                      <div className="space-y-4">
+                        <div className="flex items-center space-x-2">
+                          <Checkbox
+                            id="edit-exit-alone"
+                            checked={canExitAlone}
+                            onCheckedChange={(checked) =>
+                              setCanExitAlone(checked === true)
+                            }
+                          />
+                          <Label
+                            htmlFor="edit-exit-alone"
+                            className="text-sm font-medium"
+                          >
+                            Il bambino può uscire in autonomia (senza
+                            accompagnatore)
+                          </Label>
+                        </div>
+
+                        {canExitAlone && eventLocations.length > 0 && (
+                          <div className="ml-6 space-y-2">
+                            <Label className="text-sm text-muted-foreground">
+                              Seleziona i luoghi da cui può uscire
+                              autonomamente:
+                            </Label>
+                            {eventLocations.map((location: string) => (
+                              <div
+                                key={location}
+                                className="flex items-center space-x-2"
+                              >
+                                <Checkbox
+                                  id={`edit-exit-location-${location}`}
+                                  checked={allowedExitLocations.includes(
+                                    location,
+                                  )}
+                                  onCheckedChange={(checked) =>
+                                    handleExitLocationChange(
+                                      location,
+                                      checked === true,
+                                    )
+                                  }
+                                />
+                                <Label
+                                  htmlFor={`edit-exit-location-${location}`}
+                                  className="text-sm"
+                                >
+                                  {location}
+                                </Label>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+
+                        <div className="rounded-md bg-blue-50 p-3 text-sm flex gap-2">
+                          <AlertCircle className="h-5 w-5 text-blue-500 flex-shrink-0" />
+                          <div className="text-blue-800">
+                            <p className="font-medium mb-1">Importante:</p>
+                            <ul className="text-xs space-y-1 list-disc list-inside">
+                              <li>
+                                Se il bambino può uscire autonomamente,
+                                specificare da quali luoghi
+                              </li>
+                              <li>
+                                Per eventi con più luoghi, puoi autorizzare
+                                persone specifiche per luoghi specifici nella
+                                tab "Persone Autorizzate"
+                              </li>
+                            </ul>
+                          </div>
+                        </div>
                       </div>
-                      <p className="text-sm">
-                        {extendedRegistration.canExitAlone ? (
-                          <span className="text-green-600 font-medium">
-                            ✓ Il bambino può uscire in autonomia
-                          </span>
-                        ) : (
-                          <span className="text-muted-foreground">
-                            Il bambino non può uscire in autonomia
-                          </span>
-                        )}
-                      </p>
-
-                      {extendedRegistration.canExitAlone &&
-                        extendedRegistration.allowedExitLocations &&
-                        extendedRegistration.allowedExitLocations.length >
-                          0 && (
-                          <div className="mt-3">
-                            <Label className="text-sm font-medium">
-                              Luoghi consentiti per uscita autonoma:
-                            </Label>
-                            <div className="mt-2 flex flex-wrap gap-2">
-                              {extendedRegistration.allowedExitLocations.map(
-                                (location: string, index: number) => (
-                                  <Badge
-                                    key={index}
-                                    variant="outline"
-                                    className="text-xs"
-                                  >
-                                    <MapPin className="h-3 w-3 mr-1" />
-                                    {location}
-                                  </Badge>
-                                ),
-                              )}
-                            </div>
-                          </div>
-                        )}
-                    </div>
-
-                    {/* Autorizzazioni specifiche per luogo */}
-                    {extendedRegistration.locationAuthorizations &&
-                      extendedRegistration.locationAuthorizations.length >
-                        0 && (
+                    ) : (
+                      <>
+                        {/* Uscita Autonoma */}
                         <div className="border rounded-lg p-4">
-                          <div className="flex items-center gap-2 mb-3">
-                            <Users className="h-4 w-4" />
+                          <div className="flex items-center gap-2 mb-2">
+                            <User className="h-4 w-4" />
                             <Label className="font-medium">
-                              Autorizzazioni Specifiche per Luogo
+                              Uscita Autonoma
                             </Label>
                           </div>
-                          <div className="space-y-3">
-                            {extendedRegistration.locationAuthorizations.map(
-                              (auth: any) => {
-                                const person =
-                                  registration.authorizedPersons.find(
-                                    (p) => p.id === auth.authorizedPersonId,
-                                  );
-                                return person ? (
-                                  <div
-                                    key={auth.id}
-                                    className="flex items-center justify-between p-3 bg-muted rounded-lg"
-                                  >
-                                    <div className="flex items-center gap-3">
-                                      <Avatar className="h-8 w-8">
-                                        <AvatarFallback>
-                                          {person.fullName
-                                            .split(" ")
-                                            .map((n: string) => n[0])
-                                            .join("")}
-                                        </AvatarFallback>
-                                      </Avatar>
-                                      <div>
-                                        <p className="font-medium text-sm">
-                                          {person.fullName}
-                                        </p>
-                                        <p className="text-xs text-muted-foreground">
-                                          {person.relationship}
-                                        </p>
-                                      </div>
-                                    </div>
-                                    <div className="text-right">
+                          <p className="text-sm">
+                            {extendedRegistration.canExitAlone ? (
+                              <span className="text-green-600 font-medium">
+                                ✓ Il bambino può uscire in autonomia
+                              </span>
+                            ) : (
+                              <span className="text-muted-foreground">
+                                Il bambino non può uscire in autonomia
+                              </span>
+                            )}
+                          </p>
+
+                          {extendedRegistration.canExitAlone &&
+                            extendedRegistration.allowedExitLocations &&
+                            extendedRegistration.allowedExitLocations.length >
+                              0 && (
+                              <div className="mt-3">
+                                <Label className="text-sm font-medium">
+                                  Luoghi consentiti per uscita autonoma:
+                                </Label>
+                                <div className="mt-2 flex flex-wrap gap-2">
+                                  {extendedRegistration.allowedExitLocations.map(
+                                    (location: string, index: number) => (
                                       <Badge
+                                        key={index}
                                         variant="outline"
                                         className="text-xs"
                                       >
                                         <MapPin className="h-3 w-3 mr-1" />
-                                        {auth.location}
+                                        {location}
                                       </Badge>
-                                      {auth.canPickup && (
-                                        <p className="text-xs text-green-600 mt-1">
-                                          ✓ Autorizzato al ritiro
-                                        </p>
-                                      )}
-                                    </div>
-                                  </div>
-                                ) : null;
-                              },
+                                    ),
+                                  )}
+                                </div>
+                              </div>
                             )}
-                          </div>
                         </div>
-                      )}
 
-                    {/* Messaggio se non ci sono autorizzazioni specifiche */}
-                    {(!extendedRegistration.locationAuthorizations ||
-                      extendedRegistration.locationAuthorizations.length ===
-                        0) &&
-                      !extendedRegistration.canExitAlone && (
-                        <div className="text-center py-6">
-                          <p className="text-sm text-muted-foreground">
-                            Nessuna autorizzazione specifica per luoghi
-                            configurata
-                          </p>
-                          <p className="text-xs text-muted-foreground mt-1">
-                            Le persone autorizzate possono ritirare da qualsiasi
-                            luogo dell'evento
-                          </p>
-                        </div>
-                      )}
+                        {/* Autorizzazioni specifiche per luogo */}
+                        {extendedRegistration.locationAuthorizations &&
+                          extendedRegistration.locationAuthorizations.length >
+                            0 && (
+                            <div className="border rounded-lg p-4">
+                              <div className="flex items-center gap-2 mb-3">
+                                <Users className="h-4 w-4" />
+                                <Label className="font-medium">
+                                  Autorizzazioni Specifiche per Luogo
+                                </Label>
+                              </div>
+                              <div className="space-y-3">
+                                {extendedRegistration.locationAuthorizations.map(
+                                  (auth: any) => {
+                                    const person =
+                                      registration.authorizedPersons.find(
+                                        (p) => p.id === auth.authorizedPersonId,
+                                      );
+                                    return person ? (
+                                      <div
+                                        key={auth.id}
+                                        className="flex items-center justify-between p-3 bg-muted rounded-lg"
+                                      >
+                                        <div className="flex items-center gap-3">
+                                          <Avatar className="h-8 w-8">
+                                            <AvatarFallback>
+                                              {person.fullName
+                                                .split(" ")
+                                                .map((n: string) => n[0])
+                                                .join("")}
+                                            </AvatarFallback>
+                                          </Avatar>
+                                          <div>
+                                            <p className="font-medium text-sm">
+                                              {person.fullName}
+                                            </p>
+                                            <p className="text-xs text-muted-foreground">
+                                              {person.relationship}
+                                            </p>
+                                          </div>
+                                        </div>
+                                        <div className="text-right">
+                                          <Badge
+                                            variant="outline"
+                                            className="text-xs"
+                                          >
+                                            <MapPin className="h-3 w-3 mr-1" />
+                                            {auth.location}
+                                          </Badge>
+                                          {auth.canPickup && (
+                                            <p className="text-xs text-green-600 mt-1">
+                                              ✓ Autorizzato al ritiro
+                                            </p>
+                                          )}
+                                        </div>
+                                      </div>
+                                    ) : null;
+                                  },
+                                )}
+                              </div>
+                            </div>
+                          )}
+
+                        {/* Messaggio se non ci sono autorizzazioni specifiche */}
+                        {(!extendedRegistration.locationAuthorizations ||
+                          extendedRegistration.locationAuthorizations.length ===
+                            0) &&
+                          !extendedRegistration.canExitAlone && (
+                            <div className="text-center py-6">
+                              <p className="text-sm text-muted-foreground">
+                                Nessuna autorizzazione specifica per luoghi
+                                configurata
+                              </p>
+                              <p className="text-xs text-muted-foreground mt-1">
+                                Le persone autorizzate possono ritirare da
+                                qualsiasi luogo dell'evento
+                              </p>
+                            </div>
+                          )}
+                      </>
+                    )}
                   </CardContent>
                 </Card>
               </TabsContent>

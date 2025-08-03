@@ -143,6 +143,7 @@ export const RegistrationWithDetails = z.object({
     startDate: z.string(),
     endDate: z.string().nullable(),
     price: z.string().nullable(),
+    locations: z.string(),
   }),
   family: z.object({
     id: z.string(),

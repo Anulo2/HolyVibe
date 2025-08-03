@@ -58,6 +58,14 @@ export const useUpdateRegistrationMutation = () => {
       status?: "pending" | "confirmed" | "cancelled" | "waitlist";
       paymentStatus?: "pending" | "completed" | "failed" | "refunded";
       notes?: string;
+      canExitAlone?: boolean;
+      allowedExitLocations?: string[];
+      authorizedPersonIds?: string[];
+      locationAuthorizations?: Array<{
+        authorizedPersonId: string;
+        location: string;
+        canPickup: boolean;
+      }>;
     }) => {
       const response = await orpc.registrations.updateStatus(data);
       return response.data;
@@ -207,6 +215,7 @@ export type RegistrationWithDetails = {
     startDate: string;
     endDate: string | null;
     price: string | null;
+    locations: string;
   };
   family: {
     id: string;

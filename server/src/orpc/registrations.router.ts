@@ -250,6 +250,7 @@ export const registrationsRouter = os.router({
                       ? new Date(item.event.endDate).toISOString()
                       : null,
                     price: item.event.price,
+                    locations: item.event.locations,
                   }
                 : {
                     id: "",
@@ -257,6 +258,7 @@ export const registrationsRouter = os.router({
                     startDate: "",
                     endDate: null,
                     price: null,
+                    locations: "",
                   },
               family: item.family
                 ? {
@@ -422,6 +424,7 @@ export const registrationsRouter = os.router({
                     ? new Date(item.event.endDate).toISOString()
                     : null,
                   price: item.event.price,
+                  locations: item.event.locations,
                 }
               : {
                   id: "",
@@ -429,6 +432,7 @@ export const registrationsRouter = os.router({
                   startDate: "",
                   endDate: null,
                   price: null,
+                  locations: "",
                 },
             family: item.family
               ? {
@@ -756,6 +760,7 @@ export const registrationsRouter = os.router({
           if (input.authorizedPersonIds.length > 0) {
             await db.insert(registrationAuthorizedPersons).values(
               input.authorizedPersonIds.map((personId) => ({
+                id: nanoid(),
                 registrationId: input.id,
                 authorizedPersonId: personId,
               })),
@@ -776,6 +781,7 @@ export const registrationsRouter = os.router({
           if (input.locationAuthorizations.length > 0) {
             await db.insert(registrationLocationAuthorizations).values(
               input.locationAuthorizations.map((auth) => ({
+                id: nanoid(),
                 registrationId: input.id,
                 authorizedPersonId: auth.authorizedPersonId,
                 location: auth.location,
@@ -1310,6 +1316,7 @@ export const registrationsRouter = os.router({
                       ? new Date(item.event.endDate).toISOString()
                       : null,
                     price: item.event.price,
+                    locations: item.event.locations,
                   }
                 : {
                     id: "",
@@ -1317,6 +1324,7 @@ export const registrationsRouter = os.router({
                     startDate: "",
                     endDate: null,
                     price: null,
+                    locations: "",
                   },
               family: item.family
                 ? {

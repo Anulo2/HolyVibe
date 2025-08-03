@@ -5,6 +5,7 @@ import {
   CalendarDays,
   CreditCard,
   Mail,
+  MapPin,
   Phone,
   User,
   Users,
@@ -116,6 +117,18 @@ export function RegistrationDetailsDialog({
   const { data: registration, isLoading } = useRegistrationQuery(
     registrationId || "",
   );
+
+  // Type assertion for extended registration with authorization fields
+  const extendedRegistration = registration as typeof registration & {
+    canExitAlone: boolean;
+    allowedExitLocations: string[] | null;
+    locationAuthorizations: Array<{
+      id: string;
+      authorizedPersonId: string;
+      location: string;
+      canPickup: boolean;
+    }>;
+  };
   const updateRegistrationMutation = useUpdateRegistrationMutation();
 
   // Initialize form when registration data loads
@@ -207,13 +220,14 @@ export function RegistrationDetailsDialog({
             </div>
 
             <Tabs defaultValue="details" className="w-full">
-              <TabsList className="grid w-full grid-cols-4">
+              <TabsList className="grid w-full grid-cols-5">
                 <TabsTrigger value="details">Dettagli</TabsTrigger>
                 <TabsTrigger value="child">Bambino</TabsTrigger>
                 <TabsTrigger value="parent">Genitore</TabsTrigger>
                 <TabsTrigger value="authorized">
                   Persone Autorizzate
                 </TabsTrigger>
+                <TabsTrigger value="exit">Permessi di Uscita</TabsTrigger>
               </TabsList>
 
               <TabsContent value="details" className="space-y-4">
@@ -597,6 +611,142 @@ export function RegistrationDetailsDialog({
                         iscrizione
                       </p>
                     )}
+                  </CardContent>
+                </Card>
+              </TabsContent>
+
+              <TabsContent value="exit" className="space-y-4">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <MapPin className="h-4 w-4" />
+                      Permessi di Uscita
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    {/* Uscita Autonoma */}
+                    <div className="border rounded-lg p-4">
+                      <div className="flex items-center gap-2 mb-2">
+                        <User className="h-4 w-4" />
+                        <Label className="font-medium">Uscita Autonoma</Label>
+                      </div>
+                      <p className="text-sm">
+                        {extendedRegistration.canExitAlone ? (
+                          <span className="text-green-600 font-medium">
+                            ✓ Il bambino può uscire in autonomia
+                          </span>
+                        ) : (
+                          <span className="text-muted-foreground">
+                            Il bambino non può uscire in autonomia
+                          </span>
+                        )}
+                      </p>
+
+                      {extendedRegistration.canExitAlone &&
+                        extendedRegistration.allowedExitLocations &&
+                        extendedRegistration.allowedExitLocations.length >
+                          0 && (
+                          <div className="mt-3">
+                            <Label className="text-sm font-medium">
+                              Luoghi consentiti per uscita autonoma:
+                            </Label>
+                            <div className="mt-2 flex flex-wrap gap-2">
+                              {extendedRegistration.allowedExitLocations.map(
+                                (location: string, index: number) => (
+                                  <Badge
+                                    key={index}
+                                    variant="outline"
+                                    className="text-xs"
+                                  >
+                                    <MapPin className="h-3 w-3 mr-1" />
+                                    {location}
+                                  </Badge>
+                                ),
+                              )}
+                            </div>
+                          </div>
+                        )}
+                    </div>
+
+                    {/* Autorizzazioni specifiche per luogo */}
+                    {extendedRegistration.locationAuthorizations &&
+                      extendedRegistration.locationAuthorizations.length >
+                        0 && (
+                        <div className="border rounded-lg p-4">
+                          <div className="flex items-center gap-2 mb-3">
+                            <Users className="h-4 w-4" />
+                            <Label className="font-medium">
+                              Autorizzazioni Specifiche per Luogo
+                            </Label>
+                          </div>
+                          <div className="space-y-3">
+                            {extendedRegistration.locationAuthorizations.map(
+                              (auth: any) => {
+                                const person =
+                                  registration.authorizedPersons.find(
+                                    (p) => p.id === auth.authorizedPersonId,
+                                  );
+                                return person ? (
+                                  <div
+                                    key={auth.id}
+                                    className="flex items-center justify-between p-3 bg-muted rounded-lg"
+                                  >
+                                    <div className="flex items-center gap-3">
+                                      <Avatar className="h-8 w-8">
+                                        <AvatarFallback>
+                                          {person.fullName
+                                            .split(" ")
+                                            .map((n: string) => n[0])
+                                            .join("")}
+                                        </AvatarFallback>
+                                      </Avatar>
+                                      <div>
+                                        <p className="font-medium text-sm">
+                                          {person.fullName}
+                                        </p>
+                                        <p className="text-xs text-muted-foreground">
+                                          {person.relationship}
+                                        </p>
+                                      </div>
+                                    </div>
+                                    <div className="text-right">
+                                      <Badge
+                                        variant="outline"
+                                        className="text-xs"
+                                      >
+                                        <MapPin className="h-3 w-3 mr-1" />
+                                        {auth.location}
+                                      </Badge>
+                                      {auth.canPickup && (
+                                        <p className="text-xs text-green-600 mt-1">
+                                          ✓ Autorizzato al ritiro
+                                        </p>
+                                      )}
+                                    </div>
+                                  </div>
+                                ) : null;
+                              },
+                            )}
+                          </div>
+                        </div>
+                      )}
+
+                    {/* Messaggio se non ci sono autorizzazioni specifiche */}
+                    {(!extendedRegistration.locationAuthorizations ||
+                      extendedRegistration.locationAuthorizations.length ===
+                        0) &&
+                      !extendedRegistration.canExitAlone && (
+                        <div className="text-center py-6">
+                          <p className="text-sm text-muted-foreground">
+                            Nessuna autorizzazione specifica per luoghi
+                            configurata
+                          </p>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Le persone autorizzate possono ritirare da qualsiasi
+                            luogo dell'evento
+                          </p>
+                        </div>
+                      )}
                   </CardContent>
                 </Card>
               </TabsContent>

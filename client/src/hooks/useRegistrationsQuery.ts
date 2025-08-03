@@ -119,9 +119,9 @@ export const useAdminCreateRegistrationMutation = () => {
     mutationFn: async (data: {
       eventId: string;
       // Parent/Family data
-      parentEmail: string;
+      parentEmail?: string;
       parentName: string;
-      parentPhone?: string;
+      parentPhone: string;
       // Family data
       familyName?: string;
       createNewFamily?: boolean;
@@ -141,6 +141,15 @@ export const useAdminCreateRegistrationMutation = () => {
       dataPrivacyConsent?: boolean;
       status?: "pending" | "confirmed" | "cancelled" | "waitlist";
       paymentStatus?: "pending" | "completed" | "failed" | "refunded";
+      // Authorization data
+      authorizedPersonIds?: string[];
+      canExitAlone?: boolean;
+      allowedExitLocations?: string[];
+      locationAuthorizations?: Array<{
+        authorizedPersonId: string;
+        location: string;
+        canPickup: boolean;
+      }>;
     }) => {
       const response = await orpc.registrations.adminCreate(data);
       return response.data;
@@ -212,6 +221,14 @@ export type RegistrationWithDetails = {
   }>;
   photoPrivacyConsent: boolean;
   dataPrivacyConsent: boolean;
+  canExitAlone: boolean;
+  allowedExitLocations: string[] | null;
+  locationAuthorizations: Array<{
+    id: string;
+    authorizedPersonId: string;
+    location: string;
+    canPickup: boolean;
+  }>;
 };
 
 // Hook for fetching user's registration history

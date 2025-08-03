@@ -113,6 +113,20 @@ export const registrationsRouter = os.router({
                 )
             : [];
 
+        // Get location authorizations for each registration
+        const locationAuthorizationsData =
+          registrationIds.length > 0
+            ? await db
+                .select()
+                .from(registrationLocationAuthorizations)
+                .where(
+                  inArray(
+                    registrationLocationAuthorizations.registrationId,
+                    registrationIds,
+                  ),
+                )
+            : [];
+
         // Get all family parents for all registrations
         const familyIds = registrations
           .map((r) => r.family?.id)
@@ -165,6 +179,19 @@ export const registrationsRouter = os.router({
               email: item.person.email,
             });
           }
+        });
+
+        const locationAuthorizationsMap = new Map<string, any[]>();
+        locationAuthorizationsData.forEach((item) => {
+          if (!locationAuthorizationsMap.has(item.registrationId)) {
+            locationAuthorizationsMap.set(item.registrationId, []);
+          }
+          locationAuthorizationsMap.get(item.registrationId)!.push({
+            id: item.id,
+            authorizedPersonId: item.authorizedPersonId,
+            location: item.location,
+            canPickup: item.canPickup,
+          });
         });
 
         return {
@@ -242,6 +269,12 @@ export const registrationsRouter = os.router({
                   },
               authorizedPersons:
                 authorizedPersonsMap.get(item.registration.id) || [],
+              canExitAlone: item.registration.canExitAlone,
+              allowedExitLocations: item.registration.allowedExitLocations
+                ? JSON.parse(item.registration.allowedExitLocations)
+                : [],
+              locationAuthorizations:
+                locationAuthorizationsMap.get(item.registration.id) || [],
             })),
             total: count,
             page: input.page,
@@ -318,6 +351,14 @@ export const registrationsRouter = os.router({
             ),
           )
           .where(eq(registrationAuthorizedPersons.registrationId, input.id));
+
+        // Get location authorizations for this registration
+        const locationAuthorizationsData = await db
+          .select()
+          .from(registrationLocationAuthorizations)
+          .where(
+            eq(registrationLocationAuthorizations.registrationId, input.id),
+          );
 
         return {
           success: true,
@@ -407,6 +448,16 @@ export const registrationsRouter = os.router({
                 phone: item.person!.phone,
                 email: item.person!.email,
               })),
+            canExitAlone: item.registration.canExitAlone,
+            allowedExitLocations: item.registration.allowedExitLocations
+              ? JSON.parse(item.registration.allowedExitLocations)
+              : [],
+            locationAuthorizations: locationAuthorizationsData.map((auth) => ({
+              id: auth.id,
+              authorizedPersonId: auth.authorizedPersonId,
+              location: auth.location,
+              canPickup: auth.canPickup,
+            })),
           },
         };
       } catch (error) {
@@ -629,6 +680,20 @@ export const registrationsRouter = os.router({
         notes: z.string().optional(),
         photoPrivacyConsent: z.boolean().optional(),
         dataPrivacyConsent: z.boolean().optional(),
+        // Exit permissions fields
+        canExitAlone: z.boolean().optional(),
+        allowedExitLocations: z.array(z.string()).optional(),
+        // Authorized persons fields
+        authorizedPersonIds: z.array(z.string()).optional(),
+        locationAuthorizations: z
+          .array(
+            z.object({
+              authorizedPersonId: z.string(),
+              location: z.string(),
+              canPickup: z.boolean(),
+            }),
+          )
+          .optional(),
       }),
     )
     .output(
@@ -666,11 +731,59 @@ export const registrationsRouter = os.router({
           updateData.dataPrivacyConsent = input.dataPrivacyConsent;
         }
 
+        if (input.canExitAlone !== undefined) {
+          updateData.canExitAlone = input.canExitAlone;
+        }
+
+        if (input.allowedExitLocations !== undefined) {
+          updateData.allowedExitLocations = input.allowedExitLocations;
+        }
+
         const [updatedRegistration] = await db
           .update(eventRegistrations)
           .set(updateData)
           .where(eq(eventRegistrations.id, input.id))
           .returning();
+
+        // Handle authorized persons updates
+        if (input.authorizedPersonIds !== undefined) {
+          // Delete existing authorized registrations
+          await db
+            .delete(registrationAuthorizedPersons)
+            .where(eq(registrationAuthorizedPersons.registrationId, input.id));
+
+          // Add new authorized registrations
+          if (input.authorizedPersonIds.length > 0) {
+            await db.insert(registrationAuthorizedPersons).values(
+              input.authorizedPersonIds.map((personId) => ({
+                registrationId: input.id,
+                authorizedPersonId: personId,
+              })),
+            );
+          }
+        }
+
+        // Handle location authorizations updates
+        if (input.locationAuthorizations !== undefined) {
+          // Delete existing location authorizations
+          await db
+            .delete(registrationLocationAuthorizations)
+            .where(
+              eq(registrationLocationAuthorizations.registrationId, input.id),
+            );
+
+          // Add new location authorizations
+          if (input.locationAuthorizations.length > 0) {
+            await db.insert(registrationLocationAuthorizations).values(
+              input.locationAuthorizations.map((auth) => ({
+                registrationId: input.id,
+                authorizedPersonId: auth.authorizedPersonId,
+                location: auth.location,
+                canPickup: auth.canPickup,
+              })),
+            );
+          }
+        }
 
         return {
           success: true,
@@ -694,9 +807,9 @@ export const registrationsRouter = os.router({
       z.object({
         eventId: z.string(),
         // Parent/Family data
-        parentEmail: z.string().email(),
+        parentEmail: z.string().email().optional(),
         parentName: z.string().min(1),
-        parentPhone: z.string().optional(),
+        parentPhone: z.string().min(1, "Numero di telefono è obbligatorio"),
         // Family data (if new family needs to be created)
         familyName: z.string().optional(),
         createNewFamily: z.boolean().default(false),
@@ -720,6 +833,19 @@ export const registrationsRouter = os.router({
         paymentStatus: z
           .enum(["pending", "completed", "failed", "refunded"])
           .default("pending"),
+        // Authorization data
+        authorizedPersonIds: z.array(z.string()).optional(),
+        canExitAlone: z.boolean().default(false),
+        allowedExitLocations: z.array(z.string()).optional(),
+        locationAuthorizations: z
+          .array(
+            z.object({
+              authorizedPersonId: z.string(),
+              location: z.string(),
+              canPickup: z.boolean(),
+            }),
+          )
+          .optional(),
       }),
     )
     .output(
@@ -768,23 +894,27 @@ export const registrationsRouter = os.router({
           child: true, // Child is always created
         };
 
+        // Generate email if not provided
+        const finalEmail =
+          input.parentEmail || `temp_${nanoid()}@holyvibe.temp`;
+
         // 1. Check if parent user exists, create if not
-        const existingUser = await db
+        const existingParentUser = await db
           .select()
           .from(userTable)
-          .where(eq(userTable.email, input.parentEmail))
+          .where(eq(userTable.email, finalEmail))
           .limit(1);
 
-        if (existingUser.length > 0) {
-          parentId = existingUser[0].id;
+        if (existingParentUser.length > 0) {
+          parentId = existingParentUser[0].id;
         } else {
           // Create new user
           parentId = nanoid();
           await db.insert(userTable).values({
             id: parentId,
             name: input.parentName,
-            email: input.parentEmail,
-            phoneNumber: input.parentPhone || null,
+            email: finalEmail,
+            phoneNumber: input.parentPhone,
             emailVerified: false,
           });
           created.user = true;
@@ -867,10 +997,47 @@ export const registrationsRouter = os.router({
           notes: input.notes || null,
           photoPrivacyConsent: input.photoPrivacyConsent,
           dataPrivacyConsent: input.dataPrivacyConsent,
+          canExitAlone: input.canExitAlone,
+          allowedExitLocations: input.allowedExitLocations
+            ? JSON.stringify(input.allowedExitLocations)
+            : null,
           registrationDate: new Date(),
         });
 
-        // 5. Update event participant count if confirmed
+        // 5. Handle authorized persons for pickup
+        if (input.authorizedPersonIds && input.authorizedPersonIds.length > 0) {
+          const authorizedPersonsData = input.authorizedPersonIds.map(
+            (personId) => ({
+              id: nanoid(),
+              registrationId,
+              authorizedPersonId: personId,
+            }),
+          );
+
+          await db
+            .insert(registrationAuthorizedPersons)
+            .values(authorizedPersonsData);
+        }
+
+        // 6. Handle location authorizations
+        if (
+          input.locationAuthorizations &&
+          input.locationAuthorizations.length > 0
+        ) {
+          const locationAuthData = input.locationAuthorizations.map((auth) => ({
+            id: nanoid(),
+            registrationId,
+            authorizedPersonId: auth.authorizedPersonId,
+            location: auth.location,
+            canPickup: auth.canPickup,
+          }));
+
+          await db
+            .insert(registrationLocationAuthorizations)
+            .values(locationAuthData);
+        }
+
+        // 7. Update event participant count if confirmed
         if (input.status === "confirmed") {
           await db
             .update(events)

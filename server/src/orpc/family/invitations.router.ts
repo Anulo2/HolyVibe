@@ -362,20 +362,30 @@ export const invitationsRouter = os.router({
         }
 
         // Check if invited email or phone number matches current user
+        // Get full user data to access phoneNumber
+        const fullUser = await db
+          .select()
+          .from(userTable)
+          .where(eq(userTable.id, context.user.id))
+          .limit(1);
+
+        const userPhoneNumber =
+          fullUser.length > 0 ? fullUser[0].phoneNumber : null;
+
         const emailMatches =
           invitationData.email && invitationData.email === context.user.email;
         const phoneMatches =
           invitationData.phoneNumber &&
-          context.user.phoneNumber &&
+          userPhoneNumber &&
           arePhoneNumbersEquivalent(
             invitationData.phoneNumber,
-            context.user.phoneNumber,
+            userPhoneNumber,
           );
 
         // Debug logging for phone number matching
         console.log("🔍 Invitation acceptance debug:");
         console.log("  - Invitation phone:", invitationData.phoneNumber);
-        console.log("  - User phone:", context.user.phoneNumber);
+        console.log("  - User phone:", userPhoneNumber);
         console.log("  - Email matches:", emailMatches);
         console.log("  - Phone matches:", phoneMatches);
 

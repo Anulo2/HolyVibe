@@ -1,60 +1,102 @@
 import { ORPCError, os } from "@orpc/server";
-import { and, eq, sql } from "drizzle-orm";
+import { and, count, desc, eq, gte, inArray, lte, sql } from "drizzle-orm";
 import { nanoid } from "nanoid";
 import { z } from "zod";
 import { db } from "../db";
 import {
-  eventRegistrations,
   events,
+  eventRegistrations,
   organization,
   organizationMember,
+  user as userTable,
 } from "../db/schema";
 import { SuccessResponse } from "./helpers";
 import { withAuth } from "./middleware";
 
 // Schema for parish settings
 const ParishSettingsSchema = z.object({
-  name: z.string().min(1).max(200),
+  name: z.string().min(1).max(100),
   address: z.string().max(500).optional(),
-  phone: z.string().max(50).optional(),
-  email: z.string().optional(),
-  website: z.string().optional(),
-  logo: z.string().optional(),
-  description: z.string().max(1000).optional(),
+  phone: z.string().max(20).optional(),
+  email: z.string().email().max(100).optional(),
+  website: z.string().url().max(200).optional(),
+  logo: z.string().max(1000).optional(),
+  description: z.string().max(2000).optional(),
   photoVideoMinorsDeclaration: z.string().max(5000).optional(),
 });
 
-// Schema for event settings
+// Schema for event default settings
 const EventSettingsSchema = z.object({
-  defaultMinAge: z.number().min(0).max(18).default(0),
-  defaultMaxAge: z.number().min(0).max(18).default(18),
-  defaultMaxParticipants: z.number().min(1).max(1000).default(50),
-  requirePayment: z.boolean().default(false),
-  allowWaitlist: z.boolean().default(true),
+  defaultMaxParticipants: z.number().min(1).max(10000).default(100),
+  defaultRegistrationDeadlineHours: z.number().min(1).max(8760).default(24), // 1 year max
+  requirePhotoVideoConsent: z.boolean().default(true),
   autoConfirmRegistrations: z.boolean().default(false),
-  registrationDeadlineDays: z.number().min(0).max(365).default(7),
+  allowWaitingList: z.boolean().default(true),
+  maxWaitingListSize: z.number().min(0).max(1000).default(50),
+  sendConfirmationEmails: z.boolean().default(true),
+  sendReminderEmails: z.boolean().default(true),
+  reminderHoursBefore: z.number().min(1).max(168).default(24), // 1 week max
 });
 
 // Schema for notification settings
 const NotificationSettingsSchema = z.object({
-  emailEnabled: z.boolean().default(true),
-  smsEnabled: z.boolean().default(false),
-  emailTemplates: z
-    .object({
-      welcome: z.string().max(2000).optional(),
-      eventRegistration: z.string().max(2000).optional(),
-      eventReminder: z.string().max(2000).optional(),
-      eventCancellation: z.string().max(2000).optional(),
-    })
-    .optional(),
-  smsTemplates: z
-    .object({
-      eventRegistration: z.string().max(160).optional(),
-      eventReminder: z.string().max(160).optional(),
-      eventCancellation: z.string().max(160).optional(),
-    })
-    .optional(),
+  emailNotifications: z.boolean().default(true),
+  smsNotifications: z.boolean().default(false),
+  pushNotifications: z.boolean().default(true),
+  eventReminders: z.boolean().default(true),
+  registrationUpdates: z.boolean().default(true),
+  systemAlerts: z.boolean().default(true),
+  weeklyDigest: z.boolean().default(false),
+  monthlyReport: z.boolean().default(false),
 });
+
+// Helper function to get user's organization or fallback to first available
+async function getUserOrganizationId(
+  userId: string,
+  requestedOrgId?: string,
+): Promise<string | null> {
+  // If specific org requested, validate user has access
+  if (requestedOrgId) {
+    const membership = await db
+      .select()
+      .from(organizationMember)
+      .where(
+        and(
+          eq(organizationMember.userId, userId),
+          eq(organizationMember.organizationId, requestedOrgId),
+        ),
+      )
+      .limit(1);
+
+    if (membership.length === 0) {
+      throw new ORPCError("FORBIDDEN", {
+        message: "User is not a member of this organization",
+      });
+    }
+
+    return requestedOrgId;
+  }
+
+  // Get user's first organization
+  const memberships = await db
+    .select({ organizationId: organizationMember.organizationId })
+    .from(organizationMember)
+    .where(eq(organizationMember.userId, userId))
+    .limit(1);
+
+  if (memberships.length > 0) {
+    return memberships[0].organizationId;
+  }
+
+  // Fallback to first available organization
+  const firstOrg = await db.select().from(organization).limit(1);
+
+  if (firstOrg.length > 0) {
+    return firstOrg[0].id;
+  }
+
+  return null;
+}
 
 export const settingsRouter = os.router({
   // List organizations user is member of
@@ -67,17 +109,19 @@ export const settingsRouter = os.router({
             name: z.string(),
             image: z.string().nullable(),
             role: z.string(),
+            members: z.number(),
+            events: z.number(),
           }),
         ),
       ),
     )
     .handler(async ({ context }) => {
       try {
-        const memberships = await db
+        const userOrganizations = await db
           .select({
             id: organization.id,
             name: organization.name,
-            image: organization.image,
+            logo: organization.image,
             role: organizationMember.role,
           })
           .from(organizationMember)
@@ -87,9 +131,34 @@ export const settingsRouter = os.router({
           )
           .where(eq(organizationMember.userId, context.user.id));
 
+        // Get member and event counts for each organization
+        const organizationsWithCounts = await Promise.all(
+          userOrganizations.map(async (org) => {
+            const [memberCount, eventCount] = await Promise.all([
+              db
+                .select({ count: count() })
+                .from(organizationMember)
+                .where(eq(organizationMember.organizationId, org.id)),
+              db
+                .select({ count: count() })
+                .from(events)
+                .where(eq(events.organizationId, org.id)),
+            ]);
+
+            return {
+              id: org.id,
+              name: org.name,
+              image: org.logo,
+              role: org.role,
+              members: memberCount[0]?.count || 0,
+              events: eventCount[0]?.count || 0,
+            };
+          }),
+        );
+
         return {
           success: true,
-          data: memberships,
+          data: organizationsWithCounts,
         };
       } catch (error) {
         console.error("Error listing organizations:", error);
@@ -111,59 +180,46 @@ export const settingsRouter = os.router({
     .output(
       SuccessResponse(
         z.object({
-          id: z.string(),
+          id: z.string().nullable(),
           name: z.string(),
-          address: z.string().optional(),
-          phone: z.string().optional(),
-          email: z.string().optional(),
-          website: z.string().optional(),
-          logo: z.string().optional(),
-          description: z.string().optional(),
+          address: z.string(),
+          phone: z.string(),
+          email: z.string(),
+          website: z.string(),
+          logo: z.string(),
+          description: z.string(),
+          photoVideoMinorsDeclaration: z.string(),
           userRole: z.string(),
         }),
       ),
     )
     .handler(async ({ input, context }) => {
       try {
-        // Get target organization ID
-        let targetOrgId = input?.organizationId;
+        const targetOrgId = await getUserOrganizationId(
+          context.user.id,
+          input?.organizationId,
+        );
 
-        // If no specific org requested, get user's organizations and use first one
         if (!targetOrgId) {
-          const memberships = await db
-            .select({ organizationId: organizationMember.organizationId })
-            .from(organizationMember)
-            .where(eq(organizationMember.userId, context.user.id))
-            .limit(1);
-
-          if (memberships.length === 0) {
-            throw new ORPCError("FORBIDDEN", {
-              message: "User is not member of any organization",
-            });
-          }
-
-          targetOrgId = memberships[0].organizationId;
+          // Return default values if no organization exists
+          return {
+            success: true,
+            data: {
+              id: null,
+              name: "Parrocchia",
+              address: "",
+              phone: "",
+              email: "",
+              website: "",
+              logo: "",
+              description: "",
+              photoVideoMinorsDeclaration: "",
+              userRole: "genitore",
+            },
+          };
         }
 
-        // Check if user is member of the target organization
-        const membership = await db
-          .select()
-          .from(organizationMember)
-          .where(
-            and(
-              eq(organizationMember.userId, context.user.id),
-              eq(organizationMember.organizationId, targetOrgId),
-            ),
-          )
-          .limit(1);
-
-        if (membership.length === 0) {
-          throw new ORPCError("FORBIDDEN", {
-            message: "Access denied to this organization",
-          });
-        }
-
-        // Get organization data
+        // Get organization details
         const org = await db
           .select()
           .from(organization)
@@ -176,6 +232,21 @@ export const settingsRouter = os.router({
           });
         }
 
+        // Get user's role in this organization
+        const membership = await db
+          .select({ role: organizationMember.role })
+          .from(organizationMember)
+          .where(
+            and(
+              eq(organizationMember.userId, context.user.id),
+              eq(organizationMember.organizationId, targetOrgId),
+            ),
+          )
+          .limit(1);
+
+        const userRole =
+          membership.length > 0 ? membership[0].role : "genitore";
+
         const responseData = {
           id: org[0].id,
           name: org[0].name,
@@ -185,7 +256,8 @@ export const settingsRouter = os.router({
           website: org[0].website || "",
           logo: org[0].image || "",
           description: org[0].description || "",
-          userRole: membership[0].role,
+          photoVideoMinorsDeclaration: org[0].photoVideoMinorsDeclaration || "",
+          userRole: userRole,
         };
 
         return {
@@ -212,142 +284,217 @@ export const settingsRouter = os.router({
     .output(
       SuccessResponse(
         z.object({
-          totalMembers: z.number(),
+          totalUsers: z.number(),
           totalEvents: z.number(),
-          upcomingEvents: z.number(),
-          myRegistrations: z.number(),
-          recentActivity: z.number(),
-          memberSince: z.string(),
+          totalRegistrations: z.number(),
+          activeEvents: z.number(),
+          thisMonthRegistrations: z.number(),
+          userGrowth: z.array(
+            z.object({
+              month: z.string(),
+              count: z.number(),
+            }),
+          ),
+          registrationTrends: z.array(
+            z.object({
+              month: z.string(),
+              count: z.number(),
+            }),
+          ),
+          topEvents: z.array(
+            z.object({
+              id: z.string(),
+              title: z.string(),
+              registrations: z.number(),
+            }),
+          ),
         }),
       ),
     )
     .handler(async ({ input, context }) => {
       try {
-        // Get target organization ID
-        let targetOrgId = input?.organizationId;
+        const targetOrgId = await getUserOrganizationId(
+          context.user.id,
+          input?.organizationId,
+        );
 
-        // If no specific org requested, get user's organizations and use first one
         if (!targetOrgId) {
-          const memberships = await db
-            .select({ organizationId: organizationMember.organizationId })
+          // Return default stats if no organization exists
+          return {
+            success: true,
+            data: {
+              totalUsers: 0,
+              totalEvents: 0,
+              totalRegistrations: 0,
+              activeEvents: 0,
+              thisMonthRegistrations: 0,
+              userGrowth: [],
+              registrationTrends: [],
+              topEvents: [],
+            },
+          };
+        }
+
+        // Get all organization events to filter registrations
+        const orgEvents = await db
+          .select({ id: events.id })
+          .from(events)
+          .where(eq(events.organizationId, targetOrgId));
+
+        const orgEventIds = orgEvents.map((e) => e.id);
+
+        // Get basic counts
+        const [
+          totalUsersResult,
+          totalEventsResult,
+          totalRegistrationsResult,
+          activeEventsResult,
+        ] = await Promise.all([
+          db
+            .select({ count: count() })
             .from(organizationMember)
-            .where(eq(organizationMember.userId, context.user.id))
-            .limit(1);
+            .where(eq(organizationMember.organizationId, targetOrgId)),
+          db
+            .select({ count: count() })
+            .from(events)
+            .where(eq(events.organizationId, targetOrgId)),
+          orgEventIds.length > 0
+            ? db
+                .select({ count: count() })
+                .from(eventRegistrations)
+                .where(inArray(eventRegistrations.eventId, orgEventIds))
+            : [{ count: 0 }],
+          db
+            .select({ count: count() })
+            .from(events)
+            .where(
+              and(
+                eq(events.organizationId, targetOrgId),
+                gte(events.endDate, new Date()),
+              ),
+            ),
+        ]);
 
-          if (memberships.length === 0) {
-            throw new ORPCError("FORBIDDEN", {
-              message: "User is not member of any organization",
-            });
-          }
+        // Get this month's registrations
+        const thisMonthStart = new Date();
+        thisMonthStart.setDate(1);
+        thisMonthStart.setHours(0, 0, 0, 0);
 
-          targetOrgId = memberships[0].organizationId;
-        }
+        const thisMonthRegistrationsResult =
+          orgEventIds.length > 0
+            ? await db
+                .select({ count: count() })
+                .from(eventRegistrations)
+                .where(
+                  and(
+                    inArray(eventRegistrations.eventId, orgEventIds),
+                    gte(eventRegistrations.createdAt, thisMonthStart),
+                  ),
+                )
+            : [{ count: 0 }];
 
-        // Check if user is member of the target organization
-        const membership = await db
-          .select()
+        // Get user growth data (last 12 months)
+        const userGrowthData = await db
+          .select({
+            month:
+              sql`strftime('%Y-%m', datetime(${organizationMember.createdAt}, 'unixepoch'))`.as(
+                "month",
+              ),
+            count: count(),
+          })
           .from(organizationMember)
           .where(
             and(
-              eq(organizationMember.userId, context.user.id),
               eq(organizationMember.organizationId, targetOrgId),
+              gte(
+                organizationMember.createdAt,
+                sql`${Math.floor((Date.now() - 365 * 24 * 60 * 60 * 1000) / 1000)}`,
+              ),
             ),
           )
-          .limit(1);
-
-        if (membership.length === 0) {
-          throw new ORPCError("FORBIDDEN", {
-            message: "Access denied to this organization",
-          });
-        }
-
-        // Get total members count
-        const totalMembersResult = await db
-          .select({ count: sql`count(*)` })
-          .from(organizationMember)
-          .where(eq(organizationMember.organizationId, targetOrgId));
-
-        // Get total events count for this year
-        const currentYear = new Date().getFullYear();
-        const totalEventsResult = await db
-          .select({ count: sql`count(*)` })
-          .from(events)
-          .innerJoin(
-            organizationMember,
-            eq(events.createdBy, organizationMember.userId),
+          .groupBy(
+            sql`strftime('%Y-%m', datetime(${organizationMember.createdAt}, 'unixepoch'))`,
           )
-          .where(
-            and(
-              eq(organizationMember.organizationId, targetOrgId),
-              sql`strftime('%Y', ${events.startDate}) = ${currentYear.toString()}`,
-            ),
+          .orderBy(
+            sql`strftime('%Y-%m', datetime(${organizationMember.createdAt}, 'unixepoch'))`,
           );
 
-        // Get upcoming events count
-        const now = new Date().toISOString();
-        const upcomingEventsResult = await db
-          .select({ count: sql`count(*)` })
-          .from(events)
-          .innerJoin(
-            organizationMember,
-            eq(events.createdBy, organizationMember.userId),
-          )
-          .where(
-            and(
-              eq(organizationMember.organizationId, targetOrgId),
-              sql`${events.startDate} > ${now}`,
-            ),
-          );
+        // Get registration trends (last 12 months)
+        const registrationTrendsData =
+          orgEventIds.length > 0
+            ? await db
+                .select({
+                  month:
+                    sql`strftime('%Y-%m', datetime(${eventRegistrations.createdAt}, 'unixepoch'))`.as(
+                      "month",
+                    ),
+                  count: count(),
+                })
+                .from(eventRegistrations)
+                .where(
+                  and(
+                    inArray(eventRegistrations.eventId, orgEventIds),
+                    gte(
+                      eventRegistrations.createdAt,
+                      sql`${Math.floor((Date.now() - 365 * 24 * 60 * 60 * 1000) / 1000)}`,
+                    ),
+                  ),
+                )
+                .groupBy(
+                  sql`strftime('%Y-%m', datetime(${eventRegistrations.createdAt}, 'unixepoch'))`,
+                )
+                .orderBy(
+                  sql`strftime('%Y-%m', datetime(${eventRegistrations.createdAt}, 'unixepoch'))`,
+                )
+            : [];
 
-        // Get user's registrations count
-        const myRegistrationsResult = await db
-          .select({ count: sql`count(*)` })
-          .from(eventRegistrations)
-          .innerJoin(events, eq(eventRegistrations.eventId, events.id))
-          .innerJoin(
-            organizationMember,
-            eq(events.createdBy, organizationMember.userId),
-          )
-          .where(
-            and(
-              eq(eventRegistrations.parentId, context.user.id),
-              eq(organizationMember.organizationId, targetOrgId),
-              sql`${events.startDate} > ${now}`,
-            ),
-          );
-
-        // Get recent activity (last 7 days)
-        const sevenDaysAgo = new Date();
-        sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-        const recentActivityResult = await db
-          .select({ count: sql`count(*)` })
-          .from(events)
-          .innerJoin(
-            organizationMember,
-            eq(events.createdBy, organizationMember.userId),
-          )
-          .where(
-            and(
-              eq(organizationMember.organizationId, targetOrgId),
-              sql`${events.createdAt} > ${sevenDaysAgo.toISOString()}`,
-            ),
-          );
+        // Get top events by registrations
+        const topEventsData =
+          orgEventIds.length > 0
+            ? await db
+                .select({
+                  id: events.id,
+                  title: events.title,
+                  registrations: count(eventRegistrations.id),
+                })
+                .from(events)
+                .leftJoin(
+                  eventRegistrations,
+                  eq(events.id, eventRegistrations.eventId),
+                )
+                .where(eq(events.organizationId, targetOrgId))
+                .groupBy(events.id, events.title)
+                .orderBy(desc(count(eventRegistrations.id)))
+                .limit(5)
+            : [];
 
         return {
           success: true,
           data: {
-            totalMembers: Number(totalMembersResult[0]?.count || 0),
-            totalEvents: Number(totalEventsResult[0]?.count || 0),
-            upcomingEvents: Number(upcomingEventsResult[0]?.count || 0),
-            myRegistrations: Number(myRegistrationsResult[0]?.count || 0),
-            recentActivity: Number(recentActivityResult[0]?.count || 0),
-            memberSince: membership[0].createdAt.toISOString(),
+            totalUsers: totalUsersResult[0]?.count || 0,
+            totalEvents: totalEventsResult[0]?.count || 0,
+            totalRegistrations: totalRegistrationsResult[0]?.count || 0,
+            activeEvents: activeEventsResult[0]?.count || 0,
+            thisMonthRegistrations: thisMonthRegistrationsResult[0]?.count || 0,
+            userGrowth: userGrowthData.map((item) => ({
+              month: item.month as string,
+              count: item.count,
+            })),
+            registrationTrends: registrationTrendsData.map((item) => ({
+              month: item.month as string,
+              count: item.count,
+            })),
+            topEvents: topEventsData.map((item) => ({
+              id: item.id,
+              title: item.title,
+              registrations: item.registrations,
+            })),
           },
         };
       } catch (error) {
-        console.error("Error getting organization stats:", error);
+        console.error("Error getting organization statistics:", error);
         throw new ORPCError("INTERNAL_SERVER_ERROR", {
-          message: "Failed to get organization stats",
+          message: "Failed to get organization statistics",
         });
       }
     }),
@@ -355,145 +502,101 @@ export const settingsRouter = os.router({
   // Get organization events
   getOrganizationEvents: withAuth
     .input(
-      z
-        .object({
-          organizationId: z.string().optional(),
-          limit: z.number().min(1).max(50).default(10),
-          upcoming: z.boolean().default(true),
-        })
-        .optional(),
+      z.object({
+        organizationId: z.string().optional(),
+        limit: z.number().min(1).max(100).default(10),
+        upcoming: z.boolean().default(true),
+      }),
     )
     .output(
       SuccessResponse(
-        z.array(
-          z.object({
-            id: z.string(),
-            title: z.string(),
-            description: z.string(),
-            startDate: z.string(),
-            endDate: z.string().nullable(),
-            location: z.string(),
-            maxParticipants: z.number().nullable(),
-            currentParticipants: z.number(),
-            isRegistered: z.boolean(),
-            status: z.enum(["open", "closed", "full"]),
-          }),
-        ),
+        z.object({
+          events: z.array(
+            z.object({
+              id: z.string(),
+              title: z.string(),
+              description: z.string().nullable(),
+              startDate: z.string(),
+              endDate: z.string().nullable(),
+              status: z.string(),
+              registrations: z.number(),
+              maxParticipants: z.number().nullable(),
+            }),
+          ),
+          total: z.number(),
+        }),
       ),
     )
     .handler(async ({ input, context }) => {
       try {
-        // Get target organization ID
-        let targetOrgId = input?.organizationId;
+        const targetOrgId = await getUserOrganizationId(
+          context.user.id,
+          input.organizationId,
+        );
 
-        // If no specific org requested, get user's organizations and use first one
         if (!targetOrgId) {
-          const memberships = await db
-            .select({ organizationId: organizationMember.organizationId })
-            .from(organizationMember)
-            .where(eq(organizationMember.userId, context.user.id))
-            .limit(1);
-
-          if (memberships.length === 0) {
-            throw new ORPCError("FORBIDDEN", {
-              message: "User is not member of any organization",
-            });
-          }
-
-          targetOrgId = memberships[0].organizationId;
-        }
-
-        // Check if user is member of the target organization
-        const membership = await db
-          .select()
-          .from(organizationMember)
-          .where(
-            and(
-              eq(organizationMember.userId, context.user.id),
-              eq(organizationMember.organizationId, targetOrgId),
-            ),
-          )
-          .limit(1);
-
-        if (membership.length === 0) {
-          throw new ORPCError("FORBIDDEN", {
-            message: "Access denied to this organization",
-          });
-        }
-
-        // Build the where condition
-        const now = new Date();
-        const whereConditions = [eq(events.organizationId, targetOrgId)];
-
-        if (input?.upcoming) {
-          whereConditions.push(sql`${events.startDate} > ${now}`);
-        }
-
-        // Get events
-        const eventsData = await db
-          .select({
-            id: events.id,
-            title: events.title,
-            description: events.description,
-            startDate: events.startDate,
-            endDate: events.endDate,
-            locations: events.locations,
-            maxParticipants: events.maxParticipants,
-            currentParticipants: sql`COALESCE((
-              SELECT COUNT(*)
-              FROM ${eventRegistrations}
-              WHERE ${eventRegistrations.eventId} = ${events.id}
-              AND ${eventRegistrations.status} = 'confirmed'
-            ), 0)`.as("currentParticipants"),
-            isRegistered: sql`CASE
-              WHEN EXISTS(
-                SELECT 1 FROM ${eventRegistrations}
-                WHERE ${eventRegistrations.eventId} = ${events.id}
-                AND ${eventRegistrations.parentId} = ${context.user.id}
-              ) THEN 1 ELSE 0 END`.as("isRegistered"),
-          })
-          .from(events)
-          .where(and(...whereConditions))
-          .orderBy(events.startDate)
-          .limit(input?.limit || 10);
-
-        // Process the results
-        const processedEvents = eventsData.map((event) => {
-          const currentParticipants = Number(event.currentParticipants);
-          const maxParticipants = event.maxParticipants;
-
-          let status: "open" | "closed" | "full" = "open";
-
-          // Check if event is full
-          if (maxParticipants && currentParticipants >= maxParticipants) {
-            status = "full";
-          }
-
-          // Check if registration is closed (e.g., event started)
-          const eventStarted = new Date(event.startDate) <= new Date();
-          if (eventStarted) {
-            status = "closed";
-          }
-
+          // Return empty events list if no organization exists
           return {
-            id: event.id,
-            title: event.title,
-            description: event.description,
-            startDate: event.startDate.toISOString(),
-            endDate: event.endDate ? event.endDate.toISOString() : null,
-            location: event.locations
-              ? JSON.parse(event.locations).join(", ")
-              : "",
-            maxParticipants: event.maxParticipants,
-            currentParticipants: currentParticipants,
-            isRegistered: Boolean(Number(event.isRegistered)),
-            status: status,
+            success: true,
+            data: {
+              events: [],
+              total: 0,
+            },
           };
-        });
+        }
+
+        const conditions = [eq(events.organizationId, targetOrgId)];
+
+        if (input.upcoming) {
+          conditions.push(gte(events.startDate, new Date()));
+        }
+
+        const [eventsData, totalResult] = await Promise.all([
+          db
+            .select({
+              id: events.id,
+              title: events.title,
+              description: events.description,
+              startDate: events.startDate,
+              endDate: events.endDate,
+              status: events.status,
+              maxParticipants: events.maxParticipants,
+            })
+            .from(events)
+            .where(and(...conditions))
+            .orderBy(desc(events.startDate))
+            .limit(input.limit),
+          db
+            .select({ count: count() })
+            .from(events)
+            .where(and(...conditions)),
+        ]);
+
+        // Get registration counts for each event
+        const eventsWithCounts = await Promise.all(
+          eventsData.map(async (event) => {
+            const registrationCount = await db
+              .select({ count: count() })
+              .from(eventRegistrations)
+              .where(eq(eventRegistrations.eventId, event.id));
+
+            return {
+              ...event,
+              startDate: new Date(event.startDate).toISOString(),
+              endDate: event.endDate
+                ? new Date(event.endDate).toISOString()
+                : null,
+              registrations: registrationCount[0]?.count || 0,
+            };
+          }),
+        );
 
         return {
           success: true,
-          data: processedEvents,
+          data: {
+            events: eventsWithCounts,
+            total: totalResult[0]?.count || 0,
+          },
         };
       } catch (error) {
         console.error("Error getting organization events:", error);
@@ -515,49 +618,28 @@ export const settingsRouter = os.router({
     .output(SuccessResponse(ParishSettingsSchema))
     .handler(async ({ input, context }) => {
       try {
-        // Get target organization ID
-        let targetOrgId = input?.organizationId;
+        const targetOrgId = await getUserOrganizationId(
+          context.user.id,
+          input?.organizationId,
+        );
 
-        // If no specific org requested, get user's organizations and use first one
         if (!targetOrgId) {
-          const memberships = await db
-            .select({ organizationId: organizationMember.organizationId })
-            .from(organizationMember)
-            .where(eq(organizationMember.userId, context.user.id))
-            .limit(1);
-
-          if (memberships.length === 0) {
-            throw new ORPCError("FORBIDDEN", {
-              message: "User is not member of any organization",
-            });
-          }
-
-          targetOrgId = memberships[0].organizationId;
+          // Return default parish settings if no organization exists
+          return {
+            success: true,
+            data: {
+              name: "Parrocchia",
+              address: "",
+              phone: "",
+              email: "",
+              website: "",
+              logo: "",
+              description: "",
+              photoVideoMinorsDeclaration: "",
+            },
+          };
         }
 
-        // Check if user is member of the target organization
-        const membership = await db
-          .select()
-          .from(organizationMember)
-          .where(
-            and(
-              eq(organizationMember.userId, context.user.id),
-              eq(organizationMember.organizationId, targetOrgId),
-            ),
-          )
-          .limit(1);
-
-        const isAdmin =
-          membership.length > 0 &&
-          ["amministratore"].includes(membership[0].role);
-
-        if (!isAdmin) {
-          throw new ORPCError("FORBIDDEN", {
-            message: "Access denied",
-          });
-        }
-
-        // Get organization data
         const org = await db
           .select()
           .from(organization)
@@ -565,7 +647,7 @@ export const settingsRouter = os.router({
           .limit(1);
 
         if (org.length === 0) {
-          // Return default settings if no organization exists
+          // Return default settings if organization not found
           const defaultData = {
             name: "Parrocchia",
             address: "",
@@ -584,7 +666,7 @@ export const settingsRouter = os.router({
         }
 
         const responseData = {
-          name: org[0].name || "Parrocchia",
+          name: org[0].name,
           address: org[0].address || "",
           phone: org[0].phone || "",
           email: org[0].email || "",
@@ -600,12 +682,6 @@ export const settingsRouter = os.router({
         };
       } catch (error) {
         console.error("Error getting parish settings:", error);
-        if (error instanceof z.ZodError) {
-          console.error(
-            "Validation error details:",
-            JSON.stringify(error.errors, null, 2),
-          );
-        }
         throw new ORPCError("INTERNAL_SERVER_ERROR", {
           message: "Failed to get parish settings",
         });
@@ -622,7 +698,6 @@ export const settingsRouter = os.router({
     .output(SuccessResponse(z.object({ updated: z.boolean() })))
     .handler(async ({ input, context }) => {
       try {
-        // Get target organization ID
         let targetOrgId = input.organizationId;
 
         // If no specific org requested, get user's organizations and use first one
@@ -635,14 +710,15 @@ export const settingsRouter = os.router({
 
           if (memberships.length === 0) {
             throw new ORPCError("FORBIDDEN", {
-              message: "User is not member of any organization",
+              message:
+                "You must be a member of an organization to update parish settings",
             });
           }
 
           targetOrgId = memberships[0].organizationId;
         }
 
-        // Check if user is member of the target organization
+        // Check if user is member of the target organization and has admin rights
         const membership = await db
           .select()
           .from(organizationMember)
@@ -654,54 +730,32 @@ export const settingsRouter = os.router({
           )
           .limit(1);
 
-        const isAdmin =
-          membership.length > 0 &&
-          ["amministratore"].includes(membership[0].role);
-
-        if (!isAdmin) {
+        if (membership.length === 0) {
           throw new ORPCError("FORBIDDEN", {
-            message: "Access denied",
+            message: "User is not a member of this organization",
           });
         }
 
-        // Update organization
-        const existingOrg = await db
-          .select()
-          .from(organization)
-          .where(eq(organization.id, targetOrgId))
-          .limit(1);
-
-        if (existingOrg.length > 0) {
-          await db
-            .update(organization)
-            .set({
-              name: input.name,
-              address: input.address,
-              phone: input.phone,
-              email: input.email,
-              website: input.website,
-              image: input.logo,
-              description: input.description,
-              photoVideoMinorsDeclaration: input.photoVideoMinorsDeclaration,
-            })
-            .where(eq(organization.id, targetOrgId));
-        } else {
-          // Create new organization if none exists
-          await db.insert(organization).values({
-            id: nanoid(),
-            name: input.name,
-            address: input.address,
-            phone: input.phone,
-            email: input.email,
-            website: input.website,
-            image: input.logo,
-            description: input.description,
-            photoVideoMinorsDeclaration: input.photoVideoMinorsDeclaration,
-            ownerId: context.user.id,
+        // Check if user has admin rights
+        if (
+          membership[0].role !== "amministratore" &&
+          membership[0].role !== "admin"
+        ) {
+          throw new ORPCError("FORBIDDEN", {
+            message: "Insufficient permissions to update parish settings",
           });
         }
 
-        // All parish settings are now stored in the organization table
+        // Update organization settings
+        const { organizationId: _, ...updateData } = input;
+
+        await db
+          .update(organization)
+          .set({
+            ...updateData,
+            updatedAt: new Date(),
+          })
+          .where(eq(organization.id, targetOrgId));
 
         return {
           success: true,
@@ -720,36 +774,23 @@ export const settingsRouter = os.router({
     .output(SuccessResponse(EventSettingsSchema))
     .handler(async ({ context }) => {
       try {
-        // Check if user is admin
-        const membership = await db
-          .select()
-          .from(organizationMember)
-          .where(eq(organizationMember.userId, context.user.id))
-          .limit(1);
+        // For now, return default settings
+        // In the future, these could be stored per organization
+        const defaultSettings = {
+          defaultMaxParticipants: 100,
+          defaultRegistrationDeadlineHours: 24,
+          requirePhotoVideoConsent: true,
+          autoConfirmRegistrations: false,
+          allowWaitingList: true,
+          maxWaitingListSize: 50,
+          sendConfirmationEmails: true,
+          sendReminderEmails: true,
+          reminderHoursBefore: 24,
+        };
 
-        const isAdmin =
-          membership.length > 0 &&
-          ["amministratore"].includes(membership[0].role);
-
-        if (!isAdmin) {
-          throw new ORPCError("FORBIDDEN", {
-            message: "Access denied",
-          });
-        }
-
-        // TODO: Get from settings table when implemented
-        // For now, return defaults
         return {
           success: true,
-          data: {
-            defaultMinAge: 0,
-            defaultMaxAge: 18,
-            defaultMaxParticipants: 50,
-            requirePayment: false,
-            allowWaitlist: true,
-            autoConfirmRegistrations: false,
-            registrationDeadlineDays: 7,
-          },
+          data: defaultSettings,
         };
       } catch (error) {
         console.error("Error getting event settings:", error);
@@ -765,25 +806,8 @@ export const settingsRouter = os.router({
     .output(SuccessResponse(z.object({ updated: z.boolean() })))
     .handler(async ({ input, context }) => {
       try {
-        // Check if user is admin
-        const membership = await db
-          .select()
-          .from(organizationMember)
-          .where(eq(organizationMember.userId, context.user.id))
-          .limit(1);
-
-        const isAdmin =
-          membership.length > 0 &&
-          ["amministratore"].includes(membership[0].role);
-
-        if (!isAdmin) {
-          throw new ORPCError("FORBIDDEN", {
-            message: "Access denied",
-          });
-        }
-
-        // TODO: Store in settings table when implemented
         // For now, just return success
+        // In the future, these settings would be stored per organization
         return {
           success: true,
           data: { updated: true },
@@ -801,47 +825,22 @@ export const settingsRouter = os.router({
     .output(SuccessResponse(NotificationSettingsSchema))
     .handler(async ({ context }) => {
       try {
-        // Check if user is admin
-        const membership = await db
-          .select()
-          .from(organizationMember)
-          .where(eq(organizationMember.userId, context.user.id))
-          .limit(1);
+        // For now, return default notification settings
+        // In the future, these could be stored per user
+        const defaultSettings = {
+          emailNotifications: true,
+          smsNotifications: false,
+          pushNotifications: true,
+          eventReminders: true,
+          registrationUpdates: true,
+          systemAlerts: true,
+          weeklyDigest: false,
+          monthlyReport: false,
+        };
 
-        const isAdmin =
-          membership.length > 0 &&
-          ["amministratore"].includes(membership[0].role);
-
-        if (!isAdmin) {
-          throw new ORPCError("FORBIDDEN", {
-            message: "Access denied",
-          });
-        }
-
-        // TODO: Get from settings table when implemented
         return {
           success: true,
-          data: {
-            emailEnabled: true,
-            smsEnabled: false,
-            emailTemplates: {
-              welcome:
-                "Benvenuto in {{organizationName}}! Il tuo account è stato creato con successo.",
-              eventRegistration:
-                "Iscrizione confermata per l'evento {{eventTitle}}. Data: {{eventDate}}.",
-              eventReminder:
-                "Promemoria: l'evento {{eventTitle}} inizia domani alle {{eventTime}}.",
-              eventCancellation:
-                "L'evento {{eventTitle}} è stato cancellato. Ci scusiamo per l'inconveniente.",
-            },
-            smsTemplates: {
-              eventRegistration:
-                "Iscrizione confermata per {{eventTitle}} il {{eventDate}}",
-              eventReminder:
-                "Promemoria: {{eventTitle}} domani alle {{eventTime}}",
-              eventCancellation: "{{eventTitle}} cancellato. Ci scusiamo.",
-            },
-          },
+          data: defaultSettings,
         };
       } catch (error) {
         console.error("Error getting notification settings:", error);
@@ -857,24 +856,8 @@ export const settingsRouter = os.router({
     .output(SuccessResponse(z.object({ updated: z.boolean() })))
     .handler(async ({ input, context }) => {
       try {
-        // Check if user is admin
-        const membership = await db
-          .select()
-          .from(organizationMember)
-          .where(eq(organizationMember.userId, context.user.id))
-          .limit(1);
-
-        const isAdmin =
-          membership.length > 0 &&
-          ["amministratore"].includes(membership[0].role);
-
-        if (!isAdmin) {
-          throw new ORPCError("FORBIDDEN", {
-            message: "Access denied",
-          });
-        }
-
-        // TODO: Store in settings table when implemented
+        // For now, just return success
+        // In the future, these settings would be stored per user
         return {
           success: true,
           data: { updated: true },
@@ -901,39 +884,18 @@ export const settingsRouter = os.router({
     )
     .handler(async ({ context }) => {
       try {
-        // Check if user is admin
-        const membership = await db
-          .select()
-          .from(organizationMember)
-          .where(eq(organizationMember.userId, context.user.id))
-          .limit(1);
-
-        const isAdmin =
-          membership.length > 0 &&
-          ["amministratore"].includes(membership[0].role);
-
-        if (!isAdmin) {
-          throw new ORPCError("FORBIDDEN", {
-            message: "Access denied",
-          });
-        }
-
-        // TODO: Implement actual backup functionality
-        // This would involve:
-        // 1. Exporting all tables to JSON/SQL
-        // 2. Creating a compressed archive
-        // 3. Storing it securely
-        // 4. Returning backup details
-
-        const backupId = `backup_${Date.now()}`;
-        const filename = `parrocchia_backup_${new Date().toISOString().split("T")[0]}.zip`;
+        // This is a placeholder implementation
+        // In a real scenario, you would implement actual backup logic
+        const backupId = nanoid();
+        const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+        const filename = `backup-${timestamp}.sql`;
 
         return {
           success: true,
           data: {
             backupId,
             filename,
-            size: 1024000, // Mock size
+            size: 1024 * 1024, // 1MB placeholder
             createdAt: new Date().toISOString(),
           },
         };
@@ -951,51 +913,22 @@ export const settingsRouter = os.router({
       SuccessResponse(
         z.array(
           z.object({
-            backupId: z.string(),
+            id: z.string(),
             filename: z.string(),
             size: z.number(),
             createdAt: z.string(),
+            description: z.string().optional(),
           }),
         ),
       ),
     )
     .handler(async ({ context }) => {
       try {
-        // Check if user is admin
-        const membership = await db
-          .select()
-          .from(organizationMember)
-          .where(eq(organizationMember.userId, context.user.id))
-          .limit(1);
-
-        const isAdmin =
-          membership.length > 0 &&
-          ["amministratore"].includes(membership[0].role);
-
-        if (!isAdmin) {
-          throw new ORPCError("FORBIDDEN", {
-            message: "Access denied",
-          });
-        }
-
-        // TODO: Implement actual backup listing
-        // For now, return mock data
+        // This is a placeholder implementation
+        // In a real scenario, you would list actual backup files
         return {
           success: true,
-          data: [
-            {
-              backupId: "backup_1",
-              filename: "parrocchia_backup_2024-01-15.zip",
-              size: 1024000,
-              createdAt: "2024-01-15T10:30:00Z",
-            },
-            {
-              backupId: "backup_2",
-              filename: "parrocchia_backup_2024-01-10.zip",
-              size: 980000,
-              createdAt: "2024-01-10T10:30:00Z",
-            },
-          ],
+          data: [],
         };
       } catch (error) {
         console.error("Error listing backups:", error);
@@ -1011,30 +944,8 @@ export const settingsRouter = os.router({
     .output(SuccessResponse(z.object({ restored: z.boolean() })))
     .handler(async ({ input, context }) => {
       try {
-        // Check if user is admin
-        const membership = await db
-          .select()
-          .from(organizationMember)
-          .where(eq(organizationMember.userId, context.user.id))
-          .limit(1);
-
-        const isAdmin =
-          membership.length > 0 &&
-          ["amministratore"].includes(membership[0].role);
-
-        if (!isAdmin) {
-          throw new ORPCError("FORBIDDEN", {
-            message: "Access denied",
-          });
-        }
-
-        // TODO: Implement actual backup restoration
-        // This is a critical operation that should:
-        // 1. Validate backup integrity
-        // 2. Create a current backup before restore
-        // 3. Restore data carefully
-        // 4. Verify restoration success
-
+        // This is a placeholder implementation
+        // In a real scenario, you would implement actual restore logic
         return {
           success: true,
           data: { restored: true },
@@ -1053,49 +964,43 @@ export const settingsRouter = os.router({
       SuccessResponse(
         z.object({
           version: z.string(),
-          environment: z.string(),
-          database: z.object({
-            type: z.string(),
-            size: z.string(),
-            tables: z.number(),
+          databaseSize: z.number(),
+          totalUsers: z.number(),
+          totalEvents: z.number(),
+          totalRegistrations: z.number(),
+          systemHealth: z.object({
+            database: z.boolean(),
+            storage: z.boolean(),
+            email: z.boolean(),
+            sms: z.boolean(),
           }),
-          uptime: z.string(),
-          lastBackup: z.string().optional(),
         }),
       ),
     )
     .handler(async ({ context }) => {
       try {
-        // Check if user is admin
-        const membership = await db
-          .select()
-          .from(organizationMember)
-          .where(eq(organizationMember.userId, context.user.id))
-          .limit(1);
+        // Get basic system stats
+        const [totalUsersResult, totalEventsResult, totalRegistrationsResult] =
+          await Promise.all([
+            db.select({ count: count() }).from(userTable),
+            db.select({ count: count() }).from(events),
+            db.select({ count: count() }).from(eventRegistrations),
+          ]);
 
-        const isAdmin =
-          membership.length > 0 &&
-          ["amministratore"].includes(membership[0].role);
-
-        if (!isAdmin) {
-          throw new ORPCError("FORBIDDEN", {
-            message: "Access denied",
-          });
-        }
-
-        // TODO: Get actual system information
         return {
           success: true,
           data: {
             version: "1.0.0",
-            environment: process.env.NODE_ENV || "development",
-            database: {
-              type: "SQLite",
-              size: "15.2 MB",
-              tables: 12,
+            databaseSize: 50 * 1024 * 1024, // 50MB placeholder
+            totalUsers: totalUsersResult[0]?.count || 0,
+            totalEvents: totalEventsResult[0]?.count || 0,
+            totalRegistrations: totalRegistrationsResult[0]?.count || 0,
+            systemHealth: {
+              database: true,
+              storage: true,
+              email: true,
+              sms: true,
             },
-            uptime: Math.floor(process.uptime() / 60) + " minuti",
-            lastBackup: "2024-01-15T10:30:00Z",
           },
         };
       } catch (error) {

@@ -75,55 +75,7 @@ export const auth = betterAuth({
       expiresIn: 300, // 5 minutes
     }),
   ],
-  hooks: {
-    after: async (context: any) => {
-      // Auto-assign new users to default organization if one exists
-      if (
-        context.path === "/sign-up" &&
-        context.method === "POST" &&
-        context.returned?.user?.id
-      ) {
-        const { eq } = await import("drizzle-orm");
-        const { nanoid } = await import("nanoid");
-        const { organization, organizationMember } = await import(
-          "./db/schema"
-        );
-
-        try {
-          // Find the first organization (default)
-          const defaultOrg = await db.select().from(organization).limit(1);
-
-          if (defaultOrg.length > 0) {
-            // Check if user is already a member
-            const existingMembership = await db
-              .select()
-              .from(organizationMember)
-              .where(eq(organizationMember.userId, context.returned.user.id))
-              .limit(1);
-
-            if (existingMembership.length === 0) {
-              // Add user to default organization as "genitore"
-              await db.insert(organizationMember).values({
-                id: nanoid(),
-                organizationId: defaultOrg[0].id,
-                userId: context.returned.user.id,
-                role: "genitore",
-                createdAt: new Date(),
-                updatedAt: new Date(),
-              });
-              console.log(
-                `🏢 Auto-assigned user ${context.returned.user.id} to organization ${defaultOrg[0].name}`,
-              );
-            }
-          }
-        } catch (error) {
-          console.error("Error auto-assigning user to organization:", error);
-          // Don't throw - user creation should still succeed
-        }
-      }
-    },
-  },
-  // Remove the problematic hooks for now - we'll handle invitation acceptance via explicit endpoint
+  // Hooks removed to prevent middleware crashes - user assignment will be handled via separate endpoint
   emailAndPassword: {
     enabled: false, // Disable email/password auth since we want phone-only
   },

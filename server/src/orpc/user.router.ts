@@ -645,4 +645,82 @@ export const userRouter = os.router({
         });
       }
     }),
+
+  // Auto-assign user to default organization (for new signups)
+  autoAssignToOrganization: withAuth
+    .output(
+      SuccessResponse(
+        z.object({
+          assigned: z.boolean(),
+          organizationId: z.string().nullable(),
+          organizationName: z.string().nullable(),
+        }),
+      ),
+    )
+    .handler(async ({ context }) => {
+      try {
+        const { organization } = await import("../db/schema");
+
+        // Check if user is already assigned to an organization
+        const existingMembership = await db
+          .select()
+          .from(organizationMember)
+          .where(eq(organizationMember.userId, context.user.id))
+          .limit(1);
+
+        if (existingMembership.length > 0) {
+          return {
+            success: true,
+            data: {
+              assigned: false,
+              organizationId: existingMembership[0].organizationId,
+              organizationName: null,
+            },
+          };
+        }
+
+        // Find the first organization (default)
+        const defaultOrg = await db.select().from(organization).limit(1);
+
+        if (defaultOrg.length === 0) {
+          return {
+            success: true,
+            data: {
+              assigned: false,
+              organizationId: null,
+              organizationName: null,
+            },
+          };
+        }
+
+        // Add user to default organization as "genitore"
+        await db.insert(organizationMember).values({
+          id: nanoid(),
+          organizationId: defaultOrg[0].id,
+          userId: context.user.id,
+          role: "genitore",
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        });
+
+        console.log(
+          `🏢 Auto-assigned user ${context.user.id} to organization ${defaultOrg[0].name}`,
+        );
+
+        return {
+          success: true,
+          data: {
+            assigned: true,
+            organizationId: defaultOrg[0].id,
+            organizationName: defaultOrg[0].name,
+          },
+        };
+      } catch (error) {
+        console.error("Error auto-assigning user to organization:", error);
+        if (error instanceof ORPCError) throw error;
+        throw new ORPCError("INTERNAL_SERVER_ERROR", {
+          message: "Failed to auto-assign user to organization",
+        });
+      }
+    }),
 });

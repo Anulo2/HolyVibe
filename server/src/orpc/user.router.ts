@@ -121,6 +121,18 @@ export const userRouter = os.router({
         };
       } catch (error) {
         console.error("Error updating user profile:", error);
+
+        // Check if it's a unique constraint error for email
+        if (
+          error instanceof Error &&
+          error.message.includes("SQLITE_CONSTRAINT_UNIQUE") &&
+          error.message.includes("user.email")
+        ) {
+          throw new ORPCError("CONFLICT", {
+            message: "This email address is already in use by another account",
+          });
+        }
+
         throw new ORPCError("INTERNAL_SERVER_ERROR", {
           message: "Failed to update user profile",
         });

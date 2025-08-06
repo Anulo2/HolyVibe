@@ -1555,4 +1555,77 @@ export const registrationsRouter = os.router({
         });
       }
     }),
+
+  // Delete registration completely (admin only)
+  delete: withAuth
+    .input(z.object({ id: z.string() }))
+    .output(
+      SuccessResponse(
+        z.object({
+          id: z.string(),
+          message: z.string(),
+        }),
+      ),
+    )
+    .handler(async ({ input, context }) => {
+      const userId = context.user.id;
+
+      try {
+        // Check if user is admin
+        const user = await db
+          .select()
+          .from(userTable)
+          .where(eq(userTable.id, userId))
+          .limit(1);
+
+        if (!user[0] || user[0].role !== "admin") {
+          throw new ORPCError("FORBIDDEN", {
+            message: "Only administrators can delete registrations",
+          });
+        }
+
+        // Check if registration exists
+        const registration = await db
+          .select()
+          .from(eventRegistrations)
+          .where(eq(eventRegistrations.id, input.id))
+          .limit(1);
+
+        if (!registration[0]) {
+          throw new ORPCError("NOT_FOUND", {
+            message: "Registration not found",
+          });
+        }
+
+        // Delete related records first (foreign key constraints)
+        await db
+          .delete(registrationAuthorizedPersons)
+          .where(eq(registrationAuthorizedPersons.registrationId, input.id));
+
+        await db
+          .delete(registrationLocationAuthorizations)
+          .where(
+            eq(registrationLocationAuthorizations.registrationId, input.id),
+          );
+
+        // Delete the registration
+        await db
+          .delete(eventRegistrations)
+          .where(eq(eventRegistrations.id, input.id));
+
+        return {
+          success: true,
+          data: {
+            id: input.id,
+            message: "Registration deleted successfully",
+          },
+        };
+      } catch (error) {
+        console.error("Error deleting registration:", error);
+        if (error instanceof ORPCError) throw error;
+        throw new ORPCError("INTERNAL_SERVER_ERROR", {
+          message: "Failed to delete registration",
+        });
+      }
+    }),
 });

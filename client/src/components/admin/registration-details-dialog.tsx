@@ -41,6 +41,12 @@ import {
   useUpdateRegistrationMutation,
 } from "@/hooks/useRegistrationsQuery";
 import { useAllAuthorizedPersons } from "@/hooks/useAllAuthorizedPersons";
+import type {
+  RegistrationStatus,
+  PaymentStatus,
+  UpdateRegistrationData,
+} from "@/types/registration";
+import type { AuthorizedPersonWithFamily } from "@/types/authorized-person";
 
 interface RegistrationDetailsDialogProps {
   registrationId: string | null;
@@ -113,8 +119,8 @@ export function RegistrationDetailsDialog({
   open,
   onOpenChange,
 }: RegistrationDetailsDialogProps) {
-  const [status, setStatus] = useState<string>("");
-  const [paymentStatus, setPaymentStatus] = useState<string>("");
+  const [status, setStatus] = useState<RegistrationStatus>("pending");
+  const [paymentStatus, setPaymentStatus] = useState<PaymentStatus>("pending");
   const [notes, setNotes] = useState("");
   const [isEditing, setIsEditing] = useState(false);
 
@@ -219,16 +225,18 @@ export function RegistrationDetailsDialog({
           })),
       );
 
-      await updateRegistrationMutation.mutateAsync({
+      const updateData: UpdateRegistrationData = {
         id: registrationId,
-        status: status as any,
-        paymentStatus: paymentStatus as any,
+        status,
+        paymentStatus,
         notes: notes || undefined,
         canExitAlone,
         allowedExitLocations,
         authorizedPersonIds: selectedAuthorizedPersons,
         locationAuthorizations: locationAuthArray,
-      });
+      };
+
+      await updateRegistrationMutation.mutateAsync(updateData);
 
       setIsEditing(false);
       toast.success("Iscrizione aggiornata con successo");
@@ -436,7 +444,12 @@ export function RegistrationDetailsDialog({
                         <div className="space-y-4">
                           <div>
                             <Label htmlFor="status">Stato Iscrizione</Label>
-                            <Select value={status} onValueChange={setStatus}>
+                            <Select
+                              value={status}
+                              onValueChange={(value) =>
+                                setStatus(value as RegistrationStatus)
+                              }
+                            >
                               <SelectTrigger>
                                 <SelectValue />
                               </SelectTrigger>
@@ -462,7 +475,9 @@ export function RegistrationDetailsDialog({
                             </Label>
                             <Select
                               value={paymentStatus}
-                              onValueChange={setPaymentStatus}
+                              onValueChange={(value) =>
+                                setPaymentStatus(value as PaymentStatus)
+                              }
                             >
                               <SelectTrigger>
                                 <SelectValue />
@@ -691,45 +706,47 @@ export function RegistrationDetailsDialog({
                           </div>
                         ) : allAuthorizedPersons.length > 0 ? (
                           <div className="space-y-2 max-h-48 overflow-y-auto">
-                            {allAuthorizedPersons.map((person: any) => (
-                              <div
-                                key={person.id}
-                                className="flex items-center gap-3 p-3 rounded-lg border"
-                              >
-                                <Checkbox
-                                  id={`edit-person-${person.id}`}
-                                  checked={selectedAuthorizedPersons.includes(
-                                    person.id,
-                                  )}
-                                  onCheckedChange={() =>
-                                    handleAuthorizedPersonChange(person.id)
-                                  }
-                                />
-                                <Label
-                                  htmlFor={`edit-person-${person.id}`}
-                                  className="flex items-center gap-3 cursor-pointer flex-1"
+                            {allAuthorizedPersons.map(
+                              (person: AuthorizedPersonWithFamily) => (
+                                <div
+                                  key={person.id}
+                                  className="flex items-center gap-3 p-3 rounded-lg border"
                                 >
-                                  <Avatar className="h-8 w-8">
-                                    <AvatarImage
-                                      src={person.avatarUrl}
-                                      alt={person.fullName}
-                                    />
-                                    <AvatarFallback>
-                                      {person.fullName.charAt(0)}
-                                    </AvatarFallback>
-                                  </Avatar>
-                                  <div>
-                                    <p className="font-medium">
-                                      {person.fullName}
-                                    </p>
-                                    <p className="text-sm text-muted-foreground">
-                                      {person.relationship} •{" "}
-                                      {person.familyName}
-                                    </p>
-                                  </div>
-                                </Label>
-                              </div>
-                            ))}
+                                  <Checkbox
+                                    id={`edit-person-${person.id}`}
+                                    checked={selectedAuthorizedPersons.includes(
+                                      person.id,
+                                    )}
+                                    onCheckedChange={() =>
+                                      handleAuthorizedPersonChange(person.id)
+                                    }
+                                  />
+                                  <Label
+                                    htmlFor={`edit-person-${person.id}`}
+                                    className="flex items-center gap-3 cursor-pointer flex-1"
+                                  >
+                                    <Avatar className="h-8 w-8">
+                                      <AvatarImage
+                                        src={person.avatarUrl || undefined}
+                                        alt={person.fullName}
+                                      />
+                                      <AvatarFallback>
+                                        {person.fullName.charAt(0)}
+                                      </AvatarFallback>
+                                    </Avatar>
+                                    <div>
+                                      <p className="font-medium">
+                                        {person.fullName}
+                                      </p>
+                                      <p className="text-sm text-muted-foreground">
+                                        {person.relationship} •{" "}
+                                        {person.family.name}
+                                      </p>
+                                    </div>
+                                  </Label>
+                                </div>
+                              ),
+                            )}
                           </div>
                         ) : (
                           <p className="text-sm text-muted-foreground">
@@ -746,12 +763,13 @@ export function RegistrationDetailsDialog({
                               </Label>
                               <div className="space-y-3 max-h-48 overflow-y-auto">
                                 {allAuthorizedPersons
-                                  .filter((person: any) =>
-                                    selectedAuthorizedPersons.includes(
-                                      person.id,
-                                    ),
+                                  .filter(
+                                    (person: AuthorizedPersonWithFamily) =>
+                                      selectedAuthorizedPersons.includes(
+                                        person.id,
+                                      ),
                                   )
-                                  .map((person: any) => (
+                                  .map((person: AuthorizedPersonWithFamily) => (
                                     <div
                                       key={person.id}
                                       className="border rounded-lg p-3 space-y-2"
@@ -759,7 +777,7 @@ export function RegistrationDetailsDialog({
                                       <div className="flex items-center gap-2">
                                         <Avatar className="h-6 w-6">
                                           <AvatarImage
-                                            src={person.avatarUrl}
+                                            src={person.avatarUrl || undefined}
                                             alt={person.fullName}
                                           />
                                           <AvatarFallback className="text-xs">
@@ -1013,7 +1031,7 @@ export function RegistrationDetailsDialog({
                               </div>
                               <div className="space-y-3">
                                 {registration.locationAuthorizations.map(
-                                  (auth: any) => {
+                                  (auth) => {
                                     const person =
                                       registration.authorizedPersons.find(
                                         (p) => p.id === auth.authorizedPersonId,

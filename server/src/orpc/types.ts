@@ -23,3 +23,6 @@ export type UserOutputs = RouterOutputs["user"];
 
 export type RegistrationsInputs = RouterInputs["registrations"];
 export type RegistrationsOutputs = RouterOutputs["registrations"];
+
+export type SupremeAdminInputs = RouterInputs["supremeAdmin"];
+export type SupremeAdminOutputs = RouterOutputs["supremeAdmin"];

@@ -5,6 +5,8 @@ import {
   Building,
   Calendar,
   ClipboardList,
+  Crown,
+  Info,
   LayoutDashboard,
   Settings,
   Shield,
@@ -92,10 +94,31 @@ const adminNavigationItems = [
   },
 ];
 
+const supremeAdminNavigationItems = [
+  {
+    to: "/supreme-admin",
+    icon: Crown,
+    label: "Supreme Admin Dashboard",
+  },
+  {
+    to: "/supreme-admin/users",
+    icon: Users,
+    label: "Gestione Utenti Globale",
+  },
+  {
+    to: "/supreme-admin/organizations",
+    icon: Building,
+    label: "Gestione Parrocchie",
+  },
+];
+
 export function Sidebar() {
   const location = useLocation();
   const currentPath = location.pathname;
-  const { userRole, loading } = useAuth();
+  const { userRole, loading, user } = useAuth();
+
+  // Debug info - remove in production
+  const isDebugMode = process.env.NODE_ENV === "development";
 
   // Don't render anything while loading
   if (loading) {
@@ -116,6 +139,9 @@ export function Sidebar() {
   const hasAdminAccess =
     userRole && ["amministratore", "editor", "animatore"].includes(userRole);
 
+  // Check if user has Supreme Admin role (from better-auth admin plugin)
+  const hasSupremeAdminAccess = user?.role === "admin";
+
   // Filter admin items based on user role
   const visibleAdminItems = adminNavigationItems.filter(
     (item) => item.roles.length === 0 || item.roles.includes(userRole || ""),
@@ -127,7 +153,10 @@ export function Sidebar() {
         {/* Regular navigation items */}
         {navigationItems.map((item) => {
           const Icon = item.icon;
-          const isActive = currentPath === item.to;
+          const isActive =
+            currentPath === item.to ||
+            currentPath.startsWith(`${item.to}/`) ||
+            currentPath.startsWith(`${item.to}?`);
 
           return (
             <Link
@@ -159,7 +188,17 @@ export function Sidebar() {
             {/* Admin navigation items */}
             {visibleAdminItems.map((item) => {
               const Icon = item.icon;
-              const isActive = currentPath === item.to;
+              let isActive = false;
+              if (item.to === "/admin") {
+                // Admin dashboard is active only on exact match
+                isActive = currentPath === "/admin";
+              } else {
+                // Other admin routes are active when path matches exactly or starts with their route
+                isActive =
+                  currentPath === item.to ||
+                  currentPath.startsWith(`${item.to}/`) ||
+                  currentPath.startsWith(`${item.to}?`);
+              }
 
               return (
                 <Link
@@ -170,6 +209,52 @@ export function Sidebar() {
                     isActive
                       ? "bg-primary text-primary-foreground"
                       : "hover:bg-accent",
+                  )}
+                >
+                  <Icon size={16} />
+                  <span>{item.label}</span>
+                </Link>
+              );
+            })}
+          </>
+        )}
+
+        {/* Supreme Admin section */}
+        {hasSupremeAdminAccess && (
+          <>
+            <hr className="my-4 border-border" />
+            <div className="px-3 py-2">
+              <span className="text-xs font-semibold text-purple-600 uppercase tracking-wider">
+                Supreme Admin
+              </span>
+            </div>
+
+            {/* Supreme Admin navigation items */}
+            {supremeAdminNavigationItems.map((item) => {
+              const Icon = item.icon;
+
+              // Clean logic for nested routes
+              let isActive = false;
+              if (item.to === "/supreme-admin") {
+                // Dashboard is active only on exact match
+                isActive = currentPath === "/supreme-admin";
+              } else {
+                // Other routes are active when path matches exactly or starts with their route + "/"
+                isActive =
+                  currentPath === item.to ||
+                  currentPath.startsWith(`${item.to}/`) ||
+                  currentPath.startsWith(`${item.to}?`);
+              }
+
+              return (
+                <Link
+                  key={item.to}
+                  to={item.to}
+                  className={cn(
+                    "flex w-full items-center space-x-3 rounded-md px-3 py-2 text-left text-sm transition-colors",
+                    isActive
+                      ? "bg-purple-600 text-white"
+                      : "hover:bg-purple-50 text-purple-700",
                   )}
                 >
                   <Icon size={16} />
@@ -200,6 +285,54 @@ export function Sidebar() {
           <Shield size={16} />
           <span>Privacy Policy</span>
         </Link>
+
+        {/* Debug section - remove in production */}
+        {isDebugMode && hasSupremeAdminAccess && (
+          <>
+            <hr className="my-4 border-border" />
+            <div className="px-3 py-2">
+              <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                Debug Info
+              </span>
+            </div>
+            <div className="px-3 py-2 text-xs bg-muted rounded-md">
+              <div className="flex items-center gap-2 mb-1">
+                <Info size={12} />
+                <span className="font-medium">Current Path:</span>
+              </div>
+              <div className="font-mono text-xs break-all">{currentPath}</div>
+              <div className="mt-2">
+                <span className="font-medium">Active Routes:</span>
+                <ul className="mt-1 space-y-1">
+                  {supremeAdminNavigationItems.map((item) => {
+                    let isActive = false;
+                    if (item.to === "/supreme-admin") {
+                      isActive = currentPath === "/supreme-admin";
+                    } else {
+                      isActive =
+                        currentPath === item.to ||
+                        currentPath.startsWith(`${item.to}/`) ||
+                        currentPath.startsWith(`${item.to}?`);
+                    }
+                    return (
+                      <li
+                        key={item.to}
+                        className={cn(
+                          "text-xs px-1 rounded",
+                          isActive
+                            ? "bg-green-100 text-green-800"
+                            : "text-muted-foreground",
+                        )}
+                      >
+                        {item.to}: {isActive ? "✓" : "✗"}
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+            </div>
+          </>
+        )}
       </nav>
     </aside>
   );

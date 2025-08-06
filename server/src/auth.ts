@@ -1,6 +1,6 @@
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
-import { organization, phoneNumber } from "better-auth/plugins";
+import { admin, organization, phoneNumber } from "better-auth/plugins";
 import { db } from "./db";
 import { env } from "./env";
 import { isValidPhone, normalizePhoneNumber } from "./utils/phone";
@@ -25,6 +25,7 @@ export const auth = betterAuth({
     path: "/",
   },
   plugins: [
+    admin(), // Enable admin role and impersonation for Supreme Admins
     organization(), // Enable organization management for parishes
     phoneNumber({
       sendOTP: async ({ phoneNumber, code }) => {

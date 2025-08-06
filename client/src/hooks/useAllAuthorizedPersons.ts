@@ -34,7 +34,11 @@ export function useAllAuthorizedPersons() {
       const persons = (query.data as any)?.data || [];
       return persons.map((person: any) => ({
         ...person,
-        familyName: family?.family?.name || "Famiglia sconosciuta",
+        family: {
+          id: familyId,
+          name: family?.family?.name || "Famiglia sconosciuta",
+        },
+        familyName: family?.family?.name || "Famiglia sconosciuta", // Keep for backward compatibility
       }));
     });
 

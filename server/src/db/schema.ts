@@ -15,6 +15,7 @@ export const user = sqliteTable("user", {
     mode: "boolean",
   }).default(false),
   birthDate: text("birth_date"),
+  role: text("role", { enum: ["user", "admin"] }).default("user"), // Admin plugin role
   createdAt: integer("created_at", { mode: "timestamp" })
     .default(sql`(strftime('%s', 'now'))`)
     .notNull(),
@@ -32,6 +33,9 @@ export const session = sqliteTable("session", {
   userId: text("user_id")
     .notNull()
     .references(() => user.id, { onDelete: "cascade" }),
+  impersonatedBy: text("impersonated_by").references(() => user.id, {
+    onDelete: "cascade",
+  }),
   createdAt: integer("created_at", { mode: "timestamp" })
     .default(sql`(strftime('%s', 'now'))`)
     .notNull(),
@@ -52,6 +56,41 @@ export const account = sqliteTable("account", {
   idToken: text("id_token"),
   expiresAt: integer("expires_at", { mode: "timestamp" }),
   password: text("password"),
+  createdAt: integer("created_at", { mode: "timestamp" })
+    .default(sql`(strftime('%s', 'now'))`)
+    .notNull(),
+  updatedAt: integer("updated_at", { mode: "timestamp" })
+    .default(sql`(strftime('%s', 'now'))`)
+    .notNull(),
+});
+
+// Better Auth Admin Plugin Tables
+export const adminRole = sqliteTable("admin_role", {
+  id: text("id").primaryKey(),
+  userId: text("user_id")
+    .notNull()
+    .references(() => user.id, { onDelete: "cascade" }),
+  role: text("role").notNull(),
+  createdAt: integer("created_at", { mode: "timestamp" })
+    .default(sql`(strftime('%s', 'now'))`)
+    .notNull(),
+  updatedAt: integer("updated_at", { mode: "timestamp" })
+    .default(sql`(strftime('%s', 'now'))`)
+    .notNull(),
+});
+
+export const impersonationSession = sqliteTable("impersonation_session", {
+  id: text("id").primaryKey(),
+  adminId: text("admin_id")
+    .notNull()
+    .references(() => user.id, { onDelete: "cascade" }),
+  targetUserId: text("target_user_id")
+    .notNull()
+    .references(() => user.id, { onDelete: "cascade" }),
+  sessionId: text("session_id")
+    .notNull()
+    .references(() => session.id, { onDelete: "cascade" }),
+  expiresAt: integer("expires_at", { mode: "timestamp" }).notNull(),
   createdAt: integer("created_at", { mode: "timestamp" })
     .default(sql`(strftime('%s', 'now'))`)
     .notNull(),

@@ -318,3 +318,29 @@ export const useCancelRegistrationMutation = () => {
     },
   });
 };
+
+// Hook for deleting a registration completely (admin only)
+export const useDeleteRegistrationMutation = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (data: { id: string }) => {
+      const response = await orpc.registrations.delete(data);
+      return response.data;
+    },
+    onSuccess: (_, variables) => {
+      // Invalidate registrations list
+      queryClient.invalidateQueries({
+        queryKey: ["registrations", "list"],
+      });
+      // Invalidate specific registration details
+      queryClient.invalidateQueries({
+        queryKey: ["registrations", "details", variables.id],
+      });
+      // Invalidate my registrations in case it was user's own registration
+      queryClient.invalidateQueries({
+        queryKey: ["registrations", "my"],
+      });
+    },
+  });
+};

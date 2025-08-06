@@ -36,6 +36,8 @@ import { useEventsQuery } from "@/hooks/useEventsQuery";
 import { useFamiliesQuery } from "@/hooks/useFamilyQuery";
 import { useAdminCreateRegistrationMutation } from "@/hooks/useRegistrationsQuery";
 import { useAllAuthorizedPersons } from "@/hooks/useAllAuthorizedPersons";
+import type { AuthorizedPersonWithFamily } from "@/types/authorized-person";
+import type { RegistrationStatus, PaymentStatus } from "@/types/registration";
 import { cn } from "@/lib/utils";
 
 interface AdminManualRegistrationDialogProps {
@@ -103,9 +105,7 @@ export function AdminManualRegistrationDialog({
   };
 
   // Get selected event to extract locations
-  const selectedEvent = eventsData?.data?.find(
-    (e: any) => e.id === selectedEventId,
-  );
+  const selectedEvent = eventsData?.data?.find((e) => e.id === selectedEventId);
   const eventLocations = selectedEvent?.locations
     ? typeof selectedEvent.locations === "string"
       ? JSON.parse(selectedEvent.locations)
@@ -296,7 +296,7 @@ export function AdminManualRegistrationDialog({
                   <SelectValue placeholder="Seleziona un evento" />
                 </SelectTrigger>
                 <SelectContent>
-                  {eventsData?.data?.map((event: any) => (
+                  {eventsData?.data?.map((event) => (
                     <SelectItem key={event.id} value={event.id}>
                       <div className="flex flex-col">
                         <span>{event.title}</span>
@@ -625,40 +625,44 @@ export function AdminManualRegistrationDialog({
                 </div>
               ) : allAuthorizedPersons.length > 0 ? (
                 <div className="space-y-2 max-h-48 overflow-y-auto">
-                  {allAuthorizedPersons.map((person: any) => (
-                    <div
-                      key={person.id}
-                      className="flex items-center gap-3 p-3 rounded-lg border"
-                    >
-                      <Checkbox
-                        id={`admin-person-${person.id}`}
-                        checked={selectedAuthorizedPersons.includes(person.id)}
-                        onCheckedChange={() =>
-                          handleAuthorizedPersonChange(person.id)
-                        }
-                      />
-                      <Label
-                        htmlFor={`admin-person-${person.id}`}
-                        className="flex items-center gap-3 cursor-pointer flex-1"
+                  {allAuthorizedPersons.map(
+                    (person: AuthorizedPersonWithFamily) => (
+                      <div
+                        key={person.id}
+                        className="flex items-center gap-3 p-3 rounded-lg border"
                       >
-                        <Avatar className="h-8 w-8">
-                          <AvatarImage
-                            src={person.avatarUrl}
-                            alt={person.fullName}
-                          />
-                          <AvatarFallback>
-                            {person.fullName.charAt(0)}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div>
-                          <p className="font-medium">{person.fullName}</p>
-                          <p className="text-sm text-muted-foreground">
-                            {person.relationship} • {person.familyName}
-                          </p>
-                        </div>
-                      </Label>
-                    </div>
-                  ))}
+                        <Checkbox
+                          id={`admin-person-${person.id}`}
+                          checked={selectedAuthorizedPersons.includes(
+                            person.id,
+                          )}
+                          onCheckedChange={() =>
+                            handleAuthorizedPersonChange(person.id)
+                          }
+                        />
+                        <Label
+                          htmlFor={`admin-person-${person.id}`}
+                          className="flex items-center gap-3 cursor-pointer flex-1"
+                        >
+                          <Avatar className="h-8 w-8">
+                            <AvatarImage
+                              src={person.avatarUrl || undefined}
+                              alt={person.fullName}
+                            />
+                            <AvatarFallback>
+                              {person.fullName.charAt(0)}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div>
+                            <p className="font-medium">{person.fullName}</p>
+                            <p className="text-sm text-muted-foreground">
+                              {person.relationship} • {person.family.name}
+                            </p>
+                          </div>
+                        </Label>
+                      </div>
+                    ),
+                  )}
                 </div>
               ) : (
                 <p className="text-sm text-muted-foreground">
@@ -721,10 +725,10 @@ export function AdminManualRegistrationDialog({
                     </Label>
                     <div className="space-y-3 max-h-48 overflow-y-auto">
                       {allAuthorizedPersons
-                        .filter((person: any) =>
+                        .filter((person: AuthorizedPersonWithFamily) =>
                           selectedAuthorizedPersons.includes(person.id),
                         )
-                        .map((person: any) => (
+                        .map((person: AuthorizedPersonWithFamily) => (
                           <div
                             key={person.id}
                             className="border rounded-lg p-3 space-y-2"
@@ -732,14 +736,14 @@ export function AdminManualRegistrationDialog({
                             <div className="flex items-center gap-2">
                               <Avatar className="h-6 w-6">
                                 <AvatarImage
-                                  src={person.avatarUrl}
+                                  src={person.avatarUrl || undefined}
                                   alt={person.fullName}
                                 />
                                 <AvatarFallback className="text-xs">
                                   {person.fullName.charAt(0)}
                                 </AvatarFallback>
                               </Avatar>
-                              <span className="text-sm font-medium">
+                              <span className="font-medium text-sm">
                                 {person.fullName}
                               </span>
                             </div>

@@ -18,7 +18,36 @@ import { buildImageUrl } from "@/lib/image-utils";
 interface EventDetailsDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  event: any;
+  event: {
+    id: string;
+    title: string;
+    description: string;
+    startDate: string;
+    endDate?: string | null;
+    locations: string | string[];
+    minAge: number;
+    maxAge: number;
+    maxParticipants: number;
+    currentParticipants: number;
+    price?: string | null;
+    status: "draft" | "open" | "closed" | "full" | "cancelled";
+    imageUrl?: string | null;
+    createdAt?: string;
+    detailedDescription?: string;
+    program?: string;
+    requirements?: string;
+    whatToBring?: string;
+    parentNotes?: string;
+    meetingPoint?: string;
+    dropOffTime?: string;
+    pickUpTime?: string;
+    willTakePhotos?: boolean;
+    organization?: {
+      id: string;
+      name: string;
+      photoVideoMinorsDeclaration?: string;
+    };
+  };
   mode?: "user" | "admin";
   onRegister?: () => void;
   onEdit?: () => void;
@@ -90,7 +119,10 @@ export function EventDetailsDialog({
             {event.endDate &&
               event.endDate !== event.startDate &&
               ` - ${formatDate(event.endDate)}`}{" "}
-            • {event.location}
+            •{" "}
+            {Array.isArray(event.locations)
+              ? event.locations.join(", ")
+              : event.locations}
           </DialogDescription>
         </DialogHeader>
 

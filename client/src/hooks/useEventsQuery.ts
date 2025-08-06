@@ -19,7 +19,15 @@ export const useEventsQuery = (params?: {
         ...(params?.minAge !== undefined && { minAge: params.minAge }),
         ...(params?.maxAge !== undefined && { maxAge: params.maxAge }),
       });
-      return response;
+      // Parse locations from JSON string to array for each event
+      const parsedData = {
+        ...response,
+        data: response.data.map((event: any) => ({
+          ...event,
+          locations: event.locations ? JSON.parse(event.locations) : [],
+        })),
+      };
+      return parsedData;
     },
     staleTime: 1 * 60 * 1000, // 1 minute
   });
@@ -29,7 +37,20 @@ export const useEventsQuery = (params?: {
 export const useEventQuery = (eventId: string) => {
   return useQuery({
     queryKey: ["events", eventId],
-    queryFn: () => orpc.events.get({ id: eventId }),
+    queryFn: async () => {
+      const response = await orpc.events.get({ id: eventId });
+      // Parse locations from JSON string to array
+      const parsedData = {
+        ...response,
+        data: {
+          ...response.data,
+          locations: response.data.locations
+            ? JSON.parse(response.data.locations)
+            : [],
+        },
+      };
+      return parsedData;
+    },
     enabled: !!eventId,
   });
 };

@@ -87,6 +87,7 @@ import {
   type RegistrationWithDetails,
   useRegistrationsQuery,
   useUpdateRegistrationMutation,
+  useDeleteRegistrationMutation,
 } from "@/hooks/useRegistrationsQuery";
 import {
   createEventOptions,
@@ -230,6 +231,9 @@ function IscrizioniPage() {
   // Mutation for updating registrations
   const updateRegistrationMutation = useUpdateRegistrationMutation();
 
+  // Mutation for deleting registrations
+  const deleteRegistrationMutation = useDeleteRegistrationMutation();
+
   // @ts-ignore - Temporary fix for new authorization fields
   const registrations = registrationsData?.registrations || [];
 
@@ -305,16 +309,56 @@ function IscrizioniPage() {
     }
   };
 
-  // Handler to delete registration
-  const handleDeleteRegistration = async (registrationId: string) => {
-    if (confirm("Sei sicuro di voler eliminare questa iscrizione?")) {
+  // Handler to cancel registration (change status)
+  const handleCancelRegistration = async (registrationId: string) => {
+    if (
+      confirm(
+        "Sei sicuro di voler cancellare questa iscrizione? Verrà contrassegnata come cancellata.",
+      )
+    ) {
       try {
-        // TODO: Implement delete API call when available
-        console.log(`Deleting registration ${registrationId}`);
-        toast.success("Iscrizione eliminata con successo");
+        toast.loading("Cancellazione in corso...", {
+          id: `cancel-${registrationId}`,
+        });
+        await updateRegistrationMutation.mutateAsync({
+          id: registrationId,
+          status: "cancelled",
+        });
+        toast.success("Iscrizione cancellata con successo", {
+          id: `cancel-${registrationId}`,
+        });
+      } catch (error) {
+        console.error("Failed to cancel registration:", error);
+        toast.error("Errore nella cancellazione dell'iscrizione", {
+          id: `cancel-${registrationId}`,
+        });
+      }
+    }
+  };
+
+  // Handler to delete registration permanently
+  const handleDeleteRegistration = async (registrationId: string) => {
+    if (
+      confirm(
+        "Sei sicuro di voler eliminare definitivamente questa iscrizione? Questa operazione NON può essere annullata!",
+      )
+    ) {
+      try {
+        toast.loading("Eliminazione in corso...", {
+          id: `delete-${registrationId}`,
+        });
+        await deleteRegistrationMutation.mutateAsync({
+          id: registrationId,
+        });
+        toast.success("Iscrizione eliminata definitivamente", {
+          id: `delete-${registrationId}`,
+        });
+        setSelectedRows((prev) => prev.filter((id) => id !== registrationId));
       } catch (error) {
         console.error("Failed to delete registration:", error);
-        toast.error("Errore nell'eliminazione dell'iscrizione");
+        toast.error("Errore nell'eliminazione dell'iscrizione", {
+          id: `delete-${registrationId}`,
+        });
       }
     }
   };
@@ -358,19 +402,34 @@ function IscrizioniPage() {
 
     if (
       confirm(
-        `Sei sicuro di voler eliminare ${selectedRows.length} iscrizioni?`,
+        `Sei sicuro di voler eliminare definitivamente ${selectedRows.length} iscrizioni? Questa operazione NON può essere annullata!`,
       )
     ) {
       try {
-        // TODO: Implement batch delete API call when available
-        console.log(`Deleting ${selectedRows.length} registrations`);
+        toast.loading(
+          `Eliminazione di ${selectedRows.length} iscrizioni in corso...`,
+          { id: "batch-delete" },
+        );
+
+        // Delete each selected registration completely
+        const deletePromises = selectedRows.map((registrationId) =>
+          deleteRegistrationMutation.mutateAsync({
+            id: registrationId,
+          }),
+        );
+
+        await Promise.all(deletePromises);
         setSelectedRows([]);
+
         toast.success(
-          `${selectedRows.length} iscrizioni eliminate con successo`,
+          `${selectedRows.length} iscrizioni eliminate definitivamente`,
+          { id: "batch-delete" },
         );
       } catch (error) {
         console.error("Failed to batch delete:", error);
-        toast.error("Errore nell'eliminazione batch delle iscrizioni");
+        toast.error("Errore nell'eliminazione batch delle iscrizioni", {
+          id: "batch-delete",
+        });
       }
     }
   };
@@ -717,12 +776,24 @@ function IscrizioniPage() {
                   </DropdownMenuLabel>
                   <DropdownMenuSeparator />
 
+                  {registration.status !== "cancelled" && (
+                    <DropdownMenuItem
+                      onClick={() => handleCancelRegistration(registration.id)}
+                      className="text-xs text-orange-600 focus:text-orange-600"
+                      disabled={updateRegistrationMutation.isPending}
+                    >
+                      <X className="h-3 w-3 mr-2" />
+                      Cancella iscrizione
+                    </DropdownMenuItem>
+                  )}
+
                   <DropdownMenuItem
                     onClick={() => handleDeleteRegistration(registration.id)}
                     className="text-xs text-red-600 focus:text-red-600"
+                    disabled={deleteRegistrationMutation.isPending}
                   >
                     <Trash2 className="h-3 w-3 mr-2" />
-                    Elimina iscrizione
+                    Elimina definitivamente
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
@@ -735,9 +806,11 @@ function IscrizioniPage() {
       handleViewDetails,
       handleStatusUpdate,
       handlePaymentStatusUpdate,
+      handleCancelRegistration,
       handleDeleteRegistration,
       selectedRows,
       updateRegistrationMutation,
+      deleteRegistrationMutation,
     ],
   );
 

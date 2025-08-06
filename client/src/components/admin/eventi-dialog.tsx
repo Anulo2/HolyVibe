@@ -41,7 +41,48 @@ import { cn } from "@/lib/utils";
 interface EventiDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  evento?: any;
+  evento?: {
+    id: string;
+    title: string;
+    description: string;
+    startDate: string;
+    endDate?: string | null;
+    locations: string | string[];
+    minAge: number;
+    maxAge: number;
+    maxParticipants: number;
+    currentParticipants: number;
+    price?: string | null;
+    status: "draft" | "open" | "closed" | "full" | "cancelled";
+    imageUrl?: string | null;
+    detailedDescription?: string | null;
+    program?: string | null;
+    requirements?: string | null;
+    whatToBring?: string | null;
+    parentNotes?: string | null;
+    emergencyContacts?: string | null;
+    meetingPoint?: string | null;
+    dropOffTime?: string | null;
+    pickUpTime?: string | null;
+    includesLunch?: boolean;
+    includesSnack?: boolean;
+    transportProvided?: boolean;
+    weatherDependent?: boolean;
+    specialNotes?: string | null;
+    cancellationPolicy?: string | null;
+    photographyConsent?: boolean;
+    willTakePhotos?: boolean;
+    photosForSocialMedia?: boolean;
+    additionalImages?: string | null;
+    createdBy: string;
+    createdAt: string;
+    updatedAt: string;
+    organizationId?: string;
+    organization?: {
+      id: string;
+      name: string;
+    };
+  };
 }
 
 export function EventiDialog({
@@ -91,8 +132,11 @@ export function EventiDialog({
       // Check all possible location field variations
       if (Array.isArray(evento.locations) && evento.locations.length > 0) {
         luoghi = evento.locations;
-      } else if (Array.isArray(evento.location) && evento.location.length > 0) {
-        luoghi = evento.location;
+      } else if (
+        Array.isArray(evento.locations) &&
+        evento.locations.length > 0
+      ) {
+        luoghi = evento.locations;
       } else if (
         typeof evento.locations === "string" &&
         evento.locations.trim()
@@ -110,10 +154,10 @@ export function EventiDialog({
           luoghi = [evento.locations];
         }
       } else if (
-        typeof evento.location === "string" &&
-        evento.location.trim()
+        typeof evento.locations === "string" &&
+        evento.locations.trim()
       ) {
-        luoghi = [evento.location];
+        luoghi = [evento.locations];
       }
 
       setFormData({
@@ -205,7 +249,10 @@ export function EventiDialog({
   };
 
   const handleSelectChange = (value: string) => {
-    setFormData((prev) => ({ ...prev, status: value as any }));
+    setFormData((prev) => ({
+      ...prev,
+      status: value as "draft" | "open" | "closed" | "full" | "cancelled",
+    }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {

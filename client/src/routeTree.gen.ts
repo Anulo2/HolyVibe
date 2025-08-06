@@ -9,6 +9,7 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as SupremeAdminRouteImport } from './routes/supreme-admin'
 import { Route as ProfiloRouteImport } from './routes/profilo'
 import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as ParrocchieRouteImport } from './routes/parrocchie'
@@ -19,7 +20,10 @@ import { Route as EventiRouteImport } from './routes/eventi'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as SupremeAdminIndexRouteImport } from './routes/supreme-admin/index'
 import { Route as AdminIndexRouteImport } from './routes/admin/index'
+import { Route as SupremeAdminUsersRouteImport } from './routes/supreme-admin/users'
+import { Route as SupremeAdminOrganizationsRouteImport } from './routes/supreme-admin/organizations'
 import { Route as InvitiAccettaRouteImport } from './routes/inviti.accetta'
 import { Route as EventiEventoIdRouteImport } from './routes/eventi/$eventoId'
 import { Route as AdminUtentiRouteImport } from './routes/admin/utenti'
@@ -28,6 +32,11 @@ import { Route as AdminIscrizioniRouteImport } from './routes/admin/iscrizioni'
 import { Route as AdminImpostazioniRouteImport } from './routes/admin/impostazioni'
 import { Route as AdminEventiRouteImport } from './routes/admin/eventi'
 
+const SupremeAdminRoute = SupremeAdminRouteImport.update({
+  id: '/supreme-admin',
+  path: '/supreme-admin',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ProfiloRoute = ProfiloRouteImport.update({
   id: '/profilo',
   path: '/profilo',
@@ -78,11 +87,27 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SupremeAdminIndexRoute = SupremeAdminIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => SupremeAdminRoute,
+} as any)
 const AdminIndexRoute = AdminIndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => AdminRoute,
 } as any)
+const SupremeAdminUsersRoute = SupremeAdminUsersRouteImport.update({
+  id: '/users',
+  path: '/users',
+  getParentRoute: () => SupremeAdminRoute,
+} as any)
+const SupremeAdminOrganizationsRoute =
+  SupremeAdminOrganizationsRouteImport.update({
+    id: '/organizations',
+    path: '/organizations',
+    getParentRoute: () => SupremeAdminRoute,
+  } as any)
 const InvitiAccettaRoute = InvitiAccettaRouteImport.update({
   id: '/inviti/accetta',
   path: '/inviti/accetta',
@@ -130,6 +155,7 @@ export interface FileRoutesByFullPath {
   '/parrocchie': typeof ParrocchieRoute
   '/privacy': typeof PrivacyRoute
   '/profilo': typeof ProfiloRoute
+  '/supreme-admin': typeof SupremeAdminRouteWithChildren
   '/admin/eventi': typeof AdminEventiRoute
   '/admin/impostazioni': typeof AdminImpostazioniRoute
   '/admin/iscrizioni': typeof AdminIscrizioniRoute
@@ -137,7 +163,10 @@ export interface FileRoutesByFullPath {
   '/admin/utenti': typeof AdminUtentiRoute
   '/eventi/$eventoId': typeof EventiEventoIdRoute
   '/inviti/accetta': typeof InvitiAccettaRoute
+  '/supreme-admin/organizations': typeof SupremeAdminOrganizationsRoute
+  '/supreme-admin/users': typeof SupremeAdminUsersRoute
   '/admin/': typeof AdminIndexRoute
+  '/supreme-admin/': typeof SupremeAdminIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -156,7 +185,10 @@ export interface FileRoutesByTo {
   '/admin/utenti': typeof AdminUtentiRoute
   '/eventi/$eventoId': typeof EventiEventoIdRoute
   '/inviti/accetta': typeof InvitiAccettaRoute
+  '/supreme-admin/organizations': typeof SupremeAdminOrganizationsRoute
+  '/supreme-admin/users': typeof SupremeAdminUsersRoute
   '/admin': typeof AdminIndexRoute
+  '/supreme-admin': typeof SupremeAdminIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -170,6 +202,7 @@ export interface FileRoutesById {
   '/parrocchie': typeof ParrocchieRoute
   '/privacy': typeof PrivacyRoute
   '/profilo': typeof ProfiloRoute
+  '/supreme-admin': typeof SupremeAdminRouteWithChildren
   '/admin/eventi': typeof AdminEventiRoute
   '/admin/impostazioni': typeof AdminImpostazioniRoute
   '/admin/iscrizioni': typeof AdminIscrizioniRoute
@@ -177,7 +210,10 @@ export interface FileRoutesById {
   '/admin/utenti': typeof AdminUtentiRoute
   '/eventi/$eventoId': typeof EventiEventoIdRoute
   '/inviti/accetta': typeof InvitiAccettaRoute
+  '/supreme-admin/organizations': typeof SupremeAdminOrganizationsRoute
+  '/supreme-admin/users': typeof SupremeAdminUsersRoute
   '/admin/': typeof AdminIndexRoute
+  '/supreme-admin/': typeof SupremeAdminIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -192,6 +228,7 @@ export interface FileRouteTypes {
     | '/parrocchie'
     | '/privacy'
     | '/profilo'
+    | '/supreme-admin'
     | '/admin/eventi'
     | '/admin/impostazioni'
     | '/admin/iscrizioni'
@@ -199,7 +236,10 @@ export interface FileRouteTypes {
     | '/admin/utenti'
     | '/eventi/$eventoId'
     | '/inviti/accetta'
+    | '/supreme-admin/organizations'
+    | '/supreme-admin/users'
     | '/admin/'
+    | '/supreme-admin/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -218,7 +258,10 @@ export interface FileRouteTypes {
     | '/admin/utenti'
     | '/eventi/$eventoId'
     | '/inviti/accetta'
+    | '/supreme-admin/organizations'
+    | '/supreme-admin/users'
     | '/admin'
+    | '/supreme-admin'
   id:
     | '__root__'
     | '/'
@@ -231,6 +274,7 @@ export interface FileRouteTypes {
     | '/parrocchie'
     | '/privacy'
     | '/profilo'
+    | '/supreme-admin'
     | '/admin/eventi'
     | '/admin/impostazioni'
     | '/admin/iscrizioni'
@@ -238,7 +282,10 @@ export interface FileRouteTypes {
     | '/admin/utenti'
     | '/eventi/$eventoId'
     | '/inviti/accetta'
+    | '/supreme-admin/organizations'
+    | '/supreme-admin/users'
     | '/admin/'
+    | '/supreme-admin/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -252,11 +299,19 @@ export interface RootRouteChildren {
   ParrocchieRoute: typeof ParrocchieRoute
   PrivacyRoute: typeof PrivacyRoute
   ProfiloRoute: typeof ProfiloRoute
+  SupremeAdminRoute: typeof SupremeAdminRouteWithChildren
   InvitiAccettaRoute: typeof InvitiAccettaRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/supreme-admin': {
+      id: '/supreme-admin'
+      path: '/supreme-admin'
+      fullPath: '/supreme-admin'
+      preLoaderRoute: typeof SupremeAdminRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/profilo': {
       id: '/profilo'
       path: '/profilo'
@@ -327,12 +382,33 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/supreme-admin/': {
+      id: '/supreme-admin/'
+      path: '/'
+      fullPath: '/supreme-admin/'
+      preLoaderRoute: typeof SupremeAdminIndexRouteImport
+      parentRoute: typeof SupremeAdminRoute
+    }
     '/admin/': {
       id: '/admin/'
       path: '/'
       fullPath: '/admin/'
       preLoaderRoute: typeof AdminIndexRouteImport
       parentRoute: typeof AdminRoute
+    }
+    '/supreme-admin/users': {
+      id: '/supreme-admin/users'
+      path: '/users'
+      fullPath: '/supreme-admin/users'
+      preLoaderRoute: typeof SupremeAdminUsersRouteImport
+      parentRoute: typeof SupremeAdminRoute
+    }
+    '/supreme-admin/organizations': {
+      id: '/supreme-admin/organizations'
+      path: '/organizations'
+      fullPath: '/supreme-admin/organizations'
+      preLoaderRoute: typeof SupremeAdminOrganizationsRouteImport
+      parentRoute: typeof SupremeAdminRoute
     }
     '/inviti/accetta': {
       id: '/inviti/accetta'
@@ -417,6 +493,22 @@ const EventiRouteChildren: EventiRouteChildren = {
 const EventiRouteWithChildren =
   EventiRoute._addFileChildren(EventiRouteChildren)
 
+interface SupremeAdminRouteChildren {
+  SupremeAdminOrganizationsRoute: typeof SupremeAdminOrganizationsRoute
+  SupremeAdminUsersRoute: typeof SupremeAdminUsersRoute
+  SupremeAdminIndexRoute: typeof SupremeAdminIndexRoute
+}
+
+const SupremeAdminRouteChildren: SupremeAdminRouteChildren = {
+  SupremeAdminOrganizationsRoute: SupremeAdminOrganizationsRoute,
+  SupremeAdminUsersRoute: SupremeAdminUsersRoute,
+  SupremeAdminIndexRoute: SupremeAdminIndexRoute,
+}
+
+const SupremeAdminRouteWithChildren = SupremeAdminRoute._addFileChildren(
+  SupremeAdminRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AdminRoute: AdminRouteWithChildren,
@@ -428,6 +520,7 @@ const rootRouteChildren: RootRouteChildren = {
   ParrocchieRoute: ParrocchieRoute,
   PrivacyRoute: PrivacyRoute,
   ProfiloRoute: ProfiloRoute,
+  SupremeAdminRoute: SupremeAdminRouteWithChildren,
   InvitiAccettaRoute: InvitiAccettaRoute,
 }
 export const routeTree = rootRouteImport

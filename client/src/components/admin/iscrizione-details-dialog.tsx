@@ -31,10 +31,12 @@ import {
 } from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
 
+import type { RegistrationWithDetails } from "@/types/registration";
+
 interface IscrizioneDetailsDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  iscrizione?: any;
+  iscrizione?: RegistrationWithDetails;
 }
 
 export function IscrizioneDetailsDialog({
@@ -57,37 +59,37 @@ export function IscrizioneDetailsDialog({
         <div className="space-y-6 mt-4">
           <div className="flex justify-between items-start">
             <div>
-              <h2 className="text-xl font-bold">{iscrizione.evento.titolo}</h2>
+              <h2 className="text-xl font-bold">{iscrizione.event.title}</h2>
               <div className="flex items-center gap-2 mt-1 text-muted-foreground">
                 <CalendarDays className="h-4 w-4" />
-                <span>{iscrizione.evento.data}</span>
+                <span>{iscrizione.event.startDate}</span>
               </div>
             </div>
             <div className="flex gap-2">
               <Badge
                 variant={
-                  iscrizione.stato === "confermata"
+                  iscrizione.status === "confirmed"
                     ? "success"
-                    : iscrizione.stato === "in attesa"
+                    : iscrizione.status === "pending"
                       ? "secondary"
                       : "destructive"
                 }
               >
-                {iscrizione.stato.charAt(0).toUpperCase() +
-                  iscrizione.stato.slice(1)}
+                {iscrizione.status.charAt(0).toUpperCase() +
+                  iscrizione.status.slice(1)}
               </Badge>
               <Badge
                 variant={
-                  iscrizione.pagamento === "completato"
+                  iscrizione.paymentStatus === "completed"
                     ? "success"
-                    : iscrizione.pagamento === "in attesa"
+                    : iscrizione.paymentStatus === "pending"
                       ? "warning"
                       : "destructive"
                 }
               >
                 Pagamento:{" "}
-                {iscrizione.pagamento.charAt(0).toUpperCase() +
-                  iscrizione.pagamento.slice(1)}
+                {iscrizione.paymentStatus.charAt(0).toUpperCase() +
+                  iscrizione.paymentStatus.slice(1)}
               </Badge>
             </div>
           </div>
@@ -104,17 +106,21 @@ export function IscrizioneDetailsDialog({
                 <div className="flex items-center gap-3">
                   <Avatar className="h-12 w-12">
                     <AvatarImage
-                      src={iscrizione.bambino.avatar}
-                      alt={iscrizione.bambino.nome}
+                      src={iscrizione.child.avatarUrl || undefined}
+                      alt={iscrizione.child.firstName}
                     />
                     <AvatarFallback>
-                      {iscrizione.bambino.nome.charAt(0)}
+                      {iscrizione.child.firstName.charAt(0)}
                     </AvatarFallback>
                   </Avatar>
                   <div>
-                    <h3 className="font-medium">{iscrizione.bambino.nome}</h3>
+                    <h3 className="font-medium">
+                      {iscrizione.child.firstName} {iscrizione.child.lastName}
+                    </h3>
                     <p className="text-sm text-muted-foreground">
-                      {iscrizione.bambino.eta} anni
+                      {new Date().getFullYear() -
+                        new Date(iscrizione.child.birthDate).getFullYear()}{" "}
+                      anni
                     </p>
                   </div>
                 </div>
@@ -149,18 +155,21 @@ export function IscrizioneDetailsDialog({
                 <div className="flex items-center gap-3">
                   <Avatar className="h-12 w-12">
                     <AvatarImage
-                      src={iscrizione.genitore.avatar}
-                      alt={iscrizione.genitore.nome}
+                      src={iscrizione.parent.image || undefined}
+                      alt={iscrizione.parent.name || undefined}
                     />
                     <AvatarFallback>
-                      {iscrizione.genitore.nome.charAt(0)}
+                      {iscrizione.parent.name?.charAt(0) ||
+                        iscrizione.parent.email.charAt(0)}
                     </AvatarFallback>
                   </Avatar>
                   <div>
-                    <h3 className="font-medium">{iscrizione.genitore.nome}</h3>
+                    <h3 className="font-medium">
+                      {iscrizione.parent.name || iscrizione.parent.email}
+                    </h3>
                     <div className="flex items-center gap-1 text-sm text-muted-foreground">
                       <Mail className="h-3.5 w-3.5" />
-                      <span>{iscrizione.genitore.email}</span>
+                      <span>{iscrizione.parent.email}</span>
                     </div>
                   </div>
                 </div>
@@ -316,12 +325,17 @@ export function IscrizioneDetailsDialog({
                     {/* Raggruppa le autorizzazioni per persona */}
                     {Object.entries(
                       iscrizione.locationAuthorizations.reduce(
-                        (acc: any, auth: any) => {
+                        (
+                          acc: Record<
+                            string,
+                            typeof iscrizione.locationAuthorizations
+                          >,
+                          auth,
+                        ) => {
                           const personName =
                             iscrizione.authorizedPersons?.find(
-                              (p: any) => p.id === auth.authorizedPersonId,
+                              (p) => p.id === auth.authorizedPersonId,
                             )?.fullName || "Persona sconosciuta";
-
                           if (!acc[personName]) {
                             acc[personName] = [];
                           }
@@ -330,39 +344,47 @@ export function IscrizioneDetailsDialog({
                         },
                         {},
                       ),
-                    ).map(([personName, auths]: [string, any]) => (
-                      <div key={personName} className="border rounded-lg p-3">
-                        <div className="flex items-center gap-2 mb-2">
-                          <ShieldCheck className="h-4 w-4 text-blue-500" />
-                          <span className="font-medium">{personName}</span>
-                        </div>
-                        <div className="ml-6 space-y-1">
-                          {auths.map((auth: any, index: number) => (
-                            <div
-                              key={index}
-                              className="flex items-center gap-2 text-sm"
-                            >
+                    ).map(
+                      ([personName, auths]: [
+                        string,
+                        typeof iscrizione.locationAuthorizations,
+                      ]) => (
+                        <div key={personName} className="border rounded-lg p-3">
+                          <div className="flex items-center gap-2 mb-2">
+                            <ShieldCheck className="h-4 w-4 text-blue-500" />
+                            <span className="font-medium">{personName}</span>
+                          </div>
+                          <div className="ml-6 space-y-1">
+                            {auths.map((auth, index: number) => (
                               <div
-                                className={`w-1.5 h-1.5 rounded-full ${auth.canPickup ? "bg-green-500" : "bg-red-500"}`}
-                              ></div>
-                              <span>{auth.location}</span>
-                              {auth.canPickup ? (
-                                <Badge variant="success" className="text-xs">
-                                  Autorizzato
-                                </Badge>
-                              ) : (
-                                <Badge
-                                  variant="destructive"
-                                  className="text-xs"
-                                >
-                                  Non autorizzato
-                                </Badge>
-                              )}
-                            </div>
-                          ))}
+                                key={index}
+                                className="flex items-center gap-2 text-sm"
+                              >
+                                <div
+                                  className={`w-1.5 h-1.5 rounded-full ${auth.canPickup ? "bg-green-500" : "bg-red-500"}`}
+                                ></div>
+                                <span>{auth.location}</span>
+                                {auth.canPickup ? (
+                                  <Badge
+                                    variant="secondary"
+                                    className="text-xs"
+                                  >
+                                    Autorizzato
+                                  </Badge>
+                                ) : (
+                                  <Badge
+                                    variant="secondary"
+                                    className="text-xs bg-red-100 text-red-800"
+                                  >
+                                    Non autorizzato
+                                  </Badge>
+                                )}
+                              </div>
+                            ))}
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      ),
+                    )}
                   </div>
                 </CardContent>
               </Card>

@@ -16,7 +16,21 @@ import { SafeHTML } from "@/components/ui/safe-html";
 import { buildImageUrl } from "@/lib/image-utils";
 
 interface EventCardProps {
-  event: any;
+  event: {
+    id: string;
+    title: string;
+    description: string;
+    startDate: string;
+    endDate?: string | null;
+    locations: string | string[];
+    minAge: number;
+    maxAge: number;
+    maxParticipants: number;
+    currentParticipants: number;
+    price?: string | null;
+    status: "draft" | "open" | "closed" | "full" | "cancelled";
+    imageUrl?: string | null;
+  };
   mode?: "user" | "admin";
   onViewDetails?: () => void;
   onRegister?: () => void;
@@ -142,7 +156,13 @@ export function EventCard({
                   </div>
                   <div className="flex items-center text-sm text-muted-foreground">
                     <MapPin className="h-4 w-4 mr-2 flex-shrink-0" />
-                    <span className="truncate">{event.location}</span>
+                    <span className="truncate">
+                      {Array.isArray(event.locations)
+                        ? event.locations.join(", ")
+                        : typeof event.locations === "string"
+                          ? event.locations
+                          : "Luogo non specificato"}
+                    </span>
                   </div>
                   <div className="flex items-center text-sm text-muted-foreground">
                     <Users className="h-4 w-4 mr-2 flex-shrink-0" />
@@ -271,7 +291,13 @@ export function EventCard({
 
           <div className="flex items-center text-sm">
             <MapPin className="h-4 w-4 mr-2 text-muted-foreground" />
-            <span>{event.location}</span>
+            <span>
+              {Array.isArray(event.locations)
+                ? event.locations.join(", ")
+                : typeof event.locations === "string"
+                  ? event.locations
+                  : "Luogo non specificato"}
+            </span>
           </div>
 
           <div className="flex items-center text-sm">

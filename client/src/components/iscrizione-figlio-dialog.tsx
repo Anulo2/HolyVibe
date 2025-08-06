@@ -31,6 +31,10 @@ import {
   useCreateRegistrationMutation,
   useCheckChildRegistrationQuery,
 } from "@/hooks/useRegistrationsQuery";
+import { useAddAuthorizedPersonMutation } from "@/hooks/useFamilyQuery";
+import { AggiungiModificaPersonaDialog } from "./aggiungi-modifica-persona-dialog";
+import type { CreateAuthorizedPersonData } from "@/types/authorized-person";
+import { useQueryClient } from "@tanstack/react-query";
 
 interface IscrizioneFiglioDialogProps {
   open: boolean;
@@ -163,6 +167,7 @@ export function IscrizioneFiglioDialog({
     [key: string]: { [key: string]: boolean };
   }>({});
   const [notes, setNotes] = useState("");
+  const [showAddPersonDialog, setShowAddPersonDialog] = useState(false);
 
   // Use custom hooks for data fetching
   const {
@@ -180,6 +185,10 @@ export function IscrizioneFiglioDialog({
   // Mutation for creating registration
   const createRegistrationMutation = useCreateRegistrationMutation();
 
+  // Mutation for adding authorized person
+  const addAuthorizedPersonMutation = useAddAuthorizedPersonMutation();
+  const queryClient = useQueryClient();
+
   // Reset del form quando si apre il dialog
   useEffect(() => {
     if (open) {
@@ -192,6 +201,7 @@ export function IscrizioneFiglioDialog({
       setAllowedExitLocations([]);
       setLocationAuthorizations({});
       setNotes("");
+      setShowAddPersonDialog(false);
     }
   }, [open]);
 
@@ -300,6 +310,26 @@ export function IscrizioneFiglioDialog({
     } catch (error) {
       console.error("Registration error:", error);
       toast.error("Errore durante l'iscrizione. Riprova.");
+    }
+  };
+
+  // Handler for adding authorized person
+  const handleAddAuthorizedPerson = async (
+    data: CreateAuthorizedPersonData,
+  ) => {
+    try {
+      await addAuthorizedPersonMutation.mutateAsync(data);
+
+      // Invalidate all authorized persons queries to refresh the data
+      await queryClient.invalidateQueries({
+        queryKey: ["family", data.familyId, "authorizedPersons"],
+      });
+
+      toast.success("Persona autorizzata aggiunta con successo!");
+      setShowAddPersonDialog(false);
+    } catch (error) {
+      console.error("Error adding authorized person:", error);
+      toast.error("Errore durante l'aggiunta della persona autorizzata");
     }
   };
 
@@ -487,7 +517,11 @@ export function IscrizioneFiglioDialog({
                 {allAuthorizedPersons.length === 0 && !personsLoading && (
                   <div className="text-center p-4">
                     <p>Non hai ancora aggiunto persone autorizzate</p>
-                    <Button variant="link" className="mt-2">
+                    <Button
+                      variant="link"
+                      className="mt-2"
+                      onClick={() => setShowAddPersonDialog(true)}
+                    >
                       Aggiungi una persona autorizzata
                     </Button>
                   </div>
@@ -800,6 +834,15 @@ export function IscrizioneFiglioDialog({
           </DialogFooter>
         </form>
       </DialogContent>
+
+      {/* Add Authorized Person Dialog */}
+      <AggiungiModificaPersonaDialog
+        open={showAddPersonDialog}
+        onOpenChange={setShowAddPersonDialog}
+        familyId={families.length > 0 ? families[0]?.family.id : null}
+        onAddPerson={handleAddAuthorizedPerson}
+        onUpdatePerson={() => {}} // Not used in this context
+      />
     </Dialog>
   );
 }

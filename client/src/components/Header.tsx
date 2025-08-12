@@ -20,7 +20,7 @@ export function Header({ currentUser, isLoading = false }: HeaderProps) {
 			await authClient.signOut();
 			toast.success("Disconnesso con successo");
 			navigate({ to: "/login", search: { redirect: "" } });
-		} catch (error) {
+		} catch (_error) {
 			toast.error("Errore durante la disconnessione");
 		}
 	};

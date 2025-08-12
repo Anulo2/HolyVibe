@@ -7,8 +7,12 @@ import { QueryClient } from "@tanstack/react-query";
 export const queryClient = new QueryClient({
 	defaultOptions: {
 		queries: {
-			staleTime: 5 * 60 * 1000, // 5 minutes
-			refetchOnWindowFocus: false,
+			staleTime: 0, // Always consider data stale
+			cacheTime: 0, // Don't cache data
+			refetchOnWindowFocus: true,
+			refetchOnMount: true,
+			refetchOnReconnect: true,
+			retry: false, // Don't retry failed requests to avoid stale data
 		},
 	},
 });
@@ -40,6 +44,13 @@ const link = new RPCLink({
 		return fetch(input, {
 			...init,
 			credentials: "include", // Include cookies for authentication
+			cache: "no-cache", // Disable HTTP caching
+			headers: {
+				...init?.headers,
+				"Cache-Control": "no-cache, no-store, must-revalidate",
+				Pragma: "no-cache",
+				Expires: "0",
+			},
 		});
 	},
 });

@@ -12,16 +12,16 @@ export type AppRouter = RouterClient<typeof appRouter>;
 
 // Re-export all types from orpc/types
 export type {
-  EventsInputs,
-  EventsOutputs,
-  FamilyInputs,
-  FamilyOutputs,
-  RegistrationsInputs,
-  RegistrationsOutputs,
-  RouterInputs,
-  RouterOutputs,
-  SupremeAdminInputs,
-  SupremeAdminOutputs,
-  UserInputs,
-  UserOutputs,
+	EventsInputs,
+	EventsOutputs,
+	FamilyInputs,
+	FamilyOutputs,
+	RegistrationsInputs,
+	RegistrationsOutputs,
+	RouterInputs,
+	RouterOutputs,
+	SupremeAdminInputs,
+	SupremeAdminOutputs,
+	UserInputs,
+	UserOutputs,
 } from "./orpc/types";

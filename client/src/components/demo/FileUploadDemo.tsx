@@ -1,7 +1,7 @@
 "use client";
 
 import { Check, Copy, ExternalLink, Trash2 } from "lucide-react";
-import React, { useState } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -101,7 +101,7 @@ export function FileUploadDemo() {
 			setCopiedUrl(url);
 			toast.success("URL copied to clipboard!");
 			setTimeout(() => setCopiedUrl(""), 2000);
-		} catch (error) {
+		} catch (_error) {
 			toast.error("Failed to copy URL");
 		}
 	};
@@ -111,7 +111,7 @@ export function FileUploadDemo() {
 		const k = 1024;
 		const sizes = ["Bytes", "KB", "MB", "GB"];
 		const i = Math.floor(Math.log(bytes) / Math.log(k));
-		return parseFloat((bytes / k ** i).toFixed(2)) + " " + sizes[i];
+		return `${parseFloat((bytes / k ** i).toFixed(2))} ${sizes[i]}`;
 	};
 
 	return (
@@ -346,7 +346,7 @@ export function FileUploadDemo() {
 																		size="sm"
 																		onClick={() =>
 																			copyToClipboard(
-																				file.optimizedUrls!.thumbnail,
+																				file.optimizedUrls?.thumbnail,
 																			)
 																		}
 																		className="h-6 px-2"
@@ -363,7 +363,7 @@ export function FileUploadDemo() {
 																		size="sm"
 																		onClick={() =>
 																			window.open(
-																				file.optimizedUrls!.thumbnail,
+																				file.optimizedUrls?.thumbnail,
 																				"_blank",
 																			)
 																		}
@@ -381,7 +381,7 @@ export function FileUploadDemo() {
 																		variant="ghost"
 																		size="sm"
 																		onClick={() =>
-																			copyToClipboard(file.optimizedUrls!.large)
+																			copyToClipboard(file.optimizedUrls?.large)
 																		}
 																		className="h-6 px-2"
 																	>
@@ -396,7 +396,7 @@ export function FileUploadDemo() {
 																		size="sm"
 																		onClick={() =>
 																			window.open(
-																				file.optimizedUrls!.large,
+																				file.optimizedUrls?.large,
 																				"_blank",
 																			)
 																		}

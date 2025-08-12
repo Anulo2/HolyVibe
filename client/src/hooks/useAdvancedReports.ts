@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { orpc } from "../lib/orpc-react";
 
 export type ReportType =
@@ -27,7 +27,10 @@ export const useAdvancedReportsQuery = (
 			return res.data;
 		},
 		enabled,
-		staleTime: 5 * 60 * 1000, // 5 minutes
+		staleTime: 0, // Always fresh data
+		cacheTime: 0, // No caching
+		refetchOnMount: true,
+		refetchOnWindowFocus: true,
 	});
 };
 

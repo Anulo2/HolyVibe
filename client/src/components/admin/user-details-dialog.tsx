@@ -77,7 +77,7 @@ export function UserDetailsDialog({
 
 			setIsEditing(false);
 			toast.success("Ruolo utente aggiornato con successo");
-		} catch (error) {
+		} catch (_error) {
 			toast.error("Errore nell'aggiornamento del ruolo");
 		}
 	};
@@ -94,7 +94,7 @@ export function UserDetailsDialog({
 				await removeUserMutation.mutateAsync(user.id);
 				onOpenChange(false);
 				toast.success("Utente rimosso dall'organizzazione");
-			} catch (error) {
+			} catch (_error) {
 				toast.error("Errore nella rimozione dell'utente");
 			}
 		}

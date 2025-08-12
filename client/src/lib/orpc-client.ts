@@ -29,6 +29,13 @@ const link = new RPCLink({
 		return fetch(input, {
 			...init,
 			credentials: "include", // Include cookies for authentication
+			cache: "no-cache", // Disable HTTP caching
+			headers: {
+				...init?.headers,
+				"Cache-Control": "no-cache, no-store, must-revalidate",
+				Pragma: "no-cache",
+				Expires: "0",
+			},
 		});
 	},
 });

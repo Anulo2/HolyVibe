@@ -29,7 +29,7 @@ export function normalizePhoneNumber(
 
 			// If it starts with 39, it's likely an Italian number without +
 			if (cleaned.startsWith("39")) {
-				cleaned = "+" + cleaned;
+				cleaned = `+${cleaned}`;
 			}
 			// If it's 9-11 digits and default country is Italy, assume it's Italian
 			else if (
@@ -37,7 +37,7 @@ export function normalizePhoneNumber(
 				cleaned.length <= 11 &&
 				defaultCountry === "IT"
 			) {
-				cleaned = "+39" + cleaned;
+				cleaned = `+39${cleaned}`;
 			}
 			// For other cases, try parsing with default country
 			else {
@@ -45,7 +45,7 @@ export function normalizePhoneNumber(
 					cleaned,
 					defaultCountry as any,
 				);
-				if (withCountryCode && withCountryCode.isValid()) {
+				if (withCountryCode?.isValid()) {
 					return withCountryCode.format("E.164");
 				}
 			}
@@ -54,7 +54,7 @@ export function normalizePhoneNumber(
 		// Parse the phone number
 		const parsed = parsePhoneNumber(cleaned);
 
-		if (parsed && parsed.isValid()) {
+		if (parsed?.isValid()) {
 			return parsed.format("E.164");
 		}
 
@@ -92,7 +92,7 @@ export function formatPhoneNumber(
 	try {
 		const parsed = parsePhoneNumber(phoneNumber);
 
-		if (parsed && parsed.isValid()) {
+		if (parsed?.isValid()) {
 			switch (format) {
 				case "national":
 					return parsed.formatNational();

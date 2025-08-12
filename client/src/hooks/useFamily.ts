@@ -238,6 +238,21 @@ export function useSendInvitationMutation() {
 	});
 }
 
+// Hook per ottenere i membri/genitori di una famiglia
+export function useFamilyMembersQuery(familyId: string) {
+	return useQuery({
+		queryKey: ["family", familyId, "members"],
+		queryFn: async () => {
+			const result = await orpcClient.family.getMembers({ familyId });
+			if (!result.success) {
+				throw new Error("Failed to fetch family members");
+			}
+			return result.data;
+		},
+		enabled: !!familyId,
+	});
+}
+
 // Hook per ottenere i dettagli di un invito (pubblico)
 export function useInvitationDetailsQuery(token: string) {
 	return useQuery({
@@ -285,7 +300,7 @@ export function useCancelInvitationMutation() {
 			}
 			return result.data;
 		},
-		onSuccess: (_, variables) => {
+		onSuccess: (_, _variables) => {
 			// Invalidate invitations for all families since we don't know which family this belongs to
 			queryClient.invalidateQueries({
 				queryKey: ["family"],

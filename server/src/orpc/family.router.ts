@@ -9,6 +9,7 @@ export const familyRouter = os.router({
 	list: coreRouter.list,
 	create: coreRouter.create,
 	updateFamily: coreRouter.updateFamily,
+	getMembers: coreRouter.getMembers,
 
 	// Children operations
 	getChildren: childrenRouter.getChildren,

@@ -50,8 +50,7 @@ function InnerApp() {
 					<p className="text-muted-foreground">
 						{session.error && session.error.status === 0
 							? "Connecting to server..."
-							: "Please wait while we load your session."
-						}
+							: "Please wait while we load your session."}
 					</p>
 				</div>
 			</div>

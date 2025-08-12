@@ -44,7 +44,7 @@ function ProfileForm({ user: currentUser }: { user: User }) {
 				phoneNumber: user.phoneNumber || undefined,
 			});
 			toast.success("Profilo aggiornato con successo");
-		} catch (error) {
+		} catch (_error) {
 			toast.error("Errore durante l'aggiornamento del profilo");
 		}
 	};
@@ -90,7 +90,7 @@ function ProfileForm({ user: currentUser }: { user: User }) {
 
 function ProfiloPage() {
 	const { auth } = Route.useRouteContext();
-	const currentUser = auth.data!.user!;
+	const currentUser = auth.data?.user!;
 
 	return (
 		<div className="space-y-6">

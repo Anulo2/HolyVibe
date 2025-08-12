@@ -5,11 +5,8 @@ import {
 	Activity,
 	BarChart3,
 	Calendar,
-	Download,
 	Euro,
-	FileText,
 	PieChart,
-	TrendingDown,
 	TrendingUp,
 	Users,
 } from "lucide-react";
@@ -32,7 +29,6 @@ import {
 } from "recharts";
 import { RoleGuard } from "@/components/admin/role-guard";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import {
 	Card,
 	CardContent,
@@ -111,7 +107,7 @@ function ReportisticaPage() {
 	};
 
 	const formatDate = (dateString: string) => {
-		return format(new Date(dateString + "-01"), "MMM yyyy", { locale: it });
+		return format(new Date(`${dateString}-01`), "MMM yyyy", { locale: it });
 	};
 
 	return (

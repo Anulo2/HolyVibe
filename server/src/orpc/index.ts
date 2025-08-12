@@ -8,13 +8,13 @@ import { supremeAdminRouter } from "./supreme-admin.router";
 import { userRouter } from "./user.router";
 
 export const appRouter = os.router({
-  family: familyRouter,
-  events: eventsRouter,
-  user: userRouter,
-  registrations: registrationsRouter,
-  fileUpload: fileUploadRouter,
-  settings: settingsRouter,
-  supremeAdmin: supremeAdminRouter,
+	family: familyRouter,
+	events: eventsRouter,
+	user: userRouter,
+	registrations: registrationsRouter,
+	fileUpload: fileUploadRouter,
+	settings: settingsRouter,
+	supremeAdmin: supremeAdminRouter,
 });
 
 export type AppRouter = typeof appRouter;

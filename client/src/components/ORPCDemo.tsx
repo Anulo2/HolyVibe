@@ -36,7 +36,7 @@ export const ORPCDemo: React.FC = () => {
 				const familyId = createResponse.data.id;
 
 				// oRPC knows this requires familyId parameter
-				const childrenResponse = await orpcClient.family.getChildren({
+				const _childrenResponse = await orpcClient.family.getChildren({
 					familyId,
 				});
 

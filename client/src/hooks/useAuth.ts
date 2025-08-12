@@ -6,77 +6,80 @@ import { orpc } from "@/lib/orpc-react";
 import { useCheckPhoneInvitationsMutation } from "./useFamily";
 
 export function useAuth() {
-  // Keep track of whether we've already checked invitations this session
-  const hasCheckedInvitations = useRef(false);
+	// Keep track of whether we've already checked invitations this session
+	const hasCheckedInvitations = useRef(false);
 
-  // Get the Better Auth session
-  const session = authClient.useSession();
+	// Get the Better Auth session
+	const session = authClient.useSession();
 
-  // Get user's organization role
-  const userRoleQuery = useQuery({
-    queryKey: ["user", "role"],
-    queryFn: async () => {
-      try {
-        const response = await orpc.user.getCurrentUserRole();
-        return response;
-      } catch (error) {
-        console.error("Error fetching user role:", error);
-        return null;
-      }
-    },
-    enabled: !!session.data?.user,
-    staleTime: 5 * 60 * 1000, // 5 minutes
-    refetchOnWindowFocus: false,
-  });
+	// Get user's organization role
+	const userRoleQuery = useQuery({
+		queryKey: ["user", "role"],
+		queryFn: async () => {
+			try {
+				const response = await orpc.user.getCurrentUserRole();
+				return response;
+			} catch (error) {
+				console.error("Error fetching user role:", error);
+				return null;
+			}
+		},
+		enabled: !!session.data?.user,
+		staleTime: 0, // Always fresh data
+		cacheTime: 0, // No caching
+		refetchOnMount: true,
+		refetchOnWindowFocus: true,
+		refetchOnReconnect: true,
+	});
 
-  // Phone invitation checking mutation
-  const checkPhoneInvitationsMutation = useCheckPhoneInvitationsMutation();
+	// Phone invitation checking mutation
+	const checkPhoneInvitationsMutation = useCheckPhoneInvitationsMutation();
 
-  // Check for phone invitations only once per session when user is authenticated
-  useEffect(() => {
-    if (
-      session.data?.user &&
-      !hasCheckedInvitations.current &&
-      !checkPhoneInvitationsMutation.isPending
-    ) {
-      hasCheckedInvitations.current = true;
+	// Check for phone invitations only once per session when user is authenticated
+	useEffect(() => {
+		if (
+			session.data?.user &&
+			!hasCheckedInvitations.current &&
+			!checkPhoneInvitationsMutation.isPending
+		) {
+			hasCheckedInvitations.current = true;
 
-      checkPhoneInvitationsMutation.mutate(undefined, {
-        onSuccess: (data) => {
-          if (data.acceptedInvitations > 0) {
-            toast({
-              title: "Inviti accettati automaticamente",
-              description: `Sei stato aggiunto automaticamente a ${data.acceptedInvitations} ${
-                data.acceptedInvitations === 1 ? "famiglia" : "famiglie"
-              }: ${data.familyNames.join(", ")}`,
-            });
-          }
-        },
-        onError: (error) => {
-          console.error("Error checking phone invitations:", error);
-          // Reset the flag so we can try again later
-          hasCheckedInvitations.current = false;
-        },
-      });
-    }
-  }, [session.data?.user, checkPhoneInvitationsMutation]);
+			checkPhoneInvitationsMutation.mutate(undefined, {
+				onSuccess: (data) => {
+					if (data.acceptedInvitations > 0) {
+						toast({
+							title: "Inviti accettati automaticamente",
+							description: `Sei stato aggiunto automaticamente a ${data.acceptedInvitations} ${
+								data.acceptedInvitations === 1 ? "famiglia" : "famiglie"
+							}: ${data.familyNames.join(", ")}`,
+						});
+					}
+				},
+				onError: (error) => {
+					console.error("Error checking phone invitations:", error);
+					// Reset the flag so we can try again later
+					hasCheckedInvitations.current = false;
+				},
+			});
+		}
+	}, [session.data?.user, checkPhoneInvitationsMutation]);
 
-  // Reset the flag when user logs out
-  useEffect(() => {
-    if (!session.data?.user) {
-      hasCheckedInvitations.current = false;
-    }
-  }, [session.data?.user]);
+	// Reset the flag when user logs out
+	useEffect(() => {
+		if (!session.data?.user) {
+			hasCheckedInvitations.current = false;
+		}
+	}, [session.data?.user]);
 
-  return {
-    ...session,
-    user: session.data?.user,
-    userRole: userRoleQuery.data?.data?.role || null,
-    isLoadingRole: userRoleQuery.isLoading,
-    loading: session.isPending || userRoleQuery.isLoading,
-    session: session.data,
-    signOut: authClient.signOut,
-    // Supreme Admin role from better-auth admin plugin
-    isSupremeAdmin: session.data?.user?.role === "admin",
-  };
+	return {
+		...session,
+		user: session.data?.user,
+		userRole: userRoleQuery.data?.data?.role || null,
+		isLoadingRole: userRoleQuery.isLoading,
+		loading: session.isPending || userRoleQuery.isLoading,
+		session: session.data,
+		signOut: authClient.signOut,
+		// Supreme Admin role from better-auth admin plugin
+		isSupremeAdmin: session.data?.user?.role === "admin",
+	};
 }

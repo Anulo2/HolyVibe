@@ -140,7 +140,7 @@ function UtentiPage() {
 		try {
 			await updateUserRoleMutation.mutateAsync({ userId, role: newRole });
 			toast.success("Ruolo aggiornato con successo");
-		} catch (error) {
+		} catch (_error) {
 			toast.error("Errore nell'aggiornamento del ruolo");
 		}
 	};

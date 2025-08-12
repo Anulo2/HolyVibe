@@ -34,7 +34,8 @@ export function InvitaGenitoreDialog({
 		messaggio: "",
 	});
 
-	const { mutateAsync: sendInvitation, isPending: isSubmitting } = useSendInvitationMutation();
+	const { mutateAsync: sendInvitation, isPending: isSubmitting } =
+		useSendInvitationMutation();
 
 	const handleChange = (
 		e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,

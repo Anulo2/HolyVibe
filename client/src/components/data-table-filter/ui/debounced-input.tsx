@@ -24,7 +24,7 @@ export function DebouncedInput({
 		debounce((newValue: string | number) => {
 			onChange(newValue);
 		}, debounceMs), // Pass the wait time here
-		[debounceMs, onChange], // Dependencies
+		[], // Dependencies
 	);
 
 	const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {

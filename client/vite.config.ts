@@ -6,32 +6,32 @@ import { defineConfig } from "vite";
 
 // https://vitejs.dev/config/
 export default defineConfig({
-  plugins: [
-    tanstackRouter({
-      target: "react",
-      autoCodeSplitting: true,
-    }),
-    react(),
-    tailwindcss(),
-  ],
-  build: {
-    sourcemap: true,
-  },
-  server: {
-    proxy: {
-      "/api": {
-        target: "http://localhost:3000",
-        changeOrigin: true,
-      },
-      "/orpc": {
-        target: "http://localhost:3000",
-        changeOrigin: true,
-      },
-    },
-  },
-  resolve: {
-    alias: {
-      "@": path.resolve(__dirname, "./src"),
-    },
-  },
+	plugins: [
+		tanstackRouter({
+			target: "react",
+			autoCodeSplitting: true,
+		}),
+		react(),
+		tailwindcss(),
+	],
+	build: {
+		sourcemap: true,
+	},
+	server: {
+		proxy: {
+			"/api": {
+				target: "http://localhost:3000",
+				changeOrigin: true,
+			},
+			"/orpc": {
+				target: "http://localhost:3000",
+				changeOrigin: true,
+			},
+		},
+	},
+	resolve: {
+		alias: {
+			"@": path.resolve(__dirname, "./src"),
+		},
+	},
 });

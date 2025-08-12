@@ -38,14 +38,14 @@ export default function PhoneTestPage() {
 				cleaned = cleaned.replace(/^0+/, "");
 
 				if (cleaned.startsWith("39")) {
-					cleaned = "+" + cleaned;
+					cleaned = `+${cleaned}`;
 				} else if (cleaned.length >= 9 && cleaned.length <= 11) {
-					cleaned = "+39" + cleaned;
+					cleaned = `+39${cleaned}`;
 				}
 			}
 
 			const parsed = parsePhoneNumber(cleaned);
-			return parsed && parsed.isValid() ? parsed.format("E.164") : null;
+			return parsed?.isValid() ? parsed.format("E.164") : null;
 		} catch {
 			return null;
 		}
@@ -54,9 +54,7 @@ export default function PhoneTestPage() {
 	const formatForDisplay = (phoneNumber: string): string => {
 		try {
 			const parsed = parsePhoneNumber(phoneNumber);
-			return parsed && parsed.isValid()
-				? parsed.formatInternational()
-				: phoneNumber;
+			return parsed?.isValid() ? parsed.formatInternational() : phoneNumber;
 		} catch {
 			return phoneNumber;
 		}

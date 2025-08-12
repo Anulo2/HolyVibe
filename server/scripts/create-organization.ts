@@ -1,6 +1,6 @@
+import * as readline from "node:readline";
 import { eq } from "drizzle-orm";
 import { nanoid } from "nanoid";
-import * as readline from "readline";
 import { db } from "../src/db";
 import * as schema from "../src/db/schema";
 

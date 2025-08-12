@@ -484,7 +484,11 @@ export function FilterValueOptionController<TData>({
 			initialSelected: filter?.values.includes(o.value),
 			count: counts?.get(o.value) ?? 0,
 		}));
-	}, []);
+	}, [
+		column.getFacetedUniqueValues,
+		column.getOptions,
+		filter?.values.includes,
+	]);
 
 	const [options, setOptions] = useState(initialOptions);
 
@@ -563,7 +567,11 @@ export function FilterValueMultiOptionController<TData>({
 				count: counts?.get(o.value) ?? 0,
 			};
 		});
-	}, []);
+	}, [
+		column.getFacetedUniqueValues,
+		column.getOptions,
+		filter?.values.includes,
+	]);
 
 	const [options, setOptions] = useState(initialOptions);
 
@@ -781,7 +789,14 @@ export function FilterValueNumberController<TData>({
 			actions.setFilterOperator(column.id, newOperator);
 			actions.setFilterValue(column, newValues);
 		},
-		[values, column, actions, minMax],
+		[
+			values,
+			column,
+			actions,
+			minMax, // Cancel in-flight debounced calls to prevent flicker/race conditions
+			setFilterOperatorDebounced.cancel,
+			setFilterValueDebounced.cancel,
+		],
 	);
 
 	return (

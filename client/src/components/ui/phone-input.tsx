@@ -1,8 +1,4 @@
-import {
-	AsYouType,
-	getCountryCallingCode,
-	parsePhoneNumber,
-} from "libphonenumber-js";
+import { parsePhoneNumber } from "libphonenumber-js";
 import { ChevronDown, Phone } from "lucide-react";
 import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
@@ -55,7 +51,7 @@ export function PhoneInput({
 
 	// Parse initial value if provided
 	useEffect(() => {
-		if (value && value !== (selectedCountry.callingCode + rawPhoneNumber)) {
+		if (value && value !== selectedCountry.callingCode + rawPhoneNumber) {
 			try {
 				const parsed = parsePhoneNumber(value);
 				if (parsed) {
@@ -76,7 +72,7 @@ export function PhoneInput({
 
 					setRawPhoneNumber(cleanNumber);
 				}
-			} catch (error) {
+			} catch (_error) {
 				// Fallback for invalid numbers - ensure we don't include country code
 				let cleanNumber = value.replace(/\D/g, "");
 				if (cleanNumber.startsWith("39") && cleanNumber.length > 10) {
@@ -85,7 +81,7 @@ export function PhoneInput({
 				setRawPhoneNumber(cleanNumber);
 			}
 		}
-	}, [value]);
+	}, [value, rawPhoneNumber, selectedCountry.callingCode]);
 
 	const normalizePhoneNumber = (input: string): string => {
 		// Remove all non-digit characters except + at the beginning
@@ -98,12 +94,12 @@ export function PhoneInput({
 
 			// If it starts with 39, it's likely an Italian number without +
 			if (cleaned.startsWith("39")) {
-				return "+" + cleaned;
+				return `+${cleaned}`;
 			}
 
 			// If it's 9-11 digits, assume it's an Italian mobile number
 			if (cleaned.length >= 9 && cleaned.length <= 11) {
-				return "+39" + cleaned;
+				return `+39${cleaned}`;
 			}
 		}
 
@@ -115,13 +111,20 @@ export function PhoneInput({
 		let cleanInput = inputValue.replace(/\D/g, "");
 
 		// Remove country code if user accidentally types it
-		if (selectedCountry.code === "IT" && cleanInput.startsWith("39") && cleanInput.length > 10) {
+		if (
+			selectedCountry.code === "IT" &&
+			cleanInput.startsWith("39") &&
+			cleanInput.length > 10
+		) {
 			cleanInput = cleanInput.substring(2);
 		}
 		// For other countries, remove their codes too
 		else if (selectedCountry.code !== "IT") {
 			const countryCode = selectedCountry.callingCode.replace("+", "");
-			if (cleanInput.startsWith(countryCode) && cleanInput.length > countryCode.length + 7) {
+			if (
+				cleanInput.startsWith(countryCode) &&
+				cleanInput.length > countryCode.length + 7
+			) {
 				cleanInput = cleanInput.substring(countryCode.length);
 			}
 		}
@@ -136,14 +139,14 @@ export function PhoneInput({
 			const normalized = normalizePhoneNumber(completeNumber);
 			const parsed = parsePhoneNumber(normalized);
 
-			if (parsed && parsed.isValid()) {
+			if (parsed?.isValid()) {
 				setIsValid(true);
 				onChange?.(parsed.format("E.164"));
 			} else {
 				setIsValid(cleanInput.length === 0); // Valid if empty, invalid if has content but malformed
 				onChange?.(normalized || completeNumber);
 			}
-		} catch (error) {
+		} catch (_error) {
 			setIsValid(cleanInput.length === 0);
 			onChange?.(completeNumber);
 		}
@@ -170,7 +173,7 @@ export function PhoneInput({
 						onClick={() => setIsOpen(!isOpen)}
 						disabled={disabled}
 						className={cn(
-							"flex items-center gap-2 px-3 py-2 border border-r-0 border-input bg-background rounded-l-md hover:bg-accent hover:text-accent-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed",
+							"flex h-10 items-center gap-2 px-3 py-2 border border-r-0 border-input bg-background rounded-l-md hover:bg-accent hover:text-accent-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed",
 							isOpen && "ring-2 ring-ring ring-offset-2",
 							!isValid && rawPhoneNumber && "border-destructive",
 						)}

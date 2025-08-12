@@ -1,5 +1,6 @@
 import { Building2, Check, ChevronsUpDown } from "lucide-react";
 import { useState } from "react";
+import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -97,14 +98,27 @@ export function OrganizationSelector() {
 							{organizations.map((org) => (
 								<CommandItem
 									key={org.id}
-									value={org.id}
-									onSelect={(currentValue) => {
-										setActiveOrganizationId(
-											currentValue === activeOrganizationId
-												? null
-												: currentValue,
-										);
-										setOpen(false);
+									value={org.name.toLowerCase()}
+									onSelect={() => {
+										const previousOrg = activeOrganization;
+
+										if (previousOrg?.id !== org.id) {
+											// Show loading toast first
+											const loadingToast = toast.loading(
+												"Cambio parrocchia in corso...",
+											);
+
+											setActiveOrganizationId(org.id);
+											setOpen(false);
+
+											// Show success after brief delay
+											setTimeout(() => {
+												toast.dismiss(loadingToast);
+												toast.success(`Parrocchia cambiata: ${org.name}`);
+											}, 500);
+										} else {
+											setOpen(false);
+										}
 									}}
 								>
 									<div className="flex items-center justify-between w-full">

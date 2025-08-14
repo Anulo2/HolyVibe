@@ -4,722 +4,712 @@ import { nanoid } from "nanoid";
 import { z } from "zod";
 import { db } from "../db";
 import {
-	authorizedPersons,
-	children,
-	eventRegistrations,
-	events,
-	families,
-	familyMembers,
-	organizationMember,
-	user as userTable,
+  authorizedPersons,
+  children,
+  eventRegistrations,
+  events,
+  families,
+  familyMembers,
+  organizationMember,
+  user as userTable,
 } from "../db/schema";
 import { SuccessResponse } from "./helpers";
 import { withAuth } from "./middleware";
 import { User, UserWithRole } from "./schemas";
 
 export const userRouter = os.router({
-	// Get current user role
-	getCurrentUserRole: withAuth
-		.output(
-			SuccessResponse(
-				z.object({
-					role: z.string().nullable(),
-					organizationId: z.string().nullable(),
-				}),
-			),
-		)
-		.handler(async ({ context }) => {
-			try {
-				// Get user's organization membership and role
-				const membership = await db
-					.select()
-					.from(organizationMember)
-					.where(eq(organizationMember.userId, context.user.id))
-					.limit(1);
+  // Get current user role
+  getCurrentUserRole: withAuth
+    .output(
+      SuccessResponse(
+        z.object({
+          role: z.string().nullable(),
+          organizationId: z.string().nullable(),
+        }),
+      ),
+    )
+    .handler(async ({ context }) => {
+      try {
+        // Get user's organization membership and role
+        const membership = await db
+          .select()
+          .from(organizationMember)
+          .where(eq(organizationMember.userId, context.user.id))
+          .limit(1);
 
-				if (membership.length === 0) {
-					return {
-						success: true,
-						data: {
-							role: null,
-							organizationId: null,
-						},
-					};
-				}
+        if (membership.length === 0) {
+          return {
+            success: true,
+            data: {
+              role: null,
+              organizationId: null,
+            },
+          };
+        }
 
-				return {
-					success: true,
-					data: {
-						role: membership[0].role,
-						organizationId: membership[0].organizationId,
-					},
-				};
-			} catch (error) {
-				console.error("Error fetching user role:", error);
-				throw new ORPCError("INTERNAL_SERVER_ERROR", {
-					message: "Failed to fetch user role",
-				});
-			}
-		}),
+        return {
+          success: true,
+          data: {
+            role: membership[0].role,
+            organizationId: membership[0].organizationId,
+          },
+        };
+      } catch (error) {
+        console.error("Error fetching user role:", error);
+        throw new ORPCError("INTERNAL_SERVER_ERROR", {
+          message: "Failed to fetch user role",
+        });
+      }
+    }),
 
-	// Update user profile
-	updateProfile: withAuth
-		.input(
-			z.object({
-				name: z.string().min(1).max(100).optional(),
-				email: z.preprocess(
-					(val) =>
-						typeof val === "string" && val.trim() === "" ? undefined : val,
-					z.string().email().max(100).optional(),
-				),
-				phoneNumber: z.string().max(20).optional(),
-				birthDate: z.string().optional(), // ISO date string
-			}),
-		)
-		.output(SuccessResponse(User))
-		.handler(async ({ input, context }) => {
-			try {
-				// Prepare update data - only include fields that are provided
-				const updateData: any = {
-					updatedAt: new Date(),
-				};
+  // Update user profile
+  updateProfile: withAuth
+    .input(
+      z.object({
+        name: z.string().min(1).max(100).optional(),
+        email: z.preprocess(
+          (val) =>
+            typeof val === "string" && val.trim() === "" ? undefined : val,
+          z.string().email().max(100).optional(),
+        ),
+        phoneNumber: z.string().max(20).optional(),
+        birthDate: z.string().optional(), // ISO date string
+      }),
+    )
+    .output(SuccessResponse(User))
+    .handler(async ({ input, context }) => {
+      try {
+        // Prepare update data - only include fields that are provided
+        const updateData: any = {
+          updatedAt: new Date(),
+        };
 
-				if (input.name !== undefined) {
-					updateData.name = input.name;
-				}
-				if (input.email !== undefined) {
-					updateData.email = input.email;
-				}
-				if (input.phoneNumber !== undefined) {
-					updateData.phoneNumber = input.phoneNumber;
-				}
-				if (input.birthDate !== undefined) {
-					updateData.birthDate = input.birthDate;
-				}
+        if (input.name !== undefined) {
+          updateData.name = input.name;
+        }
+        if (input.email !== undefined) {
+          updateData.email = input.email;
+        }
+        if (input.phoneNumber !== undefined) {
+          updateData.phoneNumber = input.phoneNumber;
+        }
+        if (input.birthDate !== undefined) {
+          updateData.birthDate = input.birthDate;
+        }
 
-				// Update the user in the database
-				await db
-					.update(userTable)
-					.set(updateData)
-					.where(eq(userTable.id, context.user.id));
+        // Update the user in the database
+        await db
+          .update(userTable)
+          .set(updateData)
+          .where(eq(userTable.id, context.user.id));
 
-				// Fetch the updated user
-				const updatedUser = await db
-					.select()
-					.from(userTable)
-					.where(eq(userTable.id, context.user.id))
-					.limit(1);
+        // Fetch the updated user
+        const updatedUser = await db
+          .select()
+          .from(userTable)
+          .where(eq(userTable.id, context.user.id))
+          .limit(1);
 
-				return {
-					success: true,
-					data: {
-						...updatedUser[0],
-						createdAt: new Date(updatedUser[0].createdAt).toISOString(),
-						updatedAt: new Date(updatedUser[0].updatedAt).toISOString(),
-					},
-				};
-			} catch (error) {
-				console.error("Error updating user profile:", error);
+        return {
+          success: true,
+          data: {
+            ...updatedUser[0],
+            createdAt: new Date(updatedUser[0].createdAt).toISOString(),
+            updatedAt: new Date(updatedUser[0].updatedAt).toISOString(),
+          },
+        };
+      } catch (error) {
+        console.error("Error updating user profile:", error);
 
-				// Check if it's a unique constraint error for email
-				if (
-					error instanceof Error &&
-					error.message.includes("SQLITE_CONSTRAINT_UNIQUE") &&
-					error.message.includes("user.email")
-				) {
-					throw new ORPCError("CONFLICT", {
-						message: "This email address is already in use by another account",
-					});
-				}
+        // Check if it's a unique constraint error for email
+        if (
+          error instanceof Error &&
+          error.message.includes("SQLITE_CONSTRAINT_UNIQUE") &&
+          error.message.includes("user.email")
+        ) {
+          throw new ORPCError("CONFLICT", {
+            message: "This email address is already in use by another account",
+          });
+        }
 
-				throw new ORPCError("INTERNAL_SERVER_ERROR", {
-					message: "Failed to update user profile",
-				});
-			}
-		}),
+        throw new ORPCError("INTERNAL_SERVER_ERROR", {
+          message: "Failed to update user profile",
+        });
+      }
+    }),
 
-	// Get users list (admin only)
-	list: withAuth
-		.input(
-			z.object({
-				limit: z.number().min(1).max(100).default(20),
-				offset: z.number().min(0).default(0),
-				search: z.string().max(100).optional(),
-				role: z.string().optional(),
-			}),
-		)
-		.output(
-			SuccessResponse(
-				z.object({
-					users: z.array(UserWithRole),
-					total: z.number(),
-				}),
-			),
-		)
-		.handler(async ({ input, context }) => {
-			try {
-				// Check if user is admin
-				const membership = await db
-					.select()
-					.from(organizationMember)
-					.where(eq(organizationMember.userId, context.user.id))
-					.limit(1);
+  // Get users list (admin only)
+  list: withAuth
+    .input(
+      z.object({
+        limit: z.number().min(1).max(1000).default(1000),
+        offset: z.number().min(0).default(0),
+        search: z.string().max(100).optional(),
+        role: z.string().optional(),
+      }),
+    )
+    .output(
+      SuccessResponse(
+        z.object({
+          users: z.array(UserWithRole),
+          total: z.number(),
+        }),
+      ),
+    )
+    .handler(async ({ input, context }) => {
+      try {
+        // Check if user is admin
+        const membership = await db
+          .select()
+          .from(organizationMember)
+          .where(eq(organizationMember.userId, context.user.id))
+          .limit(1);
 
-				const isAdmin =
-					membership.length > 0 &&
-					["amministratore", "editor"].includes(membership[0].role);
+        const isAdmin =
+          membership.length > 0 &&
+          ["amministratore", "editor"].includes(membership[0].role);
 
-				if (!isAdmin) {
-					throw new ORPCError("FORBIDDEN", {
-						message: "Access denied",
-					});
-				}
+        if (!isAdmin) {
+          throw new ORPCError("FORBIDDEN", {
+            message: "Access denied",
+          });
+        }
 
-				const currentOrganizationId = membership[0].organizationId;
+        const currentOrganizationId = membership[0].organizationId;
 
-				// Build query conditions
-				const conditions = [];
-				if (input.search) {
-					const searchTerm = `%${input.search}%`;
-					conditions.push(
-						sql`(${userTable.name} LIKE ${searchTerm} OR ${userTable.email} LIKE ${searchTerm})`,
-					);
-				}
+        // Build search conditions for more efficient querying
+        const searchConditions = [];
+        if (input.search) {
+          const searchTerm = `%${input.search}%`;
+          searchConditions.push(
+            sql`(${userTable.name} LIKE ${searchTerm} OR ${userTable.email} LIKE ${searchTerm})`,
+          );
+        }
 
-				// Get users who have registrations for events created by members of current organization
-				const usersWithRegistrations = await db
-					.select({
-						userId: eventRegistrations.parentId,
-					})
-					.from(eventRegistrations)
-					.innerJoin(events, eq(eventRegistrations.eventId, events.id))
-					.innerJoin(
-						organizationMember,
-						eq(events.createdBy, organizationMember.userId),
-					)
-					.where(eq(organizationMember.organizationId, currentOrganizationId))
-					.groupBy(eventRegistrations.parentId);
+        // Optimize by getting all relevant user IDs in a single subquery
+        const relevantUserIdsSubquery = db
+          .select({ userId: organizationMember.userId })
+          .from(organizationMember)
+          .where(eq(organizationMember.organizationId, currentOrganizationId))
+          .union(
+            db
+              .select({ userId: eventRegistrations.parentId })
+              .from(eventRegistrations)
+              .innerJoin(events, eq(eventRegistrations.eventId, events.id))
+              .innerJoin(
+                organizationMember,
+                eq(events.createdBy, organizationMember.userId),
+              )
+              .where(
+                eq(organizationMember.organizationId, currentOrganizationId),
+              ),
+          );
 
-				const userIdsWithRegistrations = usersWithRegistrations.map(
-					(u) => u.userId,
-				);
+        // Build final conditions more efficiently
+        const baseCondition = sql`${userTable.id} IN (${relevantUserIdsSubquery})`;
+        const finalConditions = [baseCondition];
 
-				// Get organization members
-				const orgMembers = await db
-					.select({ userId: organizationMember.userId })
-					.from(organizationMember)
-					.where(eq(organizationMember.organizationId, currentOrganizationId));
+        if (searchConditions.length > 0) {
+          finalConditions.push(...searchConditions);
+        }
 
-				const allRelevantUserIds = [
-					...new Set([
-						...userIdsWithRegistrations,
-						...orgMembers.map((m) => m.userId),
-					]),
-				];
+        // Get users with role information
+        const users = await db
+          .select({
+            user: userTable,
+            membership: organizationMember,
+          })
+          .from(userTable)
+          .leftJoin(
+            organizationMember,
+            and(
+              eq(userTable.id, organizationMember.userId),
+              eq(organizationMember.organizationId, currentOrganizationId),
+            ),
+          )
+          .where(
+            finalConditions.length > 0 ? and(...finalConditions) : undefined,
+          )
+          .orderBy(desc(userTable.createdAt))
+          .limit(input.limit)
+          .offset(input.offset);
 
-				// Build final conditions including user ID filter
-				const finalConditions = [];
+        // Get total count with same conditions
+        const [totalResult] = await db
+          .select({ count: sql<number>`count(*)` })
+          .from(userTable)
+          .where(and(...finalConditions));
 
-				if (allRelevantUserIds.length > 0) {
-					finalConditions.push(inArray(userTable.id, allRelevantUserIds));
-				}
+        // Apply role filter on the mapped results for better performance
+        let filteredUsers = users.map((item) => ({
+          ...item.user,
+          createdAt: new Date(item.user.createdAt).toISOString(),
+          updatedAt: new Date(item.user.updatedAt).toISOString(),
+          birthDate: item.user.birthDate
+            ? new Date(item.user.birthDate).toISOString()
+            : null,
+          role: item.membership?.role || null,
+          organizationId: item.membership?.organizationId || null,
+          joinedAt: item.membership?.createdAt
+            ? new Date(item.membership.createdAt).toISOString()
+            : null,
+        }));
 
-				if (conditions.length > 0) {
-					finalConditions.push(...conditions);
-				}
+        // Filter by role if specified
+        if (input.role) {
+          filteredUsers = filteredUsers.filter(
+            (user) => user.role === input.role,
+          );
+        }
 
-				// Get users with role information
-				const users = await db
-					.select({
-						user: userTable,
-						membership: organizationMember,
-					})
-					.from(userTable)
-					.leftJoin(
-						organizationMember,
-						and(
-							eq(userTable.id, organizationMember.userId),
-							eq(organizationMember.organizationId, currentOrganizationId),
-						),
-					)
-					.where(
-						finalConditions.length > 0 ? and(...finalConditions) : undefined,
-					)
-					.orderBy(desc(userTable.createdAt))
-					.limit(input.limit)
-					.offset(input.offset);
+        return {
+          success: true,
+          data: {
+            users: filteredUsers,
+            total: totalResult.count,
+          },
+        };
+      } catch (error) {
+        console.error("Error fetching users:", error);
+        throw new ORPCError("INTERNAL_SERVER_ERROR", {
+          message: "Failed to fetch users",
+        });
+      }
+    }),
 
-				// Get total count
-				const [totalResult] = await db
-					.select({ count: sql<number>`count(*)` })
-					.from(userTable)
-					.where(
-						finalConditions.length > 0 ? and(...finalConditions) : undefined,
-					);
+  // Get user details with family information
+  getDetails: withAuth
+    .input(
+      z.object({
+        userId: z.string(),
+      }),
+    )
+    .output(
+      SuccessResponse(
+        z.object({
+          user: User,
+          families: z.array(
+            z.object({
+              id: z.string(),
+              name: z.string(),
+              role: z.string(),
+              isAdmin: z.boolean(),
+              childrenCount: z.number(),
+              authorizedPersonsCount: z.number(),
+            }),
+          ),
+          registrations: z.array(
+            z.object({
+              id: z.string(),
+              eventId: z.string(),
+              status: z.string(),
+              registrationDate: z.string(),
+              event: z.object({
+                title: z.string(),
+                startDate: z.string(),
+              }),
+            }),
+          ),
+        }),
+      ),
+    )
+    .handler(async ({ input, context }) => {
+      try {
+        // Check if user is admin or requesting own details
+        const membership = await db
+          .select()
+          .from(organizationMember)
+          .where(eq(organizationMember.userId, context.user.id))
+          .limit(1);
 
-				// Filter by role if specified
-				let filteredUsers = users;
-				if (input.role) {
-					filteredUsers = users.filter(
-						(item) => item.membership?.role === input.role,
-					);
-				}
+        const isAdmin =
+          membership.length > 0 &&
+          ["amministratore", "editor"].includes(membership[0].role);
 
-				return {
-					success: true,
-					data: {
-						users: filteredUsers.map((item) => ({
-							...item.user,
-							createdAt: new Date(item.user.createdAt).toISOString(),
-							updatedAt: new Date(item.user.updatedAt).toISOString(),
-							birthDate: item.user.birthDate
-								? new Date(item.user.birthDate).toISOString()
-								: null,
-							role: item.membership?.role || null,
-							organizationId: item.membership?.organizationId || null,
-							joinedAt: item.membership?.createdAt
-								? new Date(item.membership.createdAt).toISOString()
-								: null,
-						})),
-						total: totalResult.count,
-					},
-				};
-			} catch (error) {
-				console.error("Error fetching users:", error);
-				throw new ORPCError("INTERNAL_SERVER_ERROR", {
-					message: "Failed to fetch users",
-				});
-			}
-		}),
+        if (!isAdmin && context.user.id !== input.userId) {
+          throw new ORPCError("FORBIDDEN", {
+            message: "Access denied",
+          });
+        }
 
-	// Get user details with family information
-	getDetails: withAuth
-		.input(
-			z.object({
-				userId: z.string(),
-			}),
-		)
-		.output(
-			SuccessResponse(
-				z.object({
-					user: User,
-					families: z.array(
-						z.object({
-							id: z.string(),
-							name: z.string(),
-							role: z.string(),
-							isAdmin: z.boolean(),
-							childrenCount: z.number(),
-							authorizedPersonsCount: z.number(),
-						}),
-					),
-					registrations: z.array(
-						z.object({
-							id: z.string(),
-							eventId: z.string(),
-							status: z.string(),
-							registrationDate: z.string(),
-							event: z.object({
-								title: z.string(),
-								startDate: z.string(),
-							}),
-						}),
-					),
-				}),
-			),
-		)
-		.handler(async ({ input, context }) => {
-			try {
-				// Check if user is admin or requesting own details
-				const membership = await db
-					.select()
-					.from(organizationMember)
-					.where(eq(organizationMember.userId, context.user.id))
-					.limit(1);
+        // Get user details
+        const user = await db
+          .select()
+          .from(userTable)
+          .where(eq(userTable.id, input.userId))
+          .limit(1);
 
-				const isAdmin =
-					membership.length > 0 &&
-					["amministratore", "editor"].includes(membership[0].role);
+        if (user.length === 0) {
+          throw new ORPCError("NOT_FOUND", {
+            message: "User not found",
+          });
+        }
 
-				if (!isAdmin && context.user.id !== input.userId) {
-					throw new ORPCError("FORBIDDEN", {
-						message: "Access denied",
-					});
-				}
+        // Get user's families
+        const userFamilies = await db
+          .select({
+            family: families,
+            member: familyMembers,
+          })
+          .from(familyMembers)
+          .leftJoin(families, eq(familyMembers.familyId, families.id))
+          .where(eq(familyMembers.userId, input.userId));
 
-				// Get user details
-				const user = await db
-					.select()
-					.from(userTable)
-					.where(eq(userTable.id, input.userId))
-					.limit(1);
+        // Get children count for each family
+        const familyIds = userFamilies
+          .map((item) => item.family?.id)
+          .filter((id): id is string => id !== undefined);
+        let childrenCounts: { familyId: string; count: number }[] = [];
+        let authorizedPersonsCounts: { familyId: string; count: number }[] = [];
 
-				if (user.length === 0) {
-					throw new ORPCError("NOT_FOUND", {
-						message: "User not found",
-					});
-				}
+        if (familyIds.length > 0) {
+          childrenCounts = await db
+            .select({
+              familyId: children.familyId,
+              count: sql<number>`count(*)`.as("count"),
+            })
+            .from(children)
+            .where(inArray(children.familyId, familyIds))
+            .groupBy(children.familyId);
 
-				// Get user's families
-				const userFamilies = await db
-					.select({
-						family: families,
-						member: familyMembers,
-					})
-					.from(familyMembers)
-					.leftJoin(families, eq(familyMembers.familyId, families.id))
-					.where(eq(familyMembers.userId, input.userId));
+          authorizedPersonsCounts = await db
+            .select({
+              familyId: authorizedPersons.familyId,
+              count: sql<number>`count(*)`.as("count"),
+            })
+            .from(authorizedPersons)
+            .where(inArray(authorizedPersons.familyId, familyIds))
+            .groupBy(authorizedPersons.familyId);
+        }
 
-				// Get children count for each family
-				const familyIds = userFamilies.map((item) => item.family?.id);
-				let childrenCounts: { familyId: string; count: number }[] = [];
-				let authorizedPersonsCounts: { familyId: string; count: number }[] = [];
+        const childrenCountMap = new Map(
+          childrenCounts.map((item) => [item.familyId, item.count]),
+        );
+        const personsCountMap = new Map(
+          authorizedPersonsCounts.map((item) => [item.familyId, item.count]),
+        );
 
-				if (familyIds.length > 0) {
-					childrenCounts = await db
-						.select({
-							familyId: children.familyId,
-							count: sql<number>`count(*)`.as("count"),
-						})
-						.from(children)
-						.where(inArray(children.familyId, familyIds))
-						.groupBy(children.familyId);
+        // Get user's registrations
+        // Get user's registrations
+        const registrations = await db
+          .select({
+            registration: eventRegistrations,
+            event: events,
+          })
+          .from(eventRegistrations)
+          .leftJoin(events, eq(eventRegistrations.eventId, events.id))
+          .where(eq(eventRegistrations.parentId, input.userId))
+          .orderBy(desc(eventRegistrations.registrationDate));
 
-					authorizedPersonsCounts = await db
-						.select({
-							familyId: authorizedPersons.familyId,
-							count: sql<number>`count(*)`.as("count"),
-						})
-						.from(authorizedPersons)
-						.where(inArray(authorizedPersons.familyId, familyIds))
-						.groupBy(authorizedPersons.familyId);
-				}
+        return {
+          success: true,
+          data: {
+            user: {
+              ...user[0],
+              createdAt: new Date(user[0].createdAt).toISOString(),
+              updatedAt: new Date(user[0].updatedAt).toISOString(),
+            },
+            families: userFamilies.map((item) => ({
+              id: item.family?.id || "",
+              name: item.family?.name || "",
+              role: item.member.role,
+              isAdmin: item.member.isAdmin,
+              childrenCount: childrenCountMap.get(item.family?.id || "") || 0,
+              authorizedPersonsCount:
+                personsCountMap.get(item.family?.id || "") || 0,
+            })),
+            registrations: registrations.map((item) => ({
+              id: item.registration.id,
+              eventId: item.registration.eventId,
+              status: item.registration.status,
+              registrationDate: new Date(
+                item.registration.registrationDate,
+              ).toISOString(),
+              event: {
+                title: item.event?.title || "",
+                startDate: item.event?.startDate
+                  ? new Date(item.event.startDate).toISOString()
+                  : "",
+              },
+            })),
+          },
+        };
+      } catch (error) {
+        console.error("Error fetching user details:", error);
+        throw new ORPCError("INTERNAL_SERVER_ERROR", {
+          message: "Failed to fetch user details",
+        });
+      }
+    }),
 
-				const childrenCountMap = new Map(
-					childrenCounts.map((item) => [item.familyId, item.count]),
-				);
-				const personsCountMap = new Map(
-					authorizedPersonsCounts.map((item) => [item.familyId, item.count]),
-				);
+  // Update user role
+  updateRole: withAuth
+    .input(
+      z.object({
+        userId: z.string(),
+        role: z.enum([
+          "amministratore",
+          "editor",
+          "visualizzatore",
+          "animatore",
+          "genitore",
+        ]),
+      }),
+    )
+    .output(
+      SuccessResponse(
+        z.object({
+          userId: z.string(),
+          role: z.string(),
+        }),
+      ),
+    )
+    .handler(async ({ input, context }) => {
+      try {
+        // Check if current user is admin
+        const currentUserMembership = await db
+          .select()
+          .from(organizationMember)
+          .where(eq(organizationMember.userId, context.user.id))
+          .limit(1);
 
-				// Get user's registrations
-				// Get user's registrations
-				const registrations = await db
-					.select({
-						registration: eventRegistrations,
-						event: events,
-					})
-					.from(eventRegistrations)
-					.leftJoin(events, eq(eventRegistrations.eventId, events.id))
-					.where(eq(eventRegistrations.parentId, input.userId))
-					.orderBy(desc(eventRegistrations.registrationDate));
+        if (
+          currentUserMembership.length === 0 ||
+          currentUserMembership[0].role !== "amministratore"
+        ) {
+          throw new ORPCError("FORBIDDEN", {
+            message: "Only administrators can update user roles",
+          });
+        }
 
-				return {
-					success: true,
-					data: {
-						user: {
-							...user[0],
-							createdAt: new Date(user[0].createdAt).toISOString(),
-							updatedAt: new Date(user[0].updatedAt).toISOString(),
-						},
-						families: userFamilies.map((item) => ({
-							id: item.family?.id,
-							name: item.family?.name,
-							role: item.member.role,
-							isAdmin: item.member.isAdmin,
-							childrenCount: childrenCountMap.get(item.family?.id) || 0,
-							authorizedPersonsCount: personsCountMap.get(item.family?.id) || 0,
-						})),
-						registrations: registrations.map((item) => ({
-							id: item.registration.id,
-							eventId: item.registration.eventId,
-							status: item.registration.status,
-							registrationDate: new Date(
-								item.registration.registrationDate,
-							).toISOString(),
-							event: {
-								title: item.event?.title,
-								startDate: new Date(item.event?.startDate).toISOString(),
-							},
-						})),
-					},
-				};
-			} catch (error) {
-				console.error("Error fetching user details:", error);
-				throw new ORPCError("INTERNAL_SERVER_ERROR", {
-					message: "Failed to fetch user details",
-				});
-			}
-		}),
+        // Get current user's organization
+        const currentOrganizationId = currentUserMembership[0].organizationId;
 
-	// Update user role
-	updateRole: withAuth
-		.input(
-			z.object({
-				userId: z.string(),
-				role: z.enum([
-					"amministratore",
-					"editor",
-					"visualizzatore",
-					"animatore",
-					"genitore",
-				]),
-			}),
-		)
-		.output(
-			SuccessResponse(
-				z.object({
-					userId: z.string(),
-					role: z.string(),
-				}),
-			),
-		)
-		.handler(async ({ input, context }) => {
-			try {
-				// Check if current user is admin
-				const currentUserMembership = await db
-					.select()
-					.from(organizationMember)
-					.where(eq(organizationMember.userId, context.user.id))
-					.limit(1);
+        // Check if target user exists in the same organization
+        const targetUserMembership = await db
+          .select()
+          .from(organizationMember)
+          .where(
+            and(
+              eq(organizationMember.userId, input.userId),
+              eq(organizationMember.organizationId, currentOrganizationId),
+            ),
+          )
+          .limit(1);
 
-				if (
-					currentUserMembership.length === 0 ||
-					currentUserMembership[0].role !== "amministratore"
-				) {
-					throw new ORPCError("FORBIDDEN", {
-						message: "Only administrators can update user roles",
-					});
-				}
+        // If user is not in organization, add them
+        if (targetUserMembership.length === 0) {
+          // First verify the user exists
+          const userExists = await db
+            .select()
+            .from(userTable)
+            .where(eq(userTable.id, input.userId))
+            .limit(1);
 
-				// Get current user's organization
-				const currentOrganizationId = currentUserMembership[0].organizationId;
+          if (userExists.length === 0) {
+            throw new ORPCError("NOT_FOUND", {
+              message: "User not found",
+            });
+          }
 
-				// Check if target user exists in the same organization
-				const targetUserMembership = await db
-					.select()
-					.from(organizationMember)
-					.where(
-						and(
-							eq(organizationMember.userId, input.userId),
-							eq(organizationMember.organizationId, currentOrganizationId),
-						),
-					)
-					.limit(1);
+          // Add user to organization with the specified role
+          await db.insert(organizationMember).values({
+            id: nanoid(),
+            organizationId: currentOrganizationId,
+            userId: input.userId,
+            role: input.role,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          });
 
-				// If user is not in organization, add them
-				if (targetUserMembership.length === 0) {
-					// First verify the user exists
-					const userExists = await db
-						.select()
-						.from(userTable)
-						.where(eq(userTable.id, input.userId))
-						.limit(1);
+          return {
+            success: true,
+            data: {
+              userId: input.userId,
+              role: input.role,
+            },
+          };
+        }
 
-					if (userExists.length === 0) {
-						throw new ORPCError("NOT_FOUND", {
-							message: "User not found",
-						});
-					}
+        // Update user role
+        await db
+          .update(organizationMember)
+          .set({
+            role: input.role,
+            updatedAt: new Date(),
+          })
+          .where(
+            and(
+              eq(organizationMember.userId, input.userId),
+              eq(organizationMember.organizationId, currentOrganizationId),
+            ),
+          );
 
-					// Add user to organization with the specified role
-					await db.insert(organizationMember).values({
-						id: nanoid(),
-						organizationId: currentOrganizationId,
-						userId: input.userId,
-						role: input.role,
-						createdAt: new Date(),
-						updatedAt: new Date(),
-					});
+        return {
+          success: true,
+          data: {
+            userId: input.userId,
+            role: input.role,
+          },
+        };
+      } catch (error) {
+        console.error("Error updating user role:", error);
+        if (error instanceof ORPCError) throw error;
+        throw new ORPCError("INTERNAL_SERVER_ERROR", {
+          message: "Failed to update user role",
+        });
+      }
+    }),
 
-					return {
-						success: true,
-						data: {
-							userId: input.userId,
-							role: input.role,
-						},
-					};
-				}
+  // Remove user from organization
+  removeFromOrganization: withAuth
+    .input(
+      z.object({
+        userId: z.string(),
+      }),
+    )
+    .output(
+      SuccessResponse(
+        z.object({
+          userId: z.string(),
+          removed: z.boolean(),
+        }),
+      ),
+    )
+    .handler(async ({ input, context }) => {
+      try {
+        // Check if current user is admin
+        const currentUserMembership = await db
+          .select()
+          .from(organizationMember)
+          .where(eq(organizationMember.userId, context.user.id))
+          .limit(1);
 
-				// Update user role
-				await db
-					.update(organizationMember)
-					.set({
-						role: input.role,
-						updatedAt: new Date(),
-					})
-					.where(
-						and(
-							eq(organizationMember.userId, input.userId),
-							eq(organizationMember.organizationId, currentOrganizationId),
-						),
-					);
+        if (
+          currentUserMembership.length === 0 ||
+          currentUserMembership[0].role !== "amministratore"
+        ) {
+          throw new ORPCError("FORBIDDEN", {
+            message: "Only administrators can remove users from organization",
+          });
+        }
 
-				return {
-					success: true,
-					data: {
-						userId: input.userId,
-						role: input.role,
-					},
-				};
-			} catch (error) {
-				console.error("Error updating user role:", error);
-				if (error instanceof ORPCError) throw error;
-				throw new ORPCError("INTERNAL_SERVER_ERROR", {
-					message: "Failed to update user role",
-				});
-			}
-		}),
+        // Prevent admin from removing themselves
+        if (input.userId === context.user.id) {
+          throw new ORPCError("BAD_REQUEST", {
+            message: "Cannot remove yourself from organization",
+          });
+        }
 
-	// Remove user from organization
-	removeFromOrganization: withAuth
-		.input(
-			z.object({
-				userId: z.string(),
-			}),
-		)
-		.output(
-			SuccessResponse(
-				z.object({
-					userId: z.string(),
-					removed: z.boolean(),
-				}),
-			),
-		)
-		.handler(async ({ input, context }) => {
-			try {
-				// Check if current user is admin
-				const currentUserMembership = await db
-					.select()
-					.from(organizationMember)
-					.where(eq(organizationMember.userId, context.user.id))
-					.limit(1);
+        // Check if target user exists in organization
+        const targetUserMembership = await db
+          .select()
+          .from(organizationMember)
+          .where(eq(organizationMember.userId, input.userId))
+          .limit(1);
 
-				if (
-					currentUserMembership.length === 0 ||
-					currentUserMembership[0].role !== "amministratore"
-				) {
-					throw new ORPCError("FORBIDDEN", {
-						message: "Only administrators can remove users from organization",
-					});
-				}
+        if (targetUserMembership.length === 0) {
+          throw new ORPCError("NOT_FOUND", {
+            message: "User not found in organization",
+          });
+        }
 
-				// Prevent admin from removing themselves
-				if (input.userId === context.user.id) {
-					throw new ORPCError("BAD_REQUEST", {
-						message: "Cannot remove yourself from organization",
-					});
-				}
+        // Remove user from organization
+        await db
+          .delete(organizationMember)
+          .where(eq(organizationMember.userId, input.userId));
 
-				// Check if target user exists in organization
-				const targetUserMembership = await db
-					.select()
-					.from(organizationMember)
-					.where(eq(organizationMember.userId, input.userId))
-					.limit(1);
+        return {
+          success: true,
+          data: {
+            userId: input.userId,
+            removed: true,
+          },
+        };
+      } catch (error) {
+        console.error("Error removing user from organization:", error);
+        if (error instanceof ORPCError) throw error;
+        throw new ORPCError("INTERNAL_SERVER_ERROR", {
+          message: "Failed to remove user from organization",
+        });
+      }
+    }),
 
-				if (targetUserMembership.length === 0) {
-					throw new ORPCError("NOT_FOUND", {
-						message: "User not found in organization",
-					});
-				}
+  // Auto-assign user to default organization (for new signups)
+  autoAssignToOrganization: withAuth
+    .output(
+      SuccessResponse(
+        z.object({
+          assigned: z.boolean(),
+          organizationId: z.string().nullable(),
+          organizationName: z.string().nullable(),
+        }),
+      ),
+    )
+    .handler(async ({ context }) => {
+      try {
+        const { organization } = await import("../db/schema");
 
-				// Remove user from organization
-				await db
-					.delete(organizationMember)
-					.where(eq(organizationMember.userId, input.userId));
+        // Check if user is already assigned to an organization
+        const existingMembership = await db
+          .select()
+          .from(organizationMember)
+          .where(eq(organizationMember.userId, context.user.id))
+          .limit(1);
 
-				return {
-					success: true,
-					data: {
-						userId: input.userId,
-						removed: true,
-					},
-				};
-			} catch (error) {
-				console.error("Error removing user from organization:", error);
-				if (error instanceof ORPCError) throw error;
-				throw new ORPCError("INTERNAL_SERVER_ERROR", {
-					message: "Failed to remove user from organization",
-				});
-			}
-		}),
+        if (existingMembership.length > 0) {
+          return {
+            success: true,
+            data: {
+              assigned: false,
+              organizationId: existingMembership[0].organizationId,
+              organizationName: null,
+            },
+          };
+        }
 
-	// Auto-assign user to default organization (for new signups)
-	autoAssignToOrganization: withAuth
-		.output(
-			SuccessResponse(
-				z.object({
-					assigned: z.boolean(),
-					organizationId: z.string().nullable(),
-					organizationName: z.string().nullable(),
-				}),
-			),
-		)
-		.handler(async ({ context }) => {
-			try {
-				const { organization } = await import("../db/schema");
+        // Find the first organization (default)
+        const defaultOrg = await db.select().from(organization).limit(1);
 
-				// Check if user is already assigned to an organization
-				const existingMembership = await db
-					.select()
-					.from(organizationMember)
-					.where(eq(organizationMember.userId, context.user.id))
-					.limit(1);
+        if (defaultOrg.length === 0) {
+          return {
+            success: true,
+            data: {
+              assigned: false,
+              organizationId: null,
+              organizationName: null,
+            },
+          };
+        }
 
-				if (existingMembership.length > 0) {
-					return {
-						success: true,
-						data: {
-							assigned: false,
-							organizationId: existingMembership[0].organizationId,
-							organizationName: null,
-						},
-					};
-				}
+        // Add user to default organization as "genitore"
+        await db.insert(organizationMember).values({
+          id: nanoid(),
+          organizationId: defaultOrg[0].id,
+          userId: context.user.id,
+          role: "genitore",
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        });
 
-				// Find the first organization (default)
-				const defaultOrg = await db.select().from(organization).limit(1);
+        console.log(
+          `🏢 Auto-assigned user ${context.user.id} to organization ${defaultOrg[0].name}`,
+        );
 
-				if (defaultOrg.length === 0) {
-					return {
-						success: true,
-						data: {
-							assigned: false,
-							organizationId: null,
-							organizationName: null,
-						},
-					};
-				}
-
-				// Add user to default organization as "genitore"
-				await db.insert(organizationMember).values({
-					id: nanoid(),
-					organizationId: defaultOrg[0].id,
-					userId: context.user.id,
-					role: "genitore",
-					createdAt: new Date(),
-					updatedAt: new Date(),
-				});
-
-				console.log(
-					`🏢 Auto-assigned user ${context.user.id} to organization ${defaultOrg[0].name}`,
-				);
-
-				return {
-					success: true,
-					data: {
-						assigned: true,
-						organizationId: defaultOrg[0].id,
-						organizationName: defaultOrg[0].name,
-					},
-				};
-			} catch (error) {
-				console.error("Error auto-assigning user to organization:", error);
-				if (error instanceof ORPCError) throw error;
-				throw new ORPCError("INTERNAL_SERVER_ERROR", {
-					message: "Failed to auto-assign user to organization",
-				});
-			}
-		}),
+        return {
+          success: true,
+          data: {
+            assigned: true,
+            organizationId: defaultOrg[0].id,
+            organizationName: defaultOrg[0].name,
+          },
+        };
+      } catch (error) {
+        console.error("Error auto-assigning user to organization:", error);
+        if (error instanceof ORPCError) throw error;
+        throw new ORPCError("INTERNAL_SERVER_ERROR", {
+          message: "Failed to auto-assign user to organization",
+        });
+      }
+    }),
 });

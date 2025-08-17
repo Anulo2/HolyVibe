@@ -1706,7 +1706,9 @@ export const registrationsRouter = os.router({
         }
 
         if (input.allowedExitLocations !== undefined) {
-          updateData.allowedExitLocations = input.allowedExitLocations;
+          updateData.allowedExitLocations = input.allowedExitLocations
+            ? JSON.stringify(input.allowedExitLocations)
+            : null;
         }
 
         // Update the registration

@@ -16,16 +16,16 @@
 		"check": "biome check --write --unsafe ."
 	},
 	"devDependencies": {
-		"@biomejs/biome": "^2.1.4",
-		"turbo": "^2.5.5",
+		"@biomejs/biome": "^2.2.0",
+		"turbo": "^2.5.6",
 		"lint-staged": "^16.1.5"
 	},
 	"dependencies": {
 		"@tanstack/react-table": "^8.21.3",
-		"@types/node": "^24.2.1",
-		"@typescript/native-preview": "^7.0.0-dev.20250812.1",
+		"@types/node": "^24.3.0",
+		"@typescript/native-preview": "^7.0.0-dev.20250816.1",
 		"client": "^0.0.1",
-		"libphonenumber-js": "^1.12.10",
+		"libphonenumber-js": "^1.12.12",
 		"server": "^1.0.42"
 	},
 	"packageManager": "bun@1.2.19",

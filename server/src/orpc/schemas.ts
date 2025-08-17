@@ -168,6 +168,16 @@ export const RegistrationWithDetails = z.object({
       email: z.string().nullable(),
     }),
   ),
+  canExitAlone: z.boolean(),
+  allowedExitLocations: z.array(z.string()),
+  locationAuthorizations: z.array(
+    z.object({
+      id: z.string(),
+      authorizedPersonId: z.string(),
+      location: z.string(),
+      canPickup: z.boolean(),
+    }),
+  ),
 });
 
 export const UserWithRole = z.object({

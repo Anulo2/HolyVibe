@@ -251,6 +251,7 @@ export const registrationsRouter = os.router({
                       : null,
                     price: item.event.price,
                     locations: item.event.locations,
+                    status: item.event.status,
                   }
                 : {
                     id: "",
@@ -259,6 +260,7 @@ export const registrationsRouter = os.router({
                     endDate: null,
                     price: null,
                     locations: "",
+                    status: "draft" as const,
                   },
               family: item.family
                 ? {
@@ -1327,6 +1329,20 @@ export const registrationsRouter = os.router({
                 )
             : [];
 
+        // Get location authorizations for each registration
+        const locationAuthorizationsData =
+          registrationIds.length > 0
+            ? await db
+                .select()
+                .from(registrationLocationAuthorizations)
+                .where(
+                  inArray(
+                    registrationLocationAuthorizations.registrationId,
+                    registrationIds,
+                  ),
+                )
+            : [];
+
         // Get all family parents for all registrations
         const familyIds = registrations
           .map((r) => r.family?.id)
@@ -1382,53 +1398,66 @@ export const registrationsRouter = os.router({
           }
         });
 
+        const locationAuthorizationsMap = new Map<string, any[]>();
+        locationAuthorizationsData.forEach((item) => {
+          if (!locationAuthorizationsMap.has(item.registrationId)) {
+            locationAuthorizationsMap.set(item.registrationId, []);
+          }
+          locationAuthorizationsMap.get(item.registrationId)?.push({
+            id: item.id,
+            authorizedPersonId: item.authorizedPersonId,
+            location: item.location,
+            canPickup: item.canPickup,
+          });
+        });
+
         const responseData = {
-          registrations: registrations.map((item) => ({
-            id: item.registration.id,
-            eventId: item.registration.eventId,
-            status: item.registration.status,
-            paymentStatus: item.registration.paymentStatus,
-            registrationDate: new Date(
-              item.registration.registrationDate,
-            ).toISOString(),
-            notes: item.registration.notes,
-            photoPrivacyConsent: item.registration.photoPrivacyConsent,
-            dataPrivacyConsent: item.registration.dataPrivacyConsent,
-            createdAt: new Date(item.registration.createdAt).toISOString(),
-            updatedAt: new Date(item.registration.updatedAt).toISOString(),
-            child: item.child
-              ? {
-                  id: item.child.id,
-                  firstName: item.child.firstName,
-                  lastName: item.child.lastName,
-                  birthDate: new Date(item.child.birthDate).toISOString(),
-                  allergies: item.child.allergies,
-                  medicalNotes: item.child.medicalNotes,
-                }
-              : {
-                  id: "",
-                  firstName: "",
-                  lastName: "",
-                  birthDate: "",
-                  allergies: null,
-                  medicalNotes: null,
-                },
-            parent: item.parent
-              ? {
-                  id: item.parent.id,
-                  name: item.parent.name || "",
-                  email: item.parent.email,
-                  phoneNumber: item.parent.phoneNumber,
-                }
-              : {
-                  id: "",
-                  name: "",
-                  email: "",
-                  phoneNumber: null,
-                },
-            parents: item.family ? parentsMap.get(item.family.id) || [] : [],
-            event: (() => {
-              const eventData = item.event
+          registrations: registrations.map((item) => {
+            const registration = {
+              id: item.registration.id,
+              eventId: item.registration.eventId,
+              status: item.registration.status,
+              paymentStatus: item.registration.paymentStatus,
+              registrationDate: new Date(
+                item.registration.registrationDate,
+              ).toISOString(),
+              notes: item.registration.notes,
+              photoPrivacyConsent: item.registration.photoPrivacyConsent,
+              dataPrivacyConsent: item.registration.dataPrivacyConsent,
+              createdAt: new Date(item.registration.createdAt).toISOString(),
+              updatedAt: new Date(item.registration.updatedAt).toISOString(),
+              child: item.child
+                ? {
+                    id: item.child.id,
+                    firstName: item.child.firstName,
+                    lastName: item.child.lastName,
+                    birthDate: new Date(item.child.birthDate).toISOString(),
+                    allergies: item.child.allergies,
+                    medicalNotes: item.child.medicalNotes,
+                  }
+                : {
+                    id: "",
+                    firstName: "",
+                    lastName: "",
+                    birthDate: "",
+                    allergies: null,
+                    medicalNotes: null,
+                  },
+              parent: item.parent
+                ? {
+                    id: item.parent.id,
+                    name: item.parent.name || "",
+                    email: item.parent.email,
+                    phoneNumber: item.parent.phoneNumber,
+                  }
+                : {
+                    id: "",
+                    name: "",
+                    email: "",
+                    phoneNumber: null,
+                  },
+              parents: item.family ? parentsMap.get(item.family.id) || [] : [],
+              event: item.event
                 ? {
                     id: item.event.id,
                     title: item.event.title,
@@ -1448,22 +1477,27 @@ export const registrationsRouter = os.router({
                     price: null,
                     locations: "",
                     status: "draft" as const,
-                  };
-
-              return eventData;
-            })(),
-            family: item.family
-              ? {
-                  id: item.family.id,
-                  name: item.family.name,
-                }
-              : {
-                  id: "",
-                  name: "",
-                },
-            authorizedPersons:
-              authorizedPersonsMap.get(item.registration.id) || [],
-          })),
+                  },
+              family: item.family
+                ? {
+                    id: item.family.id,
+                    name: item.family.name,
+                  }
+                : {
+                    id: "",
+                    name: "",
+                  },
+              authorizedPersons:
+                authorizedPersonsMap.get(item.registration.id) || [],
+              canExitAlone: item.registration.canExitAlone,
+              allowedExitLocations: item.registration.allowedExitLocations
+                ? JSON.parse(item.registration.allowedExitLocations)
+                : [],
+              locationAuthorizations:
+                locationAuthorizationsMap.get(item.registration.id) || [],
+            };
+            return registration;
+          }),
           total: count,
           page: input.page,
           limit: input.limit,

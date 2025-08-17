@@ -15,9 +15,14 @@ export const useRegistrationsQuery = (
     queryKey: ["registrations", "list", params],
     queryFn: async () => {
       // Ensure parameters are properly typed and validated
+      // Convert offset to page since backend expects page-based pagination
+      const limit = Number(params.limit) || 50;
+      const offset = Number(params.offset) || 0;
+      const page = Math.floor(offset / limit) + 1;
+
       const validatedParams = {
-        limit: Number(params.limit) || 50,
-        offset: Number(params.offset) || 0,
+        limit,
+        page,
         ...(params.status && { status: params.status }),
         ...(params.paymentStatus && { paymentStatus: params.paymentStatus }),
         ...(params.eventId && { eventId: params.eventId }),

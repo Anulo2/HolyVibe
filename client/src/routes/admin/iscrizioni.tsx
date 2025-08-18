@@ -30,8 +30,9 @@ import {
 	Users,
 	X,
 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { toast } from "sonner";
+import * as XLSX from "xlsx";
 import { AdminManualRegistrationDialog } from "@/components/admin/admin-manual-registration-dialog";
 import { DataTableColumnHeader } from "@/components/admin/data-table-column-header";
 import { DataTablePagination } from "@/components/admin/data-table-pagination";
@@ -214,6 +215,13 @@ function IscrizioniPage() {
 	const [detailsDialogOpen, setDetailsDialogOpen] = useState(false);
 	const [selectedRows, setSelectedRows] = useState<string[]>([]);
 
+	// Sanitize text for Excel: remove any leading apostrophes and trim
+	const sanitizeText = useCallback((value: unknown) => {
+		if (value == null) return "";
+		const str = String(value);
+		return str.replace(/^'+/, "").trim();
+	}, []);
+
 	// TanStack Table state
 	const [sorting, setSorting] = useState<SortingState>([]);
 	const [_columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
@@ -234,7 +242,7 @@ function IscrizioniPage() {
 	// Mutation for deleting registrations
 	const deleteRegistrationMutation = useDeleteRegistrationMutation();
 
-	// @ts-ignore - Temporary fix for new authorization fields
+	// @ts-expect-error - Temporary fix for new authorization fields
 	const registrations = registrationsData?.registrations || [];
 
 	// Transform events data for select options
@@ -264,104 +272,114 @@ function IscrizioniPage() {
 	}, [searchParams.eventId, eventsData?.data]);
 
 	// Define the view details handler before using it in columns
-	const handleViewDetails = (registrationId: string) => {
+	const handleViewDetails = useCallback((registrationId: string) => {
 		setSelectedRegistrationId(registrationId);
 		setDetailsDialogOpen(true);
-	};
+	}, []);
 
 	// Handler to update registration status
-	const handleStatusUpdate = async (
-		registrationId: string,
-		newStatus: string,
-	) => {
-		try {
-			await updateRegistrationMutation.mutateAsync({
-				id: registrationId,
-				status: newStatus as "pending" | "confirmed" | "cancelled" | "waitlist",
-			});
-
-			toast.success("Stato iscrizione aggiornato con successo");
-		} catch (error) {
-			console.error("Failed to update registration status:", error);
-			toast.error("Errore nell'aggiornamento dello stato dell'iscrizione");
-		}
-	};
-
-	// Handler to update payment status
-	const handlePaymentStatusUpdate = async (
-		registrationId: string,
-		newPaymentStatus: string,
-	) => {
-		try {
-			await updateRegistrationMutation.mutateAsync({
-				id: registrationId,
-				paymentStatus: newPaymentStatus as
-					| "pending"
-					| "completed"
-					| "failed"
-					| "refunded",
-			});
-
-			toast.success("Stato pagamento aggiornato con successo");
-		} catch (error) {
-			console.error("Failed to update payment status:", error);
-			toast.error("Errore nell'aggiornamento dello stato del pagamento");
-		}
-	};
-
-	// Handler to cancel registration (change status)
-	const handleCancelRegistration = async (registrationId: string) => {
-		if (
-			confirm(
-				"Sei sicuro di voler cancellare questa iscrizione? Verrà contrassegnata come cancellata.",
-			)
-		) {
+	const handleStatusUpdate = useCallback(
+		async (registrationId: string, newStatus: string) => {
 			try {
-				toast.loading("Cancellazione in corso...", {
-					id: `cancel-${registrationId}`,
-				});
 				await updateRegistrationMutation.mutateAsync({
 					id: registrationId,
-					status: "cancelled",
+					status: newStatus as
+						| "pending"
+						| "confirmed"
+						| "cancelled"
+						| "waitlist",
 				});
-				toast.success("Iscrizione cancellata con successo", {
-					id: `cancel-${registrationId}`,
-				});
+
+				toast.success("Stato iscrizione aggiornato con successo");
 			} catch (error) {
-				console.error("Failed to cancel registration:", error);
-				toast.error("Errore nella cancellazione dell'iscrizione", {
-					id: `cancel-${registrationId}`,
-				});
+				console.error("Failed to update registration status:", error);
+				toast.error("Errore nell'aggiornamento dello stato dell'iscrizione");
 			}
-		}
-	};
+		},
+		[updateRegistrationMutation],
+	);
+
+	// Handler to update payment status
+	const handlePaymentStatusUpdate = useCallback(
+		async (registrationId: string, newPaymentStatus: string) => {
+			try {
+				await updateRegistrationMutation.mutateAsync({
+					id: registrationId,
+					paymentStatus: newPaymentStatus as
+						| "pending"
+						| "completed"
+						| "failed"
+						| "refunded",
+				});
+
+				toast.success("Stato pagamento aggiornato con successo");
+			} catch (error) {
+				console.error("Failed to update payment status:", error);
+				toast.error("Errore nell'aggiornamento dello stato del pagamento");
+			}
+		},
+		[updateRegistrationMutation],
+	);
+
+	// Handler to cancel registration (change status)
+	const handleCancelRegistration = useCallback(
+		async (registrationId: string) => {
+			if (
+				confirm(
+					"Sei sicuro di voler cancellare questa iscrizione? Verrà contrassegnata come cancellata.",
+				)
+			) {
+				try {
+					toast.loading("Cancellazione in corso...", {
+						id: `cancel-${registrationId}`,
+					});
+					await updateRegistrationMutation.mutateAsync({
+						id: registrationId,
+						status: "cancelled",
+					});
+					toast.success("Iscrizione cancellata con successo", {
+						id: `cancel-${registrationId}`,
+					});
+				} catch (error) {
+					console.error("Failed to cancel registration:", error);
+					toast.error("Errore nella cancellazione dell'iscrizione", {
+						id: `cancel-${registrationId}`,
+					});
+				}
+			}
+		},
+		[updateRegistrationMutation],
+	);
 
 	// Handler to delete registration permanently
-	const handleDeleteRegistration = async (registrationId: string) => {
-		if (
-			confirm(
-				"Sei sicuro di voler eliminare definitivamente questa iscrizione? Questa operazione NON può essere annullata!",
-			)
-		) {
-			try {
-				toast.loading("Eliminazione in corso...", {
-					id: `delete-${registrationId}`,
-				});
-				await deleteRegistrationMutation.mutateAsync({
-					id: registrationId,
-				});
-				toast.success("Iscrizione eliminata definitivamente", {
-					id: `delete-${registrationId}`,
-				});
-				setSelectedRows((prev) => prev.filter((id) => id !== registrationId));
-			} catch (error) {
-				console.error("Failed to delete registration:", error);
-				toast.error("Errore nell'eliminazione dell'iscrizione", {
-					id: `delete-${registrationId}`,
-				});
+	const handleDeleteRegistration = useCallback(
+		async (registrationId: string) => {
+			if (
+				confirm(
+					"Sei sicuro di voler eliminare definitivamente questa iscrizione? Questa operazione NON può essere annullata!",
+				)
+			) {
+				try {
+					toast.loading("Eliminazione in corso...", {
+						id: `delete-${registrationId}`,
+					});
+					await deleteRegistrationMutation.mutateAsync({
+						id: registrationId,
+					});
+					toast.success("Iscrizione eliminata definitivamente", {
+						id: `delete-${registrationId}`,
+					});
+					setSelectedRows((prev) => prev.filter((id) => id !== registrationId));
+				} catch (error) {
+					console.error("Failed to delete registration:", error);
+					toast.error("Errore nell'eliminazione dell'iscrizione", {
+						id: `delete-${registrationId}`,
+					});
+				}
 			}
-		}
-	};
+		},
+		[deleteRegistrationMutation],
+	);
 
 	// Batch operations handlers
 	const handleBatchStatusUpdate = async (newStatus: string) => {
@@ -808,8 +826,8 @@ function IscrizioniPage() {
 			handlePaymentStatusUpdate,
 			handleCancelRegistration,
 			handleDeleteRegistration,
-			updateRegistrationMutation,
-			deleteRegistrationMutation,
+			updateRegistrationMutation.isPending,
+			deleteRegistrationMutation.isPending,
 		],
 	);
 
@@ -829,7 +847,7 @@ function IscrizioniPage() {
 	// Setup TanStack Table
 	const table = useReactTable({
 		data: registrations,
-		// @ts-ignore - Temporary fix for new authorization fields
+		// @ts-expect-error - Temporary fix for new authorization fields
 		columns: tstColumns,
 		getCoreRowModel: getCoreRowModel(),
 		getFilteredRowModel: getFilteredRowModel(),
@@ -869,12 +887,12 @@ function IscrizioniPage() {
 	// Calculate stats from all data
 	const stats = {
 		total: registrations.length,
-		// @ts-ignore - Temporary fix for new authorization fields
+		// @ts-expect-error - Temporary fix for new authorization fields
 		pending: registrations.filter((r: any) => r.status === "pending").length,
-		// @ts-ignore - Temporary fix for new authorization fields
+		// @ts-expect-error - Temporary fix for new authorization fields
 		confirmed: registrations.filter((r: any) => r.status === "confirmed")
 			.length,
-		// @ts-ignore - Temporary fix for new authorization fields
+		// @ts-expect-error - Temporary fix for new authorization fields
 		paymentPending: registrations.filter(
 			(r: any) => r.paymentStatus === "pending",
 		).length,
@@ -1034,7 +1052,151 @@ function IscrizioniPage() {
 									onBatchStatusUpdate={handleBatchStatusUpdate}
 									onBatchDelete={handleBatchDelete}
 									onExport={() => {
-										console.log("Export functionality to be implemented");
+										try {
+											// Determine which rows to export: selected or all filtered
+											const rowsToExport =
+												selectedRows.length > 0
+													? registrations.filter((r: any) =>
+															selectedRows.includes(r.id),
+														)
+													: table
+															.getFilteredRowModel()
+															.rows.map((r) => r.original);
+
+											if (!rowsToExport || rowsToExport.length === 0) {
+												toast.info("Nessuna iscrizione da esportare");
+												return;
+											}
+
+											// Map data to a flat JSON structure for XLSX
+											const data = rowsToExport.map((reg: any) => {
+												// Build helper map for locations per authorized person for this registration
+												const personIdToLocations: Record<string, string[]> =
+													{};
+												for (const auth of reg.locationAuthorizations || []) {
+													if (!personIdToLocations[auth.authorizedPersonId]) {
+														personIdToLocations[auth.authorizedPersonId] = [];
+													}
+													if (auth.location) {
+														personIdToLocations[auth.authorizedPersonId].push(
+															auth.location,
+														);
+													}
+												}
+												const eventDate = reg.event?.startDate
+													? new Date(reg.event.startDate)
+													: null;
+												const regDate = reg.registrationDate
+													? new Date(reg.registrationDate)
+													: null;
+
+												const authorizedWithLocations = (
+													reg.authorizedPersons || []
+												)
+													.map((p: any) => {
+														const locs = personIdToLocations[p.id] || [];
+														return locs.length > 0
+															? `${p.fullName} (${locs.join(", ")})`
+															: p.fullName;
+													})
+													.join("; ");
+
+												return {
+													Bambino: sanitizeText(
+														`${reg.child.firstName} ${reg.child.lastName}`,
+													),
+													Età:
+														new Date().getFullYear() -
+														new Date(reg.child.birthDate).getFullYear(),
+													Genitore: sanitizeText(reg.parent.name),
+													"Email genitore": sanitizeText(reg.parent.email),
+													"Telefono genitore": sanitizeText(
+														reg.parent.phoneNumber ?? "",
+													),
+													Famiglia: sanitizeText(reg.family?.name ?? ""),
+													Evento: sanitizeText(reg.event.title),
+													"Data evento": eventDate || "",
+													"Data iscrizione": regDate || "",
+													Stato: getStatusLabel(reg.status),
+													Pagamento: getPaymentStatusLabel(reg.paymentStatus),
+													Allergie: sanitizeText(reg.child.allergies ?? ""),
+													"Note mediche": sanitizeText(
+														reg.child.medicalNotes ?? "",
+													),
+													"Note iscrizione": sanitizeText(reg.notes ?? ""),
+													"Può uscire da solo": reg.canExitAlone ? "Sì" : "No",
+													"Luoghi di uscita consentiti": sanitizeText(
+														(reg.allowedExitLocations || []).join(", "),
+													),
+													"Persone autorizzate (luoghi)": sanitizeText(
+														authorizedWithLocations,
+													),
+												};
+											});
+
+											// Define headers order for predictable columns and formatting
+											const headers = [
+												"Bambino",
+												"Età",
+												"Genitore",
+												"Email genitore",
+												"Telefono genitore",
+												"Famiglia",
+												"Evento",
+												"Data evento",
+												"Data iscrizione",
+												"Stato",
+												"Pagamento",
+												"Allergie",
+												"Note mediche",
+												"Note iscrizione",
+												"Può uscire da solo",
+												"Luoghi di uscita consentiti",
+												"Persone autorizzate (luoghi)",
+											];
+
+											const worksheet = XLSX.utils.json_to_sheet(data, {
+												header: headers,
+											});
+
+											// Apply Excel date formatting to date columns
+											const dateHeaders = ["Data evento", "Data iscrizione"];
+											const range = worksheet["!ref"]
+												? XLSX.utils.decode_range(worksheet["!ref"])
+												: null;
+											if (range) {
+												for (let r = range.s.r + 1; r <= range.e.r; r++) {
+													for (const header of dateHeaders) {
+														const cIndex = headers.indexOf(header);
+														if (cIndex >= 0) {
+															const addr = XLSX.utils.encode_cell({
+																r,
+																c: cIndex,
+															});
+															const cell: any = worksheet[addr];
+															if (cell && cell.v) {
+																cell.t = "d"; // mark as date
+																cell.z = "dd/mm/yyyy"; // display format
+																worksheet[addr] = cell;
+															}
+														}
+													}
+												}
+											}
+											const workbook = XLSX.utils.book_new();
+											XLSX.utils.book_append_sheet(
+												workbook,
+												worksheet,
+												"Iscrizioni",
+											);
+
+											const timestamp = format(new Date(), "yyyyMMdd_HHmm");
+											XLSX.writeFile(workbook, `iscrizioni_${timestamp}.xlsx`);
+											toast.success("Esportazione completata");
+										} catch (err) {
+											console.error("Errore esportazione XLSX", err);
+											toast.error("Errore durante l'esportazione");
+										}
 									}}
 								/>
 

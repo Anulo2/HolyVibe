@@ -6,6 +6,7 @@ import {
 	Calendar,
 	ChevronLeft,
 	ChevronRight,
+	Download,
 	Eye,
 	Filter,
 	Mail,
@@ -19,7 +20,7 @@ import {
 	UserPlus,
 	Users,
 } from "lucide-react";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { z } from "zod";
 import {
@@ -100,6 +101,12 @@ function SupremeAdminUsersPage() {
 		null,
 	);
 	const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false);
+	const [exportingAll, setExportingAll] = useState(false);
+
+	const skeletonKeys = useMemo(
+		() => Array.from({ length: 10 }, (_, idx) => `user-skeleton-${idx}`),
+		[],
+	);
 
 	// Query for users
 	const {
@@ -213,6 +220,148 @@ function SupremeAdminUsersPage() {
 		}
 	};
 
+	const handleExportAllVCard = async () => {
+		try {
+			setExportingAll(true);
+			toast.info("Preparazione export vCard in corso...");
+			// Fetch all users across pages
+			const allUsers: any[] = [];
+			let currentPage = 1;
+			let totalPages = 1;
+			const limit = 100; // use larger page size for faster export
+			do {
+				const res = await orpcClient.supremeAdmin.getAllUsers({
+					page: currentPage,
+					limit,
+				});
+				allUsers.push(...(res.users || []));
+				totalPages = res.pagination?.totalPages || 1;
+				currentPage += 1;
+			} while (currentPage <= totalPages);
+
+			if (allUsers.length === 0) {
+				toast.info("Nessun utente da esportare");
+				return;
+			}
+
+			// Fetch details (with organizations) in small concurrent batches
+			const concurrency = 5;
+			const detailResults: string[] = [];
+			for (let i = 0; i < allUsers.length; i += concurrency) {
+				const chunk = allUsers.slice(i, i + concurrency);
+				const vcards = await Promise.all(
+					chunk.map(async (u) => {
+						try {
+							const details = await orpcClient.supremeAdmin.getUserDetails({
+								userId: u.id,
+							});
+							return generateVCard(details.user, details.memberships || []);
+						} catch (_err) {
+							return "";
+						}
+					}),
+				);
+				detailResults.push(...vcards.filter(Boolean));
+			}
+
+			const content = detailResults.join("\n");
+			const blob = new Blob([content], { type: "text/vcard;charset=utf-8" });
+			const url = URL.createObjectURL(blob);
+			const a = document.createElement("a");
+			a.href = url;
+			a.download = `utenti_${new Date().toISOString().slice(0, 10)}.vcf`;
+			document.body.appendChild(a);
+			a.click();
+			a.remove();
+			URL.revokeObjectURL(url);
+			toast.success(`Esportati ${detailResults.length} contatti in vCard`);
+		} catch (err: any) {
+			console.error("Bulk vCard export failed", err);
+			toast.error(err?.message || "Errore nell'esportazione vCard globale");
+		} finally {
+			setExportingAll(false);
+		}
+	};
+
+	const sanitizeVCardText = (text?: string | null) => {
+		if (!text) return "";
+		return String(text)
+			.replace(/\\/g, "\\\\")
+			.replace(/\n/g, "\\n")
+			.replace(/,/g, "\\,")
+			.replace(/;/g, "\\;");
+	};
+
+	const makeSafeFilename = (name: string) =>
+		name.replace(/[^a-z0-9-_]+/gi, "_");
+
+	const generateVCard = (
+		user: any,
+		memberships: Array<{
+			organizationName: string | null;
+			role: string | null;
+		}>,
+	) => {
+		const fullName = user.name || user.email || "Utente";
+		const [lastName, firstName] = (() => {
+			if (!user.name) return ["", fullName];
+			const parts = String(user.name).trim().split(/\s+/);
+			if (parts.length === 1) return ["", parts[0]];
+			return [parts.slice(-1)[0], parts.slice(0, -1).join(" ")];
+		})();
+
+		const orgs = memberships
+			.map((m) => m.organizationName)
+			.filter(Boolean)
+			.join(", ");
+		const roleLines = memberships
+			.filter((m) => m.organizationName)
+			.map(
+				(m) =>
+					`X-ORG-ROLE:${sanitizeVCardText(m.organizationName || "")} - ${sanitizeVCardText(m.role || "membro")}`,
+			)
+			.join("\n");
+
+		const lines = [
+			"BEGIN:VCARD",
+			"VERSION:3.0",
+			`N:${sanitizeVCardText(lastName)};${sanitizeVCardText(firstName)};;;`,
+			`FN:${sanitizeVCardText(fullName)}`,
+			user.email
+				? `EMAIL;TYPE=INTERNET:${sanitizeVCardText(user.email)}`
+				: null,
+			user.phoneNumber
+				? `TEL;TYPE=CELL:${sanitizeVCardText(user.phoneNumber)}`
+				: null,
+			orgs ? `ORG:${sanitizeVCardText(orgs)}` : null,
+			roleLines || null,
+			"END:VCARD",
+		].filter(Boolean) as string[];
+
+		return lines.join("\n");
+	};
+
+	const handleExportVCard = async (user: any) => {
+		try {
+			const details = await orpcClient.supremeAdmin.getUserDetails({
+				userId: user.id,
+			});
+			const vcard = generateVCard(details.user, details.memberships || []);
+			const blob = new Blob([vcard], { type: "text/vcard;charset=utf-8" });
+			const url = URL.createObjectURL(blob);
+			const a = document.createElement("a");
+			a.href = url;
+			a.download = `${makeSafeFilename(details.user.name || details.user.email || "contatto")}.vcf`;
+			document.body.appendChild(a);
+			a.click();
+			a.remove();
+			URL.revokeObjectURL(url);
+		} catch (err: any) {
+			console.error("vCard export failed", err);
+			toast.error(err?.message || "Errore nell'esportazione vCard");
+		}
+	};
+
 	if (error) {
 		return (
 			<div className="container mx-auto py-6">
@@ -272,6 +421,14 @@ function SupremeAdminUsersPage() {
 						<Button onClick={handleSearch} disabled={isLoading}>
 							Cerca
 						</Button>
+						<Button
+							variant="outline"
+							onClick={handleExportAllVCard}
+							disabled={exportingAll || isLoading}
+						>
+							<Download className="mr-2 h-4 w-4" />
+							Scarica vCard (tutti)
+						</Button>
 					</div>
 
 					<div className="flex flex-wrap gap-3">
@@ -308,9 +465,9 @@ function SupremeAdminUsersPage() {
 				<CardContent>
 					{isLoading ? (
 						<div className="space-y-3">
-							{Array.from({ length: 10 }).map((_, i) => (
+							{skeletonKeys.map((key) => (
 								<div
-									key={i}
+									key={key}
 									className="flex items-center space-x-4 p-3 border rounded animate-pulse"
 								>
 									<div className="h-10 w-10 bg-gray-200 rounded-full"></div>
@@ -466,6 +623,15 @@ function SupremeAdminUsersPage() {
 																Impersonifica Utente
 															</DropdownMenuItem>
 														)}
+
+														<DropdownMenuSeparator />
+
+														<DropdownMenuItem
+															onClick={() => handleExportVCard(user)}
+														>
+															<Download className="h-4 w-4 mr-2" />
+															Scarica vCard
+														</DropdownMenuItem>
 
 														<DropdownMenuSeparator />
 

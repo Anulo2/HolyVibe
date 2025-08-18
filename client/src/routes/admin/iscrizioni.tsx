@@ -1183,6 +1183,25 @@ function IscrizioniPage() {
 													}
 												}
 											}
+
+											// Force phone numbers column to be text
+											const phoneColIndex =
+												headers.indexOf("Telefono genitore");
+											if (range && phoneColIndex >= 0) {
+												for (let r = range.s.r + 1; r <= range.e.r; r++) {
+													const addr = XLSX.utils.encode_cell({
+														r,
+														c: phoneColIndex,
+													});
+													const cell: any = worksheet[addr];
+													if (cell) {
+														cell.t = "s";
+														cell.z = "@";
+														worksheet[addr] = cell;
+													}
+												}
+											}
+
 											const workbook = XLSX.utils.book_new();
 											XLSX.utils.book_append_sheet(
 												workbook,

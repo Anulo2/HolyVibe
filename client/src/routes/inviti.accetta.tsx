@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { AlertCircle, CheckCircle, Loader2, UserPlus } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -25,16 +25,14 @@ function InvitationAcceptancePage() {
 		"loading" | "success" | "error" | "expired" | "login-required"
 	>("loading");
 	const [errorMessage, setErrorMessage] = useState<string>("");
+	const hasPromptedRef = useRef(false);
 
 	// Get current session
 	const session = authClient.useSession();
 
 	// Get invitation details (public endpoint)
-	const {
-		data: invitationDetails,
-		isLoading: detailsLoading,
-		error: detailsError,
-	} = useInvitationDetailsQuery(token);
+	const { data: invitationDetails, error: detailsError } =
+		useInvitationDetailsQuery(token);
 
 	// Accept invitation mutation (requires auth)
 	const acceptInvitationMutation = useAcceptInvitationMutation();
@@ -61,45 +59,76 @@ function InvitationAcceptancePage() {
 				return;
 			}
 
-			// User is authenticated, try to accept the invitation
-			acceptInvitationMutation.mutate(
-				{ token },
-				{
-					onSuccess: (data) => {
-						setStatus("success");
-						toast.success(
-							`Sei stato aggiunto alla famiglia "${data.familyName}"!`,
-						);
+			// Prompt explicit Sonner confirmation instead of auto-accept
+			if (!hasPromptedRef.current) {
+				hasPromptedRef.current = true;
+				setStatus("loading");
+				toast(
+					`Invito a unirti alla famiglia "${invitationDetails.familyName}"`,
+					{
+						description:
+							invitationDetails.message ||
+							"Clicca Accetta per entrare nella famiglia.",
+						action: {
+							label: "Accetta invito",
+							onClick: () => {
+								acceptInvitationMutation.mutate(
+									{ token },
+									{
+										onSuccess: (data) => {
+											setStatus("success");
+											toast.success(
+												`Sei stato aggiunto alla famiglia "${data.familyName}"!`,
+											);
+										},
+										onError: (error: unknown) => {
+											const message =
+												error instanceof Error ? error.message : String(error);
+											console.error("Error accepting invitation:", error);
+											if (
+												message.includes("GONE") ||
+												message.includes("expired")
+											) {
+												setStatus("expired");
+												setErrorMessage(
+													"Questo invito è scaduto. Richiedi un nuovo invito.",
+												);
+											} else if (message.includes("NOT_FOUND")) {
+												setStatus("error");
+												setErrorMessage("Invito non valido o già utilizzato.");
+											} else if (message.includes("CONFLICT")) {
+												setStatus("error");
+												setErrorMessage("Sei già membro di questa famiglia.");
+											} else if (message.includes("FORBIDDEN")) {
+												setStatus("error");
+												setErrorMessage(
+													"Questo invito non è destinato al tuo account.",
+												);
+											} else {
+												setStatus("error");
+												setErrorMessage(
+													"Errore durante l'accettazione dell'invito. Riprova più tardi.",
+												);
+											}
+										},
+									},
+								);
+							},
+						},
 					},
-					onError: (error: any) => {
-						console.error("Error accepting invitation:", error);
-
-						if (
-							error.message?.includes("GONE") ||
-							error.message?.includes("expired")
-						) {
-							setStatus("expired");
-							setErrorMessage(
-								"Questo invito è scaduto. Richiedi un nuovo invito.",
-							);
-						} else if (error.message?.includes("NOT_FOUND")) {
+				);
+				// Provide a separate quick cancel option as another toast
+				toast("Vuoi rifiutare questo invito?", {
+					description: "Puoi sempre chiedere un nuovo invito in seguito.",
+					action: {
+						label: "Rifiuta",
+						onClick: () => {
 							setStatus("error");
-							setErrorMessage("Invito non valido o già utilizzato.");
-						} else if (error.message?.includes("CONFLICT")) {
-							setStatus("error");
-							setErrorMessage("Sei già membro di questa famiglia.");
-						} else if (error.message?.includes("FORBIDDEN")) {
-							setStatus("error");
-							setErrorMessage("Questo invito non è destinato al tuo account.");
-						} else {
-							setStatus("error");
-							setErrorMessage(
-								"Errore durante l'accettazione dell'invito. Riprova più tardi.",
-							);
-						}
+							setErrorMessage("Hai rifiutato l'invito.");
+						},
 					},
-				},
-			);
+				});
+			}
 		}
 
 		// Handle errors getting invitation details
@@ -214,7 +243,9 @@ function InvitationAcceptancePage() {
 								</Button>
 								<Button
 									variant="outline"
-									onClick={() => (window.location.href = "/")}
+									onClick={() => {
+										window.location.href = "/";
+									}}
 									className="w-full"
 								>
 									Torna alla Home

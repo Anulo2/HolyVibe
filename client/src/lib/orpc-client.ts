@@ -31,7 +31,9 @@ const link = new RPCLink({
 			credentials: "include", // Include cookies for authentication
 			cache: "no-cache", // Disable HTTP caching
 			headers: {
-				...init?.headers,
+				...(init && "headers" in init
+					? (init as RequestInit).headers
+					: undefined),
 				"Cache-Control": "no-cache, no-store, must-revalidate",
 				Pragma: "no-cache",
 				Expires: "0",

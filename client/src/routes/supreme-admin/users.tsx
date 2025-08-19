@@ -3,808 +3,943 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { format } from "date-fns";
 import { it } from "date-fns/locale";
 import {
-	Calendar,
-	ChevronLeft,
-	ChevronRight,
-	Download,
-	Eye,
-	Filter,
-	Mail,
-	MoreHorizontal,
-	Phone,
-	Search,
-	Shield,
-	ShieldCheck,
-	Trash2,
-	UserCheck,
-	UserPlus,
-	Users,
+  Calendar,
+  ChevronLeft,
+  ChevronRight,
+  Download,
+  Eye,
+  FileSpreadsheet,
+  Filter,
+  Mail,
+  MoreHorizontal,
+  Phone,
+  Search,
+  Shield,
+  ShieldCheck,
+  Trash2,
+  UserCheck,
+  UserPlus,
+  Users,
 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
+import * as XLSX from "xlsx";
 import { z } from "zod";
 import {
-	type SupremeAdminUser,
-	UserDetailsDialog,
+  type SupremeAdminUser,
+  UserDetailsDialog,
 } from "../../components/supreme-admin/UserDetailsDialog";
 import {
-	AlertDialog,
-	AlertDialogAction,
-	AlertDialogCancel,
-	AlertDialogContent,
-	AlertDialogDescription,
-	AlertDialogFooter,
-	AlertDialogHeader,
-	AlertDialogTitle,
-	AlertDialogTrigger,
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
 } from "../../components/ui/alert-dialog";
 import { Badge } from "../../components/ui/badge";
 import { Button } from "../../components/ui/button";
 import {
-	Card,
-	CardContent,
-	CardDescription,
-	CardHeader,
-	CardTitle,
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
 } from "../../components/ui/card";
 import {
-	DropdownMenu,
-	DropdownMenuContent,
-	DropdownMenuItem,
-	DropdownMenuLabel,
-	DropdownMenuSeparator,
-	DropdownMenuTrigger,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
 } from "../../components/ui/dropdown-menu";
 import { Input } from "../../components/ui/input";
 import {
-	Select,
-	SelectContent,
-	SelectItem,
-	SelectTrigger,
-	SelectValue,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
 } from "../../components/ui/select";
 import {
-	Table,
-	TableBody,
-	TableCell,
-	TableHead,
-	TableHeader,
-	TableRow,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
 } from "../../components/ui/table";
 import { useDeleteUserMutation } from "../../hooks/useUsersQuery";
 import { authClient } from "../../lib/auth-client";
 import { orpcClient } from "../../lib/orpc-client";
 
 const searchSchema = z.object({
-	page: z.number().min(1).optional().default(1),
-	search: z.string().optional(),
-	role: z.enum(["user", "admin"]).optional(),
-	sortBy: z
-		.enum(["name", "email", "createdAt"])
-		.optional()
-		.default("createdAt"),
-	sortOrder: z.enum(["asc", "desc"]).optional().default("desc"),
+  page: z.number().min(1).optional().default(1),
+  search: z.string().optional(),
+  role: z.enum(["user", "admin"]).optional(),
+  sortBy: z
+    .enum(["name", "email", "createdAt"])
+    .optional()
+    .default("createdAt"),
+  sortOrder: z.enum(["asc", "desc"]).optional().default("desc"),
 });
 
 export const Route = createFileRoute("/supreme-admin/users")({
-	validateSearch: searchSchema,
-	component: SupremeAdminUsersPage,
+  validateSearch: searchSchema,
+  component: SupremeAdminUsersPage,
 });
 
 function SupremeAdminUsersPage() {
-	const navigate = useNavigate();
-	const queryClient = useQueryClient();
-	const { page, search, role, sortBy, sortOrder } = Route.useSearch();
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const { page, search, role, sortBy, sortOrder } = Route.useSearch();
 
-	const [localSearch, setLocalSearch] = useState(search || "");
-	const [selectedUser, setSelectedUser] = useState<SupremeAdminUser | null>(
-		null,
-	);
-	const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false);
-	const [exportingAll, setExportingAll] = useState(false);
+  const [localSearch, setLocalSearch] = useState(search || "");
+  const [selectedUser, setSelectedUser] = useState<SupremeAdminUser | null>(
+    null,
+  );
+  const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false);
+  const [exportingAll, setExportingAll] = useState(false);
+  const [exportingXLSX, setExportingXLSX] = useState(false);
 
-	const skeletonKeys = useMemo(
-		() => Array.from({ length: 10 }, (_, idx) => `user-skeleton-${idx}`),
-		[],
-	);
+  const skeletonKeys = useMemo(
+    () => Array.from({ length: 10 }, (_, idx) => `user-skeleton-${idx}`),
+    [],
+  );
 
-	// Query for users
-	const {
-		data: usersData,
-		isLoading,
-		error,
-	} = useQuery({
-		queryKey: [
-			"supreme-admin",
-			"users",
-			{ page, search, role, sortBy, sortOrder },
-		],
-		queryFn: () =>
-			orpcClient.supremeAdmin.getAllUsers({
-				page,
-				limit: 20,
-				search,
-				role,
-				sortBy,
-				sortOrder,
-			}),
-	});
+  // Query for users
+  const {
+    data: usersData,
+    isLoading,
+    error,
+  } = useQuery({
+    queryKey: [
+      "supreme-admin",
+      "users",
+      { page, search, role, sortBy, sortOrder },
+    ],
+    queryFn: () =>
+      orpcClient.supremeAdmin.getAllUsers({
+        page,
+        limit: 20,
+        search,
+        role,
+        sortBy,
+        sortOrder,
+      }),
+  });
 
-	// Mutation for updating user role
-	const updateUserRoleMutation = useMutation({
-		mutationFn: (data: { userId: string; role: "user" | "admin" }) =>
-			orpcClient.supremeAdmin.updateUserRole(data),
-		onSuccess: () => {
-			queryClient.invalidateQueries({ queryKey: ["supreme-admin", "users"] });
-			toast.success("Ruolo utente aggiornato con successo");
-		},
-		onError: (error: any) => {
-			toast.error(error.message || "Errore nell'aggiornamento del ruolo");
-		},
-	});
+  // Mutation for updating user role
+  const updateUserRoleMutation = useMutation({
+    mutationFn: (data: { userId: string; role: "user" | "admin" }) =>
+      orpcClient.supremeAdmin.updateUserRole(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["supreme-admin", "users"] });
+      toast.success("Ruolo utente aggiornato con successo");
+    },
+    onError: (error: any) => {
+      toast.error(error.message || "Errore nell'aggiornamento del ruolo");
+    },
+  });
 
-	// Mutation for deleting user
-	const deleteUserMutation = useDeleteUserMutation();
+  // Mutation for deleting user
+  const deleteUserMutation = useDeleteUserMutation();
 
-	// Function for impersonating a user using better-auth API
-	const handleImpersonateUser = async (userId: string) => {
-		try {
-			await authClient.admin.impersonateUser({
-				userId: userId,
-			});
-			toast.success("Impersonazione avviata");
-			// Refresh page to reload with impersonated user session
-			window.location.reload();
-		} catch (error: any) {
-			toast.error(error.message || "Errore nell'avvio dell'impersonazione");
-		}
-	};
+  // Function for impersonating a user using better-auth API
+  const handleImpersonateUser = async (userId: string) => {
+    try {
+      await authClient.admin.impersonateUser({
+        userId: userId,
+      });
+      toast.success("Impersonazione avviata");
+      // Refresh page to reload with impersonated user session
+      window.location.reload();
+    } catch (error: any) {
+      toast.error(error.message || "Errore nell'avvio dell'impersonazione");
+    }
+  };
 
-	const handleViewUserDetails = (user: SupremeAdminUser) => {
-		setSelectedUser(user);
-		setIsDetailsDialogOpen(true);
-	};
+  const handleViewUserDetails = (user: SupremeAdminUser) => {
+    setSelectedUser(user);
+    setIsDetailsDialogOpen(true);
+  };
 
-	const handleSearch = () => {
-		navigate({
-			to: "/supreme-admin/users",
-			search: {
-				search: localSearch || undefined,
-				page: 1,
-			},
-		});
-	};
+  const handleSearch = () => {
+    navigate({
+      to: "/supreme-admin/users",
+      search: {
+        search: localSearch || undefined,
+        page: 1,
+      },
+    });
+  };
 
-	const handleRoleFilter = (newRole: string) => {
-		navigate({
-			to: "/supreme-admin/users",
-			search: {
-				role: newRole === "all" ? undefined : (newRole as "user" | "admin"),
-				page: 1,
-			},
-		});
-	};
+  const handleRoleFilter = (newRole: string) => {
+    navigate({
+      to: "/supreme-admin/users",
+      search: {
+        role: newRole === "all" ? undefined : (newRole as "user" | "admin"),
+        page: 1,
+      },
+    });
+  };
 
-	const handleSort = (newSortBy: "name" | "email" | "createdAt") => {
-		const newSortOrder =
-			sortBy === newSortBy && sortOrder === "asc" ? "desc" : "asc";
-		navigate({
-			to: "/supreme-admin/users",
-			search: {
-				sortBy: newSortBy,
-				sortOrder: newSortOrder,
-				page: 1,
-			},
-		});
-	};
+  const handleSort = (newSortBy: "name" | "email" | "createdAt") => {
+    const newSortOrder =
+      sortBy === newSortBy && sortOrder === "asc" ? "desc" : "asc";
+    navigate({
+      to: "/supreme-admin/users",
+      search: {
+        sortBy: newSortBy,
+        sortOrder: newSortOrder,
+        page: 1,
+      },
+    });
+  };
 
-	const handlePageChange = (newPage: number) => {
-		navigate({
-			to: "/supreme-admin/users",
-			search: {
-				page: newPage,
-			},
-		});
-	};
+  const handlePageChange = (newPage: number) => {
+    navigate({
+      to: "/supreme-admin/users",
+      search: {
+        page: newPage,
+      },
+    });
+  };
 
-	const handleRoleChange = (userId: string, newRole: "user" | "admin") => {
-		updateUserRoleMutation.mutate({ userId, role: newRole });
-	};
+  const handleRoleChange = (userId: string, newRole: "user" | "admin") => {
+    updateUserRoleMutation.mutate({ userId, role: newRole });
+  };
 
-	const handleDeleteUser = async (userId: string) => {
-		try {
-			await deleteUserMutation.mutateAsync(userId);
-		} catch (error: any) {
-			// Error handling is already done in the mutation
-			console.error("Error deleting user:", error);
-		}
-	};
+  const handleDeleteUser = async (userId: string) => {
+    try {
+      await deleteUserMutation.mutateAsync(userId);
+    } catch (error: any) {
+      // Error handling is already done in the mutation
+      console.error("Error deleting user:", error);
+    }
+  };
 
-	const handleExportAllVCard = async () => {
-		try {
-			setExportingAll(true);
-			toast.info("Preparazione export vCard in corso...");
-			// Fetch all users across pages
-			const allUsers: any[] = [];
-			let currentPage = 1;
-			let totalPages = 1;
-			const limit = 100; // use larger page size for faster export
-			do {
-				const res = await orpcClient.supremeAdmin.getAllUsers({
-					page: currentPage,
-					limit,
-				});
-				allUsers.push(...(res.users || []));
-				totalPages = res.pagination?.totalPages || 1;
-				currentPage += 1;
-			} while (currentPage <= totalPages);
+  const handleExportAllVCard = async () => {
+    try {
+      setExportingAll(true);
+      toast.info("Preparazione export vCard in corso...");
+      // Fetch all users across pages
+      const allUsers: any[] = [];
+      let currentPage = 1;
+      let totalPages = 1;
+      const limit = 100; // use larger page size for faster export
+      do {
+        const res = await orpcClient.supremeAdmin.getAllUsers({
+          page: currentPage,
+          limit,
+        });
+        allUsers.push(...(res.users || []));
+        totalPages = res.pagination?.totalPages || 1;
+        currentPage += 1;
+      } while (currentPage <= totalPages);
 
-			if (allUsers.length === 0) {
-				toast.info("Nessun utente da esportare");
-				return;
-			}
+      if (allUsers.length === 0) {
+        toast.info("Nessun utente da esportare");
+        return;
+      }
 
-			// Fetch details (with organizations) in small concurrent batches
-			const concurrency = 5;
-			const detailResults: string[] = [];
-			for (let i = 0; i < allUsers.length; i += concurrency) {
-				const chunk = allUsers.slice(i, i + concurrency);
-				const vcards = await Promise.all(
-					chunk.map(async (u) => {
-						try {
-							const details = await orpcClient.supremeAdmin.getUserDetails({
-								userId: u.id,
-							});
-							return generateVCard(details.user, details.memberships || []);
-						} catch (_err) {
-							return "";
-						}
-					}),
-				);
-				detailResults.push(...vcards.filter(Boolean));
-			}
+      // Fetch details (with organizations) in small concurrent batches
+      const concurrency = 5;
+      const detailResults: string[] = [];
+      for (let i = 0; i < allUsers.length; i += concurrency) {
+        const chunk = allUsers.slice(i, i + concurrency);
+        const vcards = await Promise.all(
+          chunk.map(async (u) => {
+            try {
+              const details = await orpcClient.supremeAdmin.getUserDetails({
+                userId: u.id,
+              });
+              return generateVCard(details.user, details.memberships || []);
+            } catch (_err) {
+              return "";
+            }
+          }),
+        );
+        detailResults.push(...vcards.filter(Boolean));
+      }
 
-			const content = detailResults.join("\n");
-			const blob = new Blob([content], { type: "text/vcard;charset=utf-8" });
-			const url = URL.createObjectURL(blob);
-			const a = document.createElement("a");
-			a.href = url;
-			a.download = `utenti_${new Date().toISOString().slice(0, 10)}.vcf`;
-			document.body.appendChild(a);
-			a.click();
-			a.remove();
-			URL.revokeObjectURL(url);
-			toast.success(`Esportati ${detailResults.length} contatti in vCard`);
-		} catch (err: any) {
-			console.error("Bulk vCard export failed", err);
-			toast.error(err?.message || "Errore nell'esportazione vCard globale");
-		} finally {
-			setExportingAll(false);
-		}
-	};
+      const content = detailResults.join("\n");
+      const blob = new Blob([content], { type: "text/vcard;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `utenti_${new Date().toISOString().slice(0, 10)}.vcf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      toast.success(`Esportati ${detailResults.length} contatti in vCard`);
+    } catch (err: any) {
+      console.error("Bulk vCard export failed", err);
+      toast.error(err?.message || "Errore nell'esportazione vCard globale");
+    } finally {
+      setExportingAll(false);
+    }
+  };
 
-	const sanitizeVCardText = (text?: string | null) => {
-		if (!text) return "";
-		return String(text)
-			.replace(/\\/g, "\\\\")
-			.replace(/\n/g, "\\n")
-			.replace(/,/g, "\\,")
-			.replace(/;/g, "\\;");
-	};
+  const sanitizeVCardText = (text?: string | null) => {
+    if (!text) return "";
+    return String(text)
+      .replace(/\\/g, "\\\\")
+      .replace(/\n/g, "\\n")
+      .replace(/,/g, "\\,")
+      .replace(/;/g, "\\;");
+  };
 
-	const makeSafeFilename = (name: string) =>
-		name.replace(/[^a-z0-9-_]+/gi, "_");
+  const makeSafeFilename = (name: string) =>
+    name.replace(/[^a-z0-9-_]+/gi, "_");
 
-	const generateVCard = (
-		user: any,
-		memberships: Array<{
-			organizationName: string | null;
-			role: string | null;
-		}>,
-	) => {
-		const fullName = user.name || user.email || "Utente";
-		const [lastName, firstName] = (() => {
-			if (!user.name) return ["", fullName];
-			const parts = String(user.name).trim().split(/\s+/);
-			if (parts.length === 1) return ["", parts[0]];
-			return [parts.slice(-1)[0], parts.slice(0, -1).join(" ")];
-		})();
+  const generateVCard = (
+    user: any,
+    memberships: Array<{
+      organizationName: string | null;
+      role: string | null;
+    }>,
+  ) => {
+    const fullName = user.name || user.email || "Utente";
+    const [lastName, firstName] = (() => {
+      if (!user.name) return ["", fullName];
+      const parts = String(user.name).trim().split(/\s+/);
+      if (parts.length === 1) return ["", parts[0]];
+      return [parts.slice(-1)[0], parts.slice(0, -1).join(" ")];
+    })();
 
-		const orgs = memberships
-			.map((m) => m.organizationName)
-			.filter(Boolean)
-			.join(", ");
-		const roleLines = memberships
-			.filter((m) => m.organizationName)
-			.map(
-				(m) =>
-					`X-ORG-ROLE:${sanitizeVCardText(m.organizationName || "")} - ${sanitizeVCardText(m.role || "membro")}`,
-			)
-			.join("\n");
+    const orgs = memberships
+      .map((m) => m.organizationName)
+      .filter(Boolean)
+      .join(", ");
+    const roleLines = memberships
+      .filter((m) => m.organizationName)
+      .map(
+        (m) =>
+          `X-ORG-ROLE:${sanitizeVCardText(m.organizationName || "")} - ${sanitizeVCardText(m.role || "membro")}`,
+      )
+      .join("\n");
 
-		const lines = [
-			"BEGIN:VCARD",
-			"VERSION:3.0",
-			`N:${sanitizeVCardText(lastName)};${sanitizeVCardText(firstName)};;;`,
-			`FN:${sanitizeVCardText(fullName)}`,
-			user.email
-				? `EMAIL;TYPE=INTERNET:${sanitizeVCardText(user.email)}`
-				: null,
-			user.phoneNumber
-				? `TEL;TYPE=CELL:${sanitizeVCardText(user.phoneNumber)}`
-				: null,
-			orgs ? `ORG:${sanitizeVCardText(orgs)}` : null,
-			roleLines || null,
-			"END:VCARD",
-		].filter(Boolean) as string[];
+    const lines = [
+      "BEGIN:VCARD",
+      "VERSION:3.0",
+      `N:${sanitizeVCardText(lastName)};${sanitizeVCardText(firstName)};;;`,
+      `FN:${sanitizeVCardText(fullName)}`,
+      user.email
+        ? `EMAIL;TYPE=INTERNET:${sanitizeVCardText(user.email)}`
+        : null,
+      user.phoneNumber
+        ? `TEL;TYPE=CELL:${sanitizeVCardText(user.phoneNumber)}`
+        : null,
+      orgs ? `ORG:${sanitizeVCardText(orgs)}` : null,
+      roleLines || null,
+      "END:VCARD",
+    ].filter(Boolean) as string[];
 
-		return lines.join("\n");
-	};
+    return lines.join("\n");
+  };
 
-	const handleExportVCard = async (user: any) => {
-		try {
-			const details = await orpcClient.supremeAdmin.getUserDetails({
-				userId: user.id,
-			});
-			const vcard = generateVCard(details.user, details.memberships || []);
-			const blob = new Blob([vcard], { type: "text/vcard;charset=utf-8" });
-			const url = URL.createObjectURL(blob);
-			const a = document.createElement("a");
-			a.href = url;
-			a.download = `${makeSafeFilename(details.user.name || details.user.email || "contatto")}.vcf`;
-			document.body.appendChild(a);
-			a.click();
-			a.remove();
-			URL.revokeObjectURL(url);
-		} catch (err: any) {
-			console.error("vCard export failed", err);
-			toast.error(err?.message || "Errore nell'esportazione vCard");
-		}
-	};
+  const handleExportVCard = async (user: any) => {
+    try {
+      const details = await orpcClient.supremeAdmin.getUserDetails({
+        userId: user.id,
+      });
+      const vcard = generateVCard(details.user, details.memberships || []);
+      const blob = new Blob([vcard], { type: "text/vcard;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${makeSafeFilename(details.user.name || details.user.email || "contatto")}.vcf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (err: any) {
+      console.error("vCard export failed", err);
+      toast.error(err?.message || "Errore nell'esportazione vCard");
+    }
+  };
 
-	if (error) {
-		return (
-			<div className="container mx-auto py-6">
-				<Card className="border-red-200">
-					<CardContent className="pt-6">
-						<div className="text-center text-red-600">
-							<Users className="h-12 w-12 mx-auto mb-4 opacity-50" />
-							<h3 className="text-lg font-semibold mb-2">
-								Errore nel caricamento
-							</h3>
-							<p className="text-sm">
-								Non è stato possibile caricare gli utenti.
-							</p>
-						</div>
-					</CardContent>
-				</Card>
-			</div>
-		);
-	}
+  const handleExportAllXLSX = async () => {
+    try {
+      setExportingXLSX(true);
+      toast.info("Preparazione export XLSX in corso...");
 
-	return (
-		<div className="container mx-auto py-6 space-y-6">
-			{/* Header */}
-			<div className="flex flex-col space-y-2">
-				<div className="flex items-center space-x-2">
-					<Users className="h-8 w-8 text-blue-600" />
-					<h1 className="text-3xl font-bold tracking-tight">Gestione Utenti</h1>
-					<Badge variant="secondary" className="bg-purple-100 text-purple-800">
-						Supreme Admin
-					</Badge>
-				</div>
-				<p className="text-muted-foreground">
-					Visualizza, modifica e gestisci tutti gli utenti del sistema
-				</p>
-			</div>
+      // Fetch all users across pages
+      const allUsers: any[] = [];
+      let currentPage = 1;
+      let totalPages = 1;
+      const limit = 100; // use larger page size for faster export
 
-			{/* Filters and Search */}
-			<Card>
-				<CardHeader>
-					<CardTitle className="flex items-center">
-						<Filter className="h-5 w-5 mr-2" />
-						Filtri e Ricerca
-					</CardTitle>
-				</CardHeader>
-				<CardContent className="space-y-4">
-					<div className="flex flex-col sm:flex-row gap-4">
-						<div className="flex-1 relative">
-							<Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-							<Input
-								placeholder="Cerca per nome, email o telefono..."
-								value={localSearch}
-								onChange={(e) => setLocalSearch(e.target.value)}
-								onKeyDown={(e) => e.key === "Enter" && handleSearch()}
-								className="pl-10"
-							/>
-						</div>
-						<Button onClick={handleSearch} disabled={isLoading}>
-							Cerca
-						</Button>
-						<Button
-							variant="outline"
-							onClick={handleExportAllVCard}
-							disabled={exportingAll || isLoading}
-						>
-							<Download className="mr-2 h-4 w-4" />
-							Scarica vCard (tutti)
-						</Button>
-					</div>
+      do {
+        const res = await orpcClient.supremeAdmin.getAllUsers({
+          page: currentPage,
+          limit,
+        });
+        allUsers.push(...(res.users || []));
+        totalPages = res.pagination?.totalPages || 1;
+        currentPage += 1;
+      } while (currentPage <= totalPages);
 
-					<div className="flex flex-wrap gap-3">
-						<Select value={role || "all"} onValueChange={handleRoleFilter}>
-							<SelectTrigger className="w-[180px]">
-								<SelectValue placeholder="Filtra per ruolo" />
-							</SelectTrigger>
-							<SelectContent>
-								<SelectItem value="all">Tutti i ruoli</SelectItem>
-								<SelectItem value="user">Utenti</SelectItem>
-								<SelectItem value="admin">Supreme Admin</SelectItem>
-							</SelectContent>
-						</Select>
+      if (allUsers.length === 0) {
+        toast.info("Nessun utente da esportare");
+        return;
+      }
 
-						<Button asChild>
-							<Link to="/supreme-admin/users">
-								<UserPlus className="h-4 w-4 mr-2" />
-								Crea Supreme Admin (Presto Disponibile)
-							</Link>
-						</Button>
-					</div>
-				</CardContent>
-			</Card>
+      // Fetch details (with organizations) in small concurrent batches
+      const concurrency = 5;
+      const detailResults: any[] = [];
 
-			{/* Users Table */}
-			<Card>
-				<CardHeader>
-					<CardTitle>Utenti ({usersData?.pagination.total || 0})</CardTitle>
-					<CardDescription>
-						Pagina {usersData?.pagination.page || 1} di{" "}
-						{usersData?.pagination.totalPages || 1}
-					</CardDescription>
-				</CardHeader>
-				<CardContent>
-					{isLoading ? (
-						<div className="space-y-3">
-							{skeletonKeys.map((key) => (
-								<div
-									key={key}
-									className="flex items-center space-x-4 p-3 border rounded animate-pulse"
-								>
-									<div className="h-10 w-10 bg-gray-200 rounded-full"></div>
-									<div className="flex-1 space-y-2">
-										<div className="h-4 bg-gray-200 rounded w-1/4"></div>
-										<div className="h-3 bg-gray-200 rounded w-1/3"></div>
-									</div>
-									<div className="h-6 w-20 bg-gray-200 rounded"></div>
-								</div>
-							))}
-						</div>
-					) : (
-						<>
-							<Table>
-								<TableHeader>
-									<TableRow>
-										<TableHead>
-											<Button
-												variant="ghost"
-												onClick={() => handleSort("name")}
-												className="h-8 p-0 font-semibold"
-											>
-												Nome
-												{sortBy === "name" && (
-													<span className="ml-1">
-														{sortOrder === "asc" ? "↑" : "↓"}
-													</span>
-												)}
-											</Button>
-										</TableHead>
-										<TableHead>
-											<Button
-												variant="ghost"
-												onClick={() => handleSort("email")}
-												className="h-8 p-0 font-semibold"
-											>
-												Email
-												{sortBy === "email" && (
-													<span className="ml-1">
-														{sortOrder === "asc" ? "↑" : "↓"}
-													</span>
-												)}
-											</Button>
-										</TableHead>
-										<TableHead>Telefono</TableHead>
-										<TableHead>Ruolo</TableHead>
-										<TableHead>
-											<Button
-												variant="ghost"
-												onClick={() => handleSort("createdAt")}
-												className="h-8 p-0 font-semibold"
-											>
-												Registrato
-												{sortBy === "createdAt" && (
-													<span className="ml-1">
-														{sortOrder === "asc" ? "↑" : "↓"}
-													</span>
-												)}
-											</Button>
-										</TableHead>
-										<TableHead className="text-right">Azioni</TableHead>
-									</TableRow>
-								</TableHeader>
-								<TableBody>
-									{usersData?.users.map((user) => (
-										<TableRow key={user.id}>
-											<TableCell>
-												<div className="flex items-center space-x-3">
-													<div className="h-8 w-8 bg-gray-200 rounded-full flex items-center justify-center">
-														{user.name?.[0]?.toUpperCase() || "?"}
-													</div>
-													<div>
-														<p className="font-medium">
-															{user.name || "Nome non disponibile"}
-														</p>
-														{user.birthDate && (
-															<p className="text-xs text-muted-foreground flex items-center">
-																<Calendar className="h-3 w-3 mr-1" />
-																{format(
-																	new Date(user.birthDate),
-																	"dd/MM/yyyy",
-																	{ locale: it },
-																)}
-															</p>
-														)}
-													</div>
-												</div>
-											</TableCell>
-											<TableCell>
-												<div className="flex items-center space-x-2">
-													<Mail className="h-4 w-4 text-gray-400" />
-													<span>{user.email}</span>
-													{user.emailVerified && (
-														<Badge variant="outline" className="text-xs">
-															Verificata
-														</Badge>
-													)}
-												</div>
-											</TableCell>
-											<TableCell>
-												{user.phoneNumber ? (
-													<div className="flex items-center space-x-2">
-														<Phone className="h-4 w-4 text-gray-400" />
-														<span>{user.phoneNumber}</span>
-														{user.phoneNumberVerified && (
-															<Badge variant="outline" className="text-xs">
-																Verificato
-															</Badge>
-														)}
-													</div>
-												) : (
-													<span className="text-muted-foreground">
-														Non disponibile
-													</span>
-												)}
-											</TableCell>
-											<TableCell>
-												{user.role === "admin" ? (
-													<Badge className="bg-purple-100 text-purple-800">
-														<Shield className="h-3 w-3 mr-1" />
-														Supreme Admin
-													</Badge>
-												) : (
-													<Badge variant="secondary">Utente</Badge>
-												)}
-											</TableCell>
-											<TableCell>
-												{format(new Date(user.createdAt), "dd/MM/yyyy", {
-													locale: it,
-												})}
-											</TableCell>
-											<TableCell className="text-right">
-												<DropdownMenu>
-													<DropdownMenuTrigger asChild>
-														<Button variant="ghost" className="h-8 w-8 p-0">
-															<MoreHorizontal className="h-4 w-4" />
-														</Button>
-													</DropdownMenuTrigger>
-													<DropdownMenuContent align="end">
-														<DropdownMenuLabel>Azioni</DropdownMenuLabel>
-														<DropdownMenuItem
-															onClick={() => handleViewUserDetails(user)}
-														>
-															<Eye className="h-4 w-4 mr-2" />
-															Visualizza Dettagli
-														</DropdownMenuItem>
+      for (let i = 0; i < allUsers.length; i += concurrency) {
+        const chunk = allUsers.slice(i, i + concurrency);
+        const userDetails = await Promise.all(
+          chunk.map(async (u) => {
+            try {
+              const details = await orpcClient.supremeAdmin.getUserDetails({
+                userId: u.id,
+              });
+              return {
+                ...details.user,
+                memberships: details.memberships || [],
+              };
+            } catch (_err) {
+              return {
+                ...u,
+                memberships: [],
+              };
+            }
+          }),
+        );
+        detailResults.push(...userDetails);
+      }
 
-														{user.role !== "admin" && (
-															<DropdownMenuItem
-																onClick={() => handleImpersonateUser(user.id)}
-															>
-																<UserCheck className="h-4 w-4 mr-2" />
-																Impersonifica Utente
-															</DropdownMenuItem>
-														)}
+      // Prepare data for XLSX export
+      const data = detailResults.map((user) => {
+        const organizations = user.memberships
+          .map((m: any) => m.organizationName)
+          .filter(Boolean)
+          .join(", ");
 
-														<DropdownMenuSeparator />
+        const roles = user.memberships
+          .filter((m: any) => m.organizationName)
+          .map((m: any) => `${m.organizationName}: ${m.role || "membro"}`)
+          .join("; ");
 
-														<DropdownMenuItem
-															onClick={() => handleExportVCard(user)}
-														>
-															<Download className="h-4 w-4 mr-2" />
-															Scarica vCard
-														</DropdownMenuItem>
+        return {
+          Nome: user.name || "",
+          Email: user.email || "",
+          Telefono: user.phoneNumber || "",
+          "Data di nascita": user.birthDate
+            ? format(new Date(user.birthDate), "dd/MM/yyyy", { locale: it })
+            : "",
+          "Ruolo Sistema": user.role === "admin" ? "Supreme Admin" : "Utente",
+          "Email Verificata": user.emailVerified ? "Sì" : "No",
+          "Telefono Verificato": user.phoneNumberVerified ? "Sì" : "No",
+          "Data Registrazione": format(
+            new Date(user.createdAt),
+            "dd/MM/yyyy HH:mm",
+            { locale: it },
+          ),
+          "Ultimo Accesso": user.updatedAt
+            ? format(new Date(user.updatedAt), "dd/MM/yyyy HH:mm", {
+                locale: it,
+              })
+            : "",
+          Organizzazioni: organizations,
+          "Ruoli Organizzazioni": roles,
+        };
+      });
 
-														<DropdownMenuSeparator />
+      // Create workbook and worksheet
+      const worksheet = XLSX.utils.json_to_sheet(data);
 
-														{user.role === "admin" ? (
-															<AlertDialog>
-																<AlertDialogTrigger asChild>
-																	<DropdownMenuItem
-																		onSelect={(e) => e.preventDefault()}
-																	>
-																		<Shield className="h-4 w-4 mr-2" />
-																		Rimuovi Privilegi Admin
-																	</DropdownMenuItem>
-																</AlertDialogTrigger>
-																<AlertDialogContent>
-																	<AlertDialogHeader>
-																		<AlertDialogTitle>
-																			Rimuovere privilegi Supreme Admin?
-																		</AlertDialogTitle>
-																		<AlertDialogDescription>
-																			Questa azione rimuoverà i privilegi di
-																			Supreme Admin dall'utente{" "}
-																			{user.name || user.email}. L'utente
-																			diventerà un utente normale.
-																		</AlertDialogDescription>
-																	</AlertDialogHeader>
-																	<AlertDialogFooter>
-																		<AlertDialogCancel>
-																			Annulla
-																		</AlertDialogCancel>
-																		<AlertDialogAction
-																			onClick={() =>
-																				handleRoleChange(user.id, "user")
-																			}
-																			disabled={
-																				updateUserRoleMutation.isPending
-																			}
-																		>
-																			Rimuovi Privilegi
-																		</AlertDialogAction>
-																	</AlertDialogFooter>
-																</AlertDialogContent>
-															</AlertDialog>
-														) : (
-															<AlertDialog>
-																<AlertDialogTrigger asChild>
-																	<DropdownMenuItem
-																		onSelect={(e) => e.preventDefault()}
-																	>
-																		<ShieldCheck className="h-4 w-4 mr-2" />
-																		Promuovi a Supreme Admin
-																	</DropdownMenuItem>
-																</AlertDialogTrigger>
-																<AlertDialogContent>
-																	<AlertDialogHeader>
-																		<AlertDialogTitle>
-																			Promuovere a Supreme Admin?
-																		</AlertDialogTitle>
-																		<AlertDialogDescription>
-																			Questa azione darà all'utente{" "}
-																			{user.name || user.email} i privilegi
-																			massimi di Supreme Admin. Potrà gestire
-																			tutti gli utenti e le parrocchie del
-																			sistema.
-																		</AlertDialogDescription>
-																	</AlertDialogHeader>
-																	<AlertDialogFooter>
-																		<AlertDialogCancel>
-																			Annulla
-																		</AlertDialogCancel>
-																		<AlertDialogAction
-																			onClick={() =>
-																				handleRoleChange(user.id, "admin")
-																			}
-																			disabled={
-																				updateUserRoleMutation.isPending
-																			}
-																		>
-																			Promuovi
-																		</AlertDialogAction>
-																	</AlertDialogFooter>
-																</AlertDialogContent>
-															</AlertDialog>
-														)}
+      // Auto-size columns
+      const columnWidths = [
+        { wch: 25 }, // Nome
+        { wch: 30 }, // Email
+        { wch: 15 }, // Telefono
+        { wch: 12 }, // Data di nascita
+        { wch: 15 }, // Ruolo Sistema
+        { wch: 12 }, // Email Verificata
+        { wch: 15 }, // Telefono Verificato
+        { wch: 18 }, // Data Registrazione
+        { wch: 18 }, // Ultimo Accesso
+        { wch: 40 }, // Organizzazioni
+        { wch: 50 }, // Ruoli Organizzazioni
+      ];
+      worksheet["!cols"] = columnWidths;
 
-														<DropdownMenuSeparator />
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, "Utenti");
 
-														<AlertDialog>
-															<AlertDialogTrigger asChild>
-																<DropdownMenuItem
-																	onSelect={(e) => e.preventDefault()}
-																	className="text-destructive focus:text-destructive"
-																>
-																	<Trash2 className="h-4 w-4 mr-2" />
-																	Elimina Utente
-																</DropdownMenuItem>
-															</AlertDialogTrigger>
-															<AlertDialogContent>
-																<AlertDialogHeader>
-																	<AlertDialogTitle>
-																		Eliminare definitivamente l'utente?
-																	</AlertDialogTitle>
-																	<AlertDialogDescription>
-																		Questa azione eliminerà permanentemente
-																		l'utente {user.name || user.email} e tutti i
-																		suoi dati dal sistema. Questa azione non può
-																		essere annullata.
-																	</AlertDialogDescription>
-																</AlertDialogHeader>
-																<AlertDialogFooter>
-																	<AlertDialogCancel>Annulla</AlertDialogCancel>
-																	<AlertDialogAction
-																		onClick={() => handleDeleteUser(user.id)}
-																		disabled={deleteUserMutation.isPending}
-																		className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-																	>
-																		Elimina Definitivamente
-																	</AlertDialogAction>
-																</AlertDialogFooter>
-															</AlertDialogContent>
-														</AlertDialog>
-													</DropdownMenuContent>
-												</DropdownMenu>
-											</TableCell>
-										</TableRow>
-									))}
-								</TableBody>
-							</Table>
+      const timestamp = format(new Date(), "yyyyMMdd_HHmm");
+      XLSX.writeFile(workbook, `utenti_globali_${timestamp}.xlsx`);
 
-							{/* Pagination */}
-							{usersData && usersData.pagination.totalPages > 1 && (
-								<div className="flex items-center justify-between mt-6">
-									<div className="text-sm text-muted-foreground">
-										Visualizzando {(usersData.pagination.page - 1) * 20 + 1} -{" "}
-										{Math.min(
-											usersData.pagination.page * 20,
-											usersData.pagination.total,
-										)}{" "}
-										di {usersData.pagination.total} utenti
-									</div>
-									<div className="flex items-center space-x-2">
-										<Button
-											variant="outline"
-											size="sm"
-											onClick={() => handlePageChange(page - 1)}
-											disabled={page <= 1}
-										>
-											<ChevronLeft className="h-4 w-4" />
-										</Button>
-										<span className="text-sm">
-											Pagina {page} di {usersData.pagination.totalPages}
-										</span>
-										<Button
-											variant="outline"
-											size="sm"
-											onClick={() => handlePageChange(page + 1)}
-											disabled={page >= usersData.pagination.totalPages}
-										>
-											<ChevronRight className="h-4 w-4" />
-										</Button>
-									</div>
-								</div>
-							)}
-						</>
-					)}
-				</CardContent>
-			</Card>
+      toast.success(`Esportati ${detailResults.length} utenti in XLSX`);
+    } catch (err: any) {
+      console.error("XLSX export failed", err);
+      toast.error(err?.message || "Errore nell'esportazione XLSX");
+    } finally {
+      setExportingXLSX(false);
+    }
+  };
 
-			{/* User Details Dialog */}
-			<UserDetailsDialog
-				user={selectedUser}
-				open={isDetailsDialogOpen}
-				onOpenChange={setIsDetailsDialogOpen}
-			/>
-		</div>
-	);
+  if (error) {
+    return (
+      <div className="container mx-auto py-6">
+        <Card className="border-red-200">
+          <CardContent className="pt-6">
+            <div className="text-center text-red-600">
+              <Users className="h-12 w-12 mx-auto mb-4 opacity-50" />
+              <h3 className="text-lg font-semibold mb-2">
+                Errore nel caricamento
+              </h3>
+              <p className="text-sm">
+                Non è stato possibile caricare gli utenti.
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  return (
+    <div className="container mx-auto py-6 space-y-6">
+      {/* Header */}
+      <div className="flex flex-col space-y-2">
+        <div className="flex items-center space-x-2">
+          <Users className="h-8 w-8 text-blue-600" />
+          <h1 className="text-3xl font-bold tracking-tight">Gestione Utenti</h1>
+          <Badge variant="secondary" className="bg-purple-100 text-purple-800">
+            Supreme Admin
+          </Badge>
+        </div>
+        <p className="text-muted-foreground">
+          Visualizza, modifica e gestisci tutti gli utenti del sistema
+        </p>
+      </div>
+
+      {/* Filters and Search */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center">
+            <Filter className="h-5 w-5 mr-2" />
+            Filtri e Ricerca
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex flex-col sm:flex-row gap-4">
+            <div className="flex-1 relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+              <Input
+                placeholder="Cerca per nome, email o telefono..."
+                value={localSearch}
+                onChange={(e) => setLocalSearch(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && handleSearch()}
+                className="pl-10"
+              />
+            </div>
+            <Button onClick={handleSearch} disabled={isLoading}>
+              Cerca
+            </Button>
+            <Button
+              variant="outline"
+              onClick={handleExportAllVCard}
+              disabled={exportingAll || isLoading}
+            >
+              <Download className="mr-2 h-4 w-4" />
+              Scarica vCard (tutti)
+            </Button>
+            <Button
+              variant="outline"
+              onClick={handleExportAllXLSX}
+              disabled={exportingXLSX || isLoading}
+            >
+              <FileSpreadsheet className="mr-2 h-4 w-4" />
+              Esporta XLSX (tutti)
+            </Button>
+          </div>
+
+          <div className="flex flex-wrap gap-3">
+            <Select value={role || "all"} onValueChange={handleRoleFilter}>
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="Filtra per ruolo" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Tutti i ruoli</SelectItem>
+                <SelectItem value="user">Utenti</SelectItem>
+                <SelectItem value="admin">Supreme Admin</SelectItem>
+              </SelectContent>
+            </Select>
+
+            <Button asChild>
+              <Link to="/supreme-admin/users">
+                <UserPlus className="h-4 w-4 mr-2" />
+                Crea Supreme Admin (Presto Disponibile)
+              </Link>
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Users Table */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Utenti ({usersData?.pagination.total || 0})</CardTitle>
+          <CardDescription>
+            Pagina {usersData?.pagination.page || 1} di{" "}
+            {usersData?.pagination.totalPages || 1}
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {isLoading ? (
+            <div className="space-y-3">
+              {skeletonKeys.map((key) => (
+                <div
+                  key={key}
+                  className="flex items-center space-x-4 p-3 border rounded animate-pulse"
+                >
+                  <div className="h-10 w-10 bg-gray-200 rounded-full"></div>
+                  <div className="flex-1 space-y-2">
+                    <div className="h-4 bg-gray-200 rounded w-1/4"></div>
+                    <div className="h-3 bg-gray-200 rounded w-1/3"></div>
+                  </div>
+                  <div className="h-6 w-20 bg-gray-200 rounded"></div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>
+                      <Button
+                        variant="ghost"
+                        onClick={() => handleSort("name")}
+                        className="h-8 p-0 font-semibold"
+                      >
+                        Nome
+                        {sortBy === "name" && (
+                          <span className="ml-1">
+                            {sortOrder === "asc" ? "↑" : "↓"}
+                          </span>
+                        )}
+                      </Button>
+                    </TableHead>
+                    <TableHead>
+                      <Button
+                        variant="ghost"
+                        onClick={() => handleSort("email")}
+                        className="h-8 p-0 font-semibold"
+                      >
+                        Email
+                        {sortBy === "email" && (
+                          <span className="ml-1">
+                            {sortOrder === "asc" ? "↑" : "↓"}
+                          </span>
+                        )}
+                      </Button>
+                    </TableHead>
+                    <TableHead>Telefono</TableHead>
+                    <TableHead>Ruolo</TableHead>
+                    <TableHead>
+                      <Button
+                        variant="ghost"
+                        onClick={() => handleSort("createdAt")}
+                        className="h-8 p-0 font-semibold"
+                      >
+                        Registrato
+                        {sortBy === "createdAt" && (
+                          <span className="ml-1">
+                            {sortOrder === "asc" ? "↑" : "↓"}
+                          </span>
+                        )}
+                      </Button>
+                    </TableHead>
+                    <TableHead className="text-right">Azioni</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {usersData?.users.map((user) => (
+                    <TableRow key={user.id}>
+                      <TableCell>
+                        <div className="flex items-center space-x-3">
+                          <div className="h-8 w-8 bg-gray-200 rounded-full flex items-center justify-center">
+                            {user.name?.[0]?.toUpperCase() || "?"}
+                          </div>
+                          <div>
+                            <p className="font-medium">
+                              {user.name || "Nome non disponibile"}
+                            </p>
+                            {user.birthDate && (
+                              <p className="text-xs text-muted-foreground flex items-center">
+                                <Calendar className="h-3 w-3 mr-1" />
+                                {format(
+                                  new Date(user.birthDate),
+                                  "dd/MM/yyyy",
+                                  { locale: it },
+                                )}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center space-x-2">
+                          <Mail className="h-4 w-4 text-gray-400" />
+                          <span>{user.email}</span>
+                          {user.emailVerified && (
+                            <Badge variant="outline" className="text-xs">
+                              Verificata
+                            </Badge>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        {user.phoneNumber ? (
+                          <div className="flex items-center space-x-2">
+                            <Phone className="h-4 w-4 text-gray-400" />
+                            <span>{user.phoneNumber}</span>
+                            {user.phoneNumberVerified && (
+                              <Badge variant="outline" className="text-xs">
+                                Verificato
+                              </Badge>
+                            )}
+                          </div>
+                        ) : (
+                          <span className="text-muted-foreground">
+                            Non disponibile
+                          </span>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {user.role === "admin" ? (
+                          <Badge className="bg-purple-100 text-purple-800">
+                            <Shield className="h-3 w-3 mr-1" />
+                            Supreme Admin
+                          </Badge>
+                        ) : (
+                          <Badge variant="secondary">Utente</Badge>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {format(new Date(user.createdAt), "dd/MM/yyyy", {
+                          locale: it,
+                        })}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" className="h-8 w-8 p-0">
+                              <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuLabel>Azioni</DropdownMenuLabel>
+                            <DropdownMenuItem
+                              onClick={() => handleViewUserDetails(user)}
+                            >
+                              <Eye className="h-4 w-4 mr-2" />
+                              Visualizza Dettagli
+                            </DropdownMenuItem>
+
+                            {user.role !== "admin" && (
+                              <DropdownMenuItem
+                                onClick={() => handleImpersonateUser(user.id)}
+                              >
+                                <UserCheck className="h-4 w-4 mr-2" />
+                                Impersonifica Utente
+                              </DropdownMenuItem>
+                            )}
+
+                            <DropdownMenuSeparator />
+
+                            <DropdownMenuItem
+                              onClick={() => handleExportVCard(user)}
+                            >
+                              <Download className="h-4 w-4 mr-2" />
+                              Scarica vCard
+                            </DropdownMenuItem>
+
+                            <DropdownMenuSeparator />
+
+                            {user.role === "admin" ? (
+                              <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                  <DropdownMenuItem
+                                    onSelect={(e) => e.preventDefault()}
+                                  >
+                                    <Shield className="h-4 w-4 mr-2" />
+                                    Rimuovi Privilegi Admin
+                                  </DropdownMenuItem>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                  <AlertDialogHeader>
+                                    <AlertDialogTitle>
+                                      Rimuovere privilegi Supreme Admin?
+                                    </AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                      Questa azione rimuoverà i privilegi di
+                                      Supreme Admin dall'utente{" "}
+                                      {user.name || user.email}. L'utente
+                                      diventerà un utente normale.
+                                    </AlertDialogDescription>
+                                  </AlertDialogHeader>
+                                  <AlertDialogFooter>
+                                    <AlertDialogCancel>
+                                      Annulla
+                                    </AlertDialogCancel>
+                                    <AlertDialogAction
+                                      onClick={() =>
+                                        handleRoleChange(user.id, "user")
+                                      }
+                                      disabled={
+                                        updateUserRoleMutation.isPending
+                                      }
+                                    >
+                                      Rimuovi Privilegi
+                                    </AlertDialogAction>
+                                  </AlertDialogFooter>
+                                </AlertDialogContent>
+                              </AlertDialog>
+                            ) : (
+                              <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                  <DropdownMenuItem
+                                    onSelect={(e) => e.preventDefault()}
+                                  >
+                                    <ShieldCheck className="h-4 w-4 mr-2" />
+                                    Promuovi a Supreme Admin
+                                  </DropdownMenuItem>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                  <AlertDialogHeader>
+                                    <AlertDialogTitle>
+                                      Promuovere a Supreme Admin?
+                                    </AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                      Questa azione darà all'utente{" "}
+                                      {user.name || user.email} i privilegi
+                                      massimi di Supreme Admin. Potrà gestire
+                                      tutti gli utenti e le parrocchie del
+                                      sistema.
+                                    </AlertDialogDescription>
+                                  </AlertDialogHeader>
+                                  <AlertDialogFooter>
+                                    <AlertDialogCancel>
+                                      Annulla
+                                    </AlertDialogCancel>
+                                    <AlertDialogAction
+                                      onClick={() =>
+                                        handleRoleChange(user.id, "admin")
+                                      }
+                                      disabled={
+                                        updateUserRoleMutation.isPending
+                                      }
+                                    >
+                                      Promuovi
+                                    </AlertDialogAction>
+                                  </AlertDialogFooter>
+                                </AlertDialogContent>
+                              </AlertDialog>
+                            )}
+
+                            <DropdownMenuSeparator />
+
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <DropdownMenuItem
+                                  onSelect={(e) => e.preventDefault()}
+                                  className="text-destructive focus:text-destructive"
+                                >
+                                  <Trash2 className="h-4 w-4 mr-2" />
+                                  Elimina Utente
+                                </DropdownMenuItem>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>
+                                    Eliminare definitivamente l'utente?
+                                  </AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    Questa azione eliminerà permanentemente
+                                    l'utente {user.name || user.email} e tutti i
+                                    suoi dati dal sistema. Questa azione non può
+                                    essere annullata.
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>Annulla</AlertDialogCancel>
+                                  <AlertDialogAction
+                                    onClick={() => handleDeleteUser(user.id)}
+                                    disabled={deleteUserMutation.isPending}
+                                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                  >
+                                    Elimina Definitivamente
+                                  </AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+
+              {/* Pagination */}
+              {usersData && usersData.pagination.totalPages > 1 && (
+                <div className="flex items-center justify-between mt-6">
+                  <div className="text-sm text-muted-foreground">
+                    Visualizzando {(usersData.pagination.page - 1) * 20 + 1} -{" "}
+                    {Math.min(
+                      usersData.pagination.page * 20,
+                      usersData.pagination.total,
+                    )}{" "}
+                    di {usersData.pagination.total} utenti
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handlePageChange(page - 1)}
+                      disabled={page <= 1}
+                    >
+                      <ChevronLeft className="h-4 w-4" />
+                    </Button>
+                    <span className="text-sm">
+                      Pagina {page} di {usersData.pagination.totalPages}
+                    </span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handlePageChange(page + 1)}
+                      disabled={page >= usersData.pagination.totalPages}
+                    >
+                      <ChevronRight className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* User Details Dialog */}
+      <UserDetailsDialog
+        user={selectedUser}
+        open={isDetailsDialogOpen}
+        onOpenChange={setIsDetailsDialogOpen}
+      />
+    </div>
+  );
 }

@@ -53,7 +53,9 @@ export const coreRouter = os.router({
 					.where(eq(familyMembers.userId, context.user.id));
 
 				// Get counts for each family
-				const familyIds = userFamilies.map((item) => item.family?.id);
+				const familyIds = userFamilies
+					.map((item) => item.family?.id)
+					.filter((id): id is string => Boolean(id));
 
 				let childrenCounts: { familyId: string; count: number }[] = [];
 				let authorizedPersonsCounts: { familyId: string; count: number }[] = [];
@@ -92,11 +94,11 @@ export const coreRouter = os.router({
 						family: {
 							...item.family!,
 							_count: {
-								children: childrenCountMap.get(item.family?.id) || 0,
-								authorizedPersons: personsCountMap.get(item.family?.id) || 0,
+								children: childrenCountMap.get(item.family!.id) || 0,
+								authorizedPersons: personsCountMap.get(item.family!.id) || 0,
 							},
-							createdAt: new Date(item.family?.createdAt).toISOString(),
-							updatedAt: new Date(item.family?.updatedAt).toISOString(),
+							createdAt: new Date(item.family!.createdAt).toISOString(),
+							updatedAt: new Date(item.family!.updatedAt).toISOString(),
 						},
 						member: {
 							...item.member,

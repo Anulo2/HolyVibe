@@ -346,7 +346,8 @@ export function FileUploadDemo() {
 																		size="sm"
 																		onClick={() =>
 																			copyToClipboard(
-																				file.optimizedUrls?.thumbnail,
+																				file.optimizedUrls?.thumbnail ||
+																					file.url,
 																			)
 																		}
 																		className="h-6 px-2"
@@ -363,7 +364,8 @@ export function FileUploadDemo() {
 																		size="sm"
 																		onClick={() =>
 																			window.open(
-																				file.optimizedUrls?.thumbnail,
+																				file.optimizedUrls?.thumbnail ||
+																					file.url,
 																				"_blank",
 																			)
 																		}
@@ -381,7 +383,9 @@ export function FileUploadDemo() {
 																		variant="ghost"
 																		size="sm"
 																		onClick={() =>
-																			copyToClipboard(file.optimizedUrls?.large)
+																			copyToClipboard(
+																				file.optimizedUrls?.large || file.url,
+																			)
 																		}
 																		className="h-6 px-2"
 																	>
@@ -396,7 +400,7 @@ export function FileUploadDemo() {
 																		size="sm"
 																		onClick={() =>
 																			window.open(
-																				file.optimizedUrls?.large,
+																				file.optimizedUrls?.large || file.url,
 																				"_blank",
 																			)
 																		}

@@ -207,12 +207,13 @@ export function getColumnOptions<TData, TType extends ColumnDataType, TVal>(
 	let models = uniq(filtered);
 
 	if (column.orderFn) {
-		models = models.sort((m1, m2) =>
-			column.orderFn?.(
+		models = models.sort((m1, m2) => {
+			const res = column.orderFn?.(
 				m1 as ElementType<NonNullable<TVal>>,
 				m2 as ElementType<NonNullable<TVal>>,
-			),
-		);
+			);
+			return typeof res === "number" ? res : 0;
+		});
 	}
 
 	if (column.transformOptionFn) {
@@ -220,9 +221,11 @@ export function getColumnOptions<TData, TType extends ColumnDataType, TVal>(
 		const memoizedTransform = memo(
 			() => [models],
 			(deps) =>
-				deps[0].map((m) =>
-					column.transformOptionFn?.(m as ElementType<NonNullable<TVal>>),
-				),
+				deps[0]
+					.map((m) =>
+						column.transformOptionFn?.(m as ElementType<NonNullable<TVal>>),
+					)
+					.filter((o): o is ColumnOption => o !== undefined && o !== null),
 			{ key: `transform-${column.id}` },
 		);
 		return memoizedTransform();

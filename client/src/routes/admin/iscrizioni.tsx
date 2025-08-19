@@ -242,7 +242,6 @@ function IscrizioniPage() {
 	// Mutation for deleting registrations
 	const deleteRegistrationMutation = useDeleteRegistrationMutation();
 
-	// @ts-expect-error - Temporary fix for new authorization fields
 	const registrations = registrationsData?.registrations || [];
 
 	// Transform events data for select options
@@ -846,9 +845,8 @@ function IscrizioniPage() {
 
 	// Setup TanStack Table
 	const table = useReactTable({
-		data: registrations,
-		// @ts-expect-error - Temporary fix for new authorization fields
-		columns: tstColumns,
+		data: registrations as any,
+		columns: tstColumns as any,
 		getCoreRowModel: getCoreRowModel(),
 		getFilteredRowModel: getFilteredRowModel(),
 		getPaginationRowModel: getPaginationRowModel(),
@@ -887,13 +885,12 @@ function IscrizioniPage() {
 	// Calculate stats from all data
 	const stats = {
 		total: registrations.length,
-		// @ts-expect-error - Temporary fix for new authorization fields
-		pending: registrations.filter((r: any) => r.status === "pending").length,
-		// @ts-expect-error - Temporary fix for new authorization fields
-		confirmed: registrations.filter((r: any) => r.status === "confirmed")
+		pending: (registrations as any[]).filter((r: any) => r.status === "pending")
 			.length,
-		// @ts-expect-error - Temporary fix for new authorization fields
-		paymentPending: registrations.filter(
+		confirmed: (registrations as any[]).filter(
+			(r: any) => r.status === "confirmed",
+		).length,
+		paymentPending: (registrations as any[]).filter(
 			(r: any) => r.paymentStatus === "pending",
 		).length,
 	};

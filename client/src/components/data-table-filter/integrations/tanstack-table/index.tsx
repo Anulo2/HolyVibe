@@ -63,6 +63,7 @@ export function createTSTColumns<TData>({
 				}
 
 				const sanitizedValue = config.transformOptionFn?.(value as never);
+				if (!sanitizedValue) return false;
 				return optionFilterFn(sanitizedValue.value, filterValue);
 			};
 		}
@@ -88,9 +89,9 @@ export function createTSTColumns<TData>({
 					);
 				}
 
-				const sanitizedValue = (value as never[]).map((v) =>
-					config.transformOptionFn?.(v),
-				);
+				const sanitizedValue = (value as never[])
+					.map((v) => config.transformOptionFn?.(v))
+					.filter((o): o is { value: string; label: string } => Boolean(o));
 
 				return multiOptionFilterFn(
 					sanitizedValue.map((v) => v.value),

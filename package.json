@@ -23,9 +23,9 @@
 	"dependencies": {
 		"@tanstack/react-table": "^8.21.3",
 		"@types/node": "^24.3.0",
-		"@typescript/native-preview": "^7.0.0-dev.20250816.1",
+		"@typescript/native-preview": "^7.0.0-dev.20250820.1",
 		"client": "^0.0.1",
-		"libphonenumber-js": "^1.12.12",
+		"libphonenumber-js": "^1.12.13",
 		"server": "^1.0.42"
 	},
 	"packageManager": "bun@1.2.19",

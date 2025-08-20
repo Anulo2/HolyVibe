@@ -86,6 +86,7 @@ import {
 import { useEventsQuery } from "@/hooks/useEventsQuery";
 import {
 	type RegistrationWithDetails,
+	useAllRegistrationsQuery,
 	useDeleteRegistrationMutation,
 	useRegistrationsQuery,
 	useUpdateRegistrationMutation,
@@ -227,11 +228,10 @@ function IscrizioniPage() {
 	const [_columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
 	const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
 
-	// Fetch all registrations for client-side filtering with proper number types
-	const { data: registrationsData, isLoading } = useRegistrationsQuery({
-		limit: 100, // Server max limit is 100
-		offset: 0, // Ensure this is a number
-	});
+	// Fetch all registrations across pages for client-side filtering
+	const { data: allRegistrationsData, isLoading } = useAllRegistrationsQuery(
+		{},
+	);
 
 	// Fetch events for filter options
 	const { data: eventsData } = useEventsQuery();
@@ -242,7 +242,7 @@ function IscrizioniPage() {
 	// Mutation for deleting registrations
 	const deleteRegistrationMutation = useDeleteRegistrationMutation();
 
-	const registrations = registrationsData?.registrations || [];
+	const registrations = allRegistrationsData?.registrations || [];
 
 	// Transform events data for select options
 	const eventsOptions = useMemo(() => {

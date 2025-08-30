@@ -28,6 +28,7 @@ interface DataTableToolbarProps<TData> {
 	onBatchStatusUpdate?: (status: string) => void;
 	onBatchDelete?: () => void;
 	onExport?: () => void;
+	onExportAttendance?: () => void;
 }
 
 export function DataTableToolbar<TData>({
@@ -39,6 +40,7 @@ export function DataTableToolbar<TData>({
 	onBatchStatusUpdate,
 	onBatchDelete,
 	onExport,
+	onExportAttendance,
 }: DataTableToolbarProps<TData>) {
 	const isFiltered = table.getState().columnFilters.length > 0;
 
@@ -130,6 +132,17 @@ export function DataTableToolbar<TData>({
 					>
 						<Download className="mr-2 h-4 w-4" />
 						Esporta
+					</Button>
+				)}
+				{onExportAttendance && (
+					<Button
+						variant="outline"
+						size="sm"
+						className="h-8"
+						onClick={onExportAttendance}
+					>
+						<Download className="mr-2 h-4 w-4" />
+						Esporta tabella presenze
 					</Button>
 				)}
 				<DataTableViewOptions table={table} />

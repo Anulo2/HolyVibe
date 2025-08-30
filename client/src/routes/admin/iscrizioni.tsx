@@ -32,7 +32,7 @@ import {
 } from "lucide-react";
 import { useCallback, useMemo, useState } from "react";
 import { toast } from "sonner";
-import * as XLSX from "xlsx";
+import * as XLSX from "xlsx-js-style";
 import { AdminManualRegistrationDialog } from "@/components/admin/admin-manual-registration-dialog";
 import { DataTableColumnHeader } from "@/components/admin/data-table-column-header";
 import { DataTablePagination } from "@/components/admin/data-table-pagination";
@@ -1212,6 +1212,221 @@ function IscrizioniPage() {
 										} catch (err) {
 											console.error("Errore esportazione XLSX", err);
 											toast.error("Errore durante l'esportazione");
+										}
+									}}
+									onExportAttendance={() => {
+										try {
+											const regs = table
+												.getFilteredRowModel()
+												.rows.map((r) => r.original as any);
+											if (!regs || regs.length === 0) {
+												toast.info("Nessuna iscrizione da esportare");
+												return;
+											}
+
+											// Build two-row header with merged day cells
+											const headerTop = [
+												"Bambino",
+												"Età",
+												"Lunedì",
+												"",
+												"Martedì",
+												"",
+												"Mercoledì",
+												"",
+												"Giovedì",
+												"",
+												"Venerdì",
+												"",
+												"Sabato",
+												"",
+												"Note",
+											];
+											const headerSub = [
+												"",
+												"",
+												"Ent",
+												"Usc",
+												"Ent",
+												"Usc",
+												"Ent",
+												"Usc",
+												"Ent",
+												"Usc",
+												"Ent",
+												"Usc",
+												"Ent",
+												"Usc",
+												"",
+											];
+
+											// Data rows aligned to columns: 0..14
+											const dataRows = regs.map((reg: any) => [
+												`${reg.child.firstName} ${reg.child.lastName}`,
+												new Date().getFullYear() -
+													new Date(reg.child.birthDate).getFullYear(),
+												"",
+												"",
+												"",
+												"",
+												"",
+												"",
+												"",
+												"",
+												"",
+												"",
+												"",
+												"",
+												"",
+											]);
+
+											// Add 10 blank rows for additions
+											for (let i = 0; i < 10; i++) {
+												dataRows.push([
+													"",
+													"",
+													"",
+													"",
+													"",
+													"",
+													"",
+													"",
+													"",
+													"",
+													"",
+													"",
+													"",
+													"",
+													"",
+												]);
+											}
+
+											const aoa = [headerTop, headerSub, ...dataRows];
+											const worksheet = XLSX.utils.aoa_to_sheet(aoa);
+
+											// Merge headers: Bambino, Età row span; each day col span; Note row span
+											worksheet["!merges"] = [
+												{ s: { r: 0, c: 0 }, e: { r: 1, c: 0 } },
+												{ s: { r: 0, c: 1 }, e: { r: 1, c: 1 } },
+												{ s: { r: 0, c: 2 }, e: { r: 0, c: 3 } },
+												{ s: { r: 0, c: 4 }, e: { r: 0, c: 5 } },
+												{ s: { r: 0, c: 6 }, e: { r: 0, c: 7 } },
+												{ s: { r: 0, c: 8 }, e: { r: 0, c: 9 } },
+												{ s: { r: 0, c: 10 }, e: { r: 0, c: 11 } },
+												{ s: { r: 0, c: 12 }, e: { r: 0, c: 13 } },
+												{ s: { r: 0, c: 14 }, e: { r: 1, c: 14 } },
+											];
+
+											// Apply styles: header background, bold, alignment; colored day columns
+											const setCellStyle = (
+												r: number,
+												c: number,
+												style: any,
+											) => {
+												const addr = XLSX.utils.encode_cell({ r, c });
+												const cell: any = (worksheet as any)[addr] || {
+													t: "s",
+													v: "",
+												};
+												cell.s = { ...(cell.s || {}), ...style };
+												(worksheet as any)[addr] = cell;
+											};
+
+											const headerBaseStyle = {
+												font: { bold: true },
+												alignment: { horizontal: "center", vertical: "center" },
+												fill: {
+													patternType: "solid",
+													fgColor: { rgb: "FFF0F0F0" },
+												},
+											};
+
+											// Style merged headers: Bambino (A1:A2), Età (B1:B2), Note (O1:O2)
+											setCellStyle(0, 0, headerBaseStyle);
+											setCellStyle(1, 0, headerBaseStyle);
+											setCellStyle(0, 1, headerBaseStyle);
+											setCellStyle(1, 1, headerBaseStyle);
+											setCellStyle(0, 14, headerBaseStyle);
+											setCellStyle(1, 14, headerBaseStyle);
+
+											// Day pairs with soft pastel colors
+											const dayPairs = [
+												{ cols: [2, 3], color: "FFE3F2FD" }, // Mon - light blue
+												{ cols: [4, 5], color: "FFE8F5E9" }, // Tue - light green
+												{ cols: [6, 7], color: "FFFFF3E0" }, // Wed - light orange
+												{ cols: [8, 9], color: "FFF3E5F5" }, // Thu - light purple
+												{ cols: [10, 11], color: "FFFFEBEE" }, // Fri - light pink
+												{ cols: [12, 13], color: "FFE0F7FA" }, // Sat - light cyan
+											];
+
+											// Style day headers (top merged cell and subheaders)
+											for (const pair of dayPairs) {
+												const fillStyle = {
+													font: { bold: true },
+													alignment: {
+														horizontal: "center",
+														vertical: "center",
+													},
+													fill: {
+														patternType: "solid",
+														fgColor: { rgb: pair.color },
+													},
+												};
+												// top row merged cells (apply to both to be safe)
+												setCellStyle(0, pair.cols[0], fillStyle);
+												setCellStyle(0, pair.cols[1], fillStyle);
+												// subheader row
+												setCellStyle(1, pair.cols[0], fillStyle);
+												setCellStyle(1, pair.cols[1], fillStyle);
+											}
+
+											// Style data rows for day columns (centered with same background)
+											const rangeRef = worksheet["!ref"]
+												? XLSX.utils.decode_range(worksheet["!ref"])
+												: null;
+											if (rangeRef) {
+												for (let r = 2; r <= rangeRef.e.r; r++) {
+													for (const pair of dayPairs) {
+														const cellStyle = {
+															alignment: {
+																horizontal: "center",
+																vertical: "center",
+															},
+															fill: {
+																patternType: "solid",
+																fgColor: { rgb: pair.color },
+															},
+														};
+														setCellStyle(r, pair.cols[0], cellStyle);
+														setCellStyle(r, pair.cols[1], cellStyle);
+													}
+												}
+												// Align Bambino left and Note left, Età centered
+												for (let r = 2; r <= rangeRef.e.r; r++) {
+													setCellStyle(r, 0, {
+														alignment: { horizontal: "left" },
+													});
+													setCellStyle(r, 1, {
+														alignment: { horizontal: "center" },
+													});
+													setCellStyle(r, 14, {
+														alignment: { horizontal: "left" },
+													});
+												}
+											}
+
+											const workbook = XLSX.utils.book_new();
+											XLSX.utils.book_append_sheet(
+												workbook,
+												worksheet,
+												"Presenze",
+											);
+											const timestamp = format(new Date(), "yyyyMMdd_HHmm");
+											XLSX.writeFile(workbook, `presenze_${timestamp}.xlsx`);
+											toast.success("Tabella presenze esportata");
+										} catch (err) {
+											console.error("Errore esportazione presenze", err);
+											toast.error("Errore durante l'esportazione presenze");
 										}
 									}}
 								/>
